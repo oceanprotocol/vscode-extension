@@ -9,14 +9,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
-      {
-        "command": "ocean-protocol.helloWorld",
-        "title": "Hello World"
-      },
       {
         "command": "ocean-protocol.searchAssets",
         "title": "Ocean: Search Assets"
@@ -57,5 +52,9 @@
   },
   "dependencies": {
     "@oceanprotocol/lib": "^3.3.3"
-  }
+  },
+  "activationEvents": [
+    "onCommand:ocean-protocol.searchAssets",
+    "onCommand:ocean-protocol.getAssetDetails"
+  ]
 }
