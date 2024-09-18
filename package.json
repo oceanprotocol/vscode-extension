@@ -11,6 +11,23 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "views": {
+      "ocean-protocol-view": [
+        {
+          "id": "oceanProtocolExplorer",
+          "name": "Ocean Protocol Explorer"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ocean-protocol-view",
+          "title": "Ocean Protocol",
+          "icon": "path/to/your/icon.svg"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "ocean-protocol.searchAssets",

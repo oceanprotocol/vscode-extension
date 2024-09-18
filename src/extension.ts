@@ -1,8 +1,18 @@
 import * as vscode from 'vscode'
 import { ConfigHelper, Aquarius, Config, Asset } from '@oceanprotocol/lib'
+import { OceanProtocolViewProvider } from './viewProvider'
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Ocean Protocol extension is now active!')
+
+  const provider = new OceanProtocolViewProvider(context.extensionUri)
+
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      OceanProtocolViewProvider.viewType,
+      provider
+    )
+  )
 
   // Command to search for assets
   let searchAssets = vscode.commands.registerCommand(
