@@ -16,6 +16,14 @@
       {
         "command": "ocean-protocol.helloWorld",
         "title": "Hello World"
+      },
+      {
+        "command": "ocean-protocol.searchAssets",
+        "title": "Ocean: Search Assets"
+      },
+      {
+        "command": "ocean-protocol.getAssetDetails",
+        "title": "Ocean: Get Asset Details"
       }
     ]
   },
