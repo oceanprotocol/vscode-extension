@@ -14,6 +14,7 @@
     "views": {
       "ocean-protocol-view": [
         {
+          "type": "webview",
           "id": "oceanProtocolExplorer",
           "name": "Ocean Protocol Explorer"
         }
@@ -24,7 +25,7 @@
         {
           "id": "ocean-protocol-view",
           "title": "Ocean Protocol",
-          "icon": "path/to/your/icon.svg"
+          "icon": "/ocean-icon.svg"
         }
       ]
     },
