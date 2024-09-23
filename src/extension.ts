@@ -14,63 +14,49 @@ export function activate(context: vscode.ExtensionContext) {
     )
   )
 
-  // Command to search for assets
-  let searchAssets = vscode.commands.registerCommand(
-    'ocean-protocol.searchAssets',
-    async (config: any) => {
-      const searchTerm = await vscode.window.showInputBox({
-        prompt: 'Enter search term for Ocean assets'
-      })
-      if (searchTerm) {
-        try {
-          const aquarius = new Aquarius(config.aquariusUrl)
-          const query = { query: { query_string: { query: searchTerm } } }
-          const result = await aquarius.querySearch(query)
-
-          if (result && result.hits && result.hits.hits) {
-            const assets = result.hits.hits.map((hit: any) => hit._source as Asset)
-            const assetNames = assets.map((asset) => asset.metadata.name)
-            vscode.window.showInformationMessage(`Found assets: ${assetNames.join(', ')}`)
-          } else {
-            vscode.window.showInformationMessage('No assets found.')
-          }
-        } catch (error) {
-          vscode.window.showErrorMessage(`Error searching assets: ${error}`)
-        }
-      }
-    }
-  )
-
-  // Command to get asset details
   let getAssetDetails = vscode.commands.registerCommand(
     'ocean-protocol.getAssetDetails',
-    async (config: any) => {
-      const did = await vscode.window.showInputBox({
-        prompt: 'Enter DID of the Ocean asset'
-      })
-      if (did) {
-        try {
-          const aquarius = new Aquarius(config.aquariusUrl)
-          const asset = await aquarius.resolve(did)
-          if (asset) {
-            const details = `
-              Name: ${asset.metadata.name}
-              Type: ${asset.metadata.type}
-              Description: ${asset.metadata.description}
-              Author: ${asset.metadata.author}
-            `
-            vscode.window.showInformationMessage(details)
-          } else {
-            vscode.window.showInformationMessage('Asset not found.')
-          }
-        } catch (error) {
-          vscode.window.showErrorMessage(`Error getting asset details: ${error}`)
+    async (config: any, did: string) => {
+      if (!did) {
+        vscode.window.showErrorMessage('No DID provided.')
+        return
+      }
+
+      if (!config.aquariusUrl) {
+        vscode.window.showErrorMessage('No Aquarius URL provided.')
+        return
+      }
+
+      try {
+        const aquariusUrl = new URL(config.aquariusUrl).toString()
+        const aquarius = new Aquarius(aquariusUrl)
+        const asset = await aquarius.resolve(did)
+
+        if (asset) {
+          const details = `
+            Name: ${asset.metadata.name}
+            Type: ${asset.metadata.type}
+            Description: ${asset.metadata.description}
+            Author: ${asset.metadata.author}
+          `
+          vscode.window.showInformationMessage(details)
+        } else {
+          vscode.window.showInformationMessage('Asset not found.')
+        }
+      } catch (error) {
+        console.error('Error details:', error)
+        if (error instanceof Error) {
+          vscode.window.showErrorMessage(`Error getting asset details: ${error.message}`)
+        } else {
+          vscode.window.showErrorMessage(
+            `An unknown error occurred while getting asset details.`
+          )
         }
       }
     }
   )
 
-  context.subscriptions.push(searchAssets, getAssetDetails)
+  context.subscriptions.push(getAssetDetails)
 }
 
 export function deactivate() {}

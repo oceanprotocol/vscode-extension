@@ -23,11 +23,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.onDidReceiveMessage((data) => {
       switch (data.type) {
-        case 'searchAssets':
-          vscode.commands.executeCommand('ocean-protocol.searchAssets', data.config)
-          break
         case 'getAssetDetails':
-          vscode.commands.executeCommand('ocean-protocol.getAssetDetails', data.config)
+          vscode.commands.executeCommand(
+            'ocean-protocol.getAssetDetails',
+            data.config,
+            data.did
+          )
           break
       }
     })
@@ -70,30 +71,36 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
       </head>
       <body>
           <label for="rpcUrl">RPC URL</label>
-          <input id="rpcUrl" placeholder="RPC URL" />
+          <input id="rpcUrl" placeholder="RPC URL" value="https://polygon-rpc.com/" />
 
           <label for="nodeUrl">Ocean Node URL</label>
-          <input id="nodeUrl" placeholder="Ocean Node URL" />
+          <input id="nodeUrl" placeholder="Ocean Node URL" value="https://v4.aquarius.oceanprotocol.com" />
 
-          <button id="searchAssetsBtn">Search Assets</button>
-          <button id="getAssetDetailsBtn">Get Asset Details</button>
+          <label for="didInput">Ocean Asset DID</label>
+          <input id="didInput" placeholder="Enter the DID for the asset" />
+
+          <button id="getAssetDetailsBtn">Get Asset DDO</button>
 
           <script>
               const vscode = acquireVsCodeApi();
               
               function getConfig() {
+                const defaultAquariusUrl = 'https://v4.aquarius.oceanprotocol.com';
                 return {
-                  rpcUrl: document.getElementById('rpcUrl').value,
-                  aquariusUrl: document.getElementById('nodeUrl').value,
-                  providerUrl: document.getElementById('nodeUrl').value
+                  rpcUrl: document.getElementById('rpcUrl').value || 'https://polygon-rpc.com/',
+                  aquariusUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl,
+                  providerUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl
                 };
               }
 
-              document.getElementById('searchAssetsBtn').addEventListener('click', () => {
-                  vscode.postMessage({ type: 'searchAssets', config: getConfig() });
-              });
               document.getElementById('getAssetDetailsBtn').addEventListener('click', () => {
-                  vscode.postMessage({ type: 'getAssetDetails', config: getConfig() });
+                  const config = getConfig();
+                  const did = document.getElementById('didInput').value;
+                  vscode.postMessage({ 
+                    type: 'getAssetDetails', 
+                    config: config, 
+                    did: did 
+                  });
               });
           </script>
       </body>
