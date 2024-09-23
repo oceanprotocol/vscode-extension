@@ -42,13 +42,39 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Ocean Protocol Explorer</title>
           <style>
-            body { padding: 10px; }
-            input, button { margin: 5px 0; width: 100%; }
+            body { 
+              padding: 10px; 
+              color: var(--vscode-foreground);
+              background-color: var(--vscode-editor-background);
+            }
+            input, button { 
+              margin: 5px 0; 
+              width: 100%; 
+              padding: 8px;
+              border: 1px solid var(--vscode-input-border);
+              background-color: var(--vscode-input-background);
+              color: var(--vscode-input-foreground);
+            }
+            button {
+              background-color: var(--vscode-button-background);
+              color: var(--vscode-button-foreground);
+            }
+            button:hover {
+              background-color: var(--vscode-button-hoverBackground);
+            }
+            label {
+              margin-top: 10px;
+              display: block;
+            }
           </style>
       </head>
       <body>
+          <label for="rpcUrl">RPC URL</label>
           <input id="rpcUrl" placeholder="RPC URL" />
+
+          <label for="nodeUrl">Ocean Node URL</label>
           <input id="nodeUrl" placeholder="Ocean Node URL" />
+
           <button id="searchAssetsBtn">Search Assets</button>
           <button id="getAssetDetailsBtn">Get Asset Details</button>
 
