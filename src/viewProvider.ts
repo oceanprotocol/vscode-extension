@@ -48,8 +48,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
       </head>
       <body>
           <input id="rpcUrl" placeholder="RPC URL" />
-          <input id="aquariusUrl" placeholder="Aquarius URL" />
-          <input id="providerUrl" placeholder="Provider URL" />
+          <input id="nodeUrl" placeholder="Ocean Node URL" />
           <button id="searchAssetsBtn">Search Assets</button>
           <button id="getAssetDetailsBtn">Get Asset Details</button>
 
@@ -59,8 +58,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               function getConfig() {
                 return {
                   rpcUrl: document.getElementById('rpcUrl').value,
-                  aquariusUrl: document.getElementById('aquariusUrl').value,
-                  providerUrl: document.getElementById('providerUrl').value
+                  aquariusUrl: document.getElementById('nodeUrl').value,
+                  providerUrl: document.getElementById('nodeUrl').value
                 };
               }
 
