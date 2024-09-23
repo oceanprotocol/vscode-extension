@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { ConfigHelper, Aquarius, Config, Asset } from '@oceanprotocol/lib'
+import { Aquarius, Asset } from '@oceanprotocol/lib'
 import { OceanProtocolViewProvider } from './viewProvider'
 
 export function activate(context: vscode.ExtensionContext) {
@@ -17,14 +17,13 @@ export function activate(context: vscode.ExtensionContext) {
   // Command to search for assets
   let searchAssets = vscode.commands.registerCommand(
     'ocean-protocol.searchAssets',
-    async () => {
+    async (config: any) => {
       const searchTerm = await vscode.window.showInputBox({
         prompt: 'Enter search term for Ocean assets'
       })
       if (searchTerm) {
         try {
-          const config = getOceanConfig()
-          const aquarius = new Aquarius(config.metadataCacheUri)
+          const aquarius = new Aquarius(config.aquariusUrl)
           const query = { query: { query_string: { query: searchTerm } } }
           const result = await aquarius.querySearch(query)
 
@@ -45,22 +44,21 @@ export function activate(context: vscode.ExtensionContext) {
   // Command to get asset details
   let getAssetDetails = vscode.commands.registerCommand(
     'ocean-protocol.getAssetDetails',
-    async () => {
+    async (config: any) => {
       const did = await vscode.window.showInputBox({
         prompt: 'Enter DID of the Ocean asset'
       })
       if (did) {
         try {
-          const config = getOceanConfig()
-          const aquarius = new Aquarius(config.metadataCacheUri)
+          const aquarius = new Aquarius(config.aquariusUrl)
           const asset = await aquarius.resolve(did)
           if (asset) {
             const details = `
-                        Name: ${asset.metadata.name}
-                        Type: ${asset.metadata.type}
-                        Description: ${asset.metadata.description}
-                        Author: ${asset.metadata.author}
-                    `
+              Name: ${asset.metadata.name}
+              Type: ${asset.metadata.type}
+              Description: ${asset.metadata.description}
+              Author: ${asset.metadata.author}
+            `
             vscode.window.showInformationMessage(details)
           } else {
             vscode.window.showInformationMessage('Asset not found.')
@@ -73,11 +71,6 @@ export function activate(context: vscode.ExtensionContext) {
   )
 
   context.subscriptions.push(searchAssets, getAssetDetails)
-}
-
-function getOceanConfig(): Config {
-  const configHelper = new ConfigHelper()
-  return configHelper.getConfig(1) // Assuming Ethereum mainnet, change as needed
 }
 
 export function deactivate() {}

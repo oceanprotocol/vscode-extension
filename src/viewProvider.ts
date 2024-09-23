@@ -24,10 +24,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage((data) => {
       switch (data.type) {
         case 'searchAssets':
-          vscode.commands.executeCommand('ocean-protocol.searchAssets')
+          vscode.commands.executeCommand('ocean-protocol.searchAssets', data.config)
           break
         case 'getAssetDetails':
-          vscode.commands.executeCommand('ocean-protocol.getAssetDetails')
+          vscode.commands.executeCommand('ocean-protocol.getAssetDetails', data.config)
           break
       }
     })
@@ -35,28 +35,44 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
   private _getHtmlForWebview(webview: vscode.Webview) {
     return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Ocean Protocol Explorer</title>
-            </head>
-            <body>
-                <button id="searchAssetsBtn">Search Assets</button>
-                <button id="getAssetDetailsBtn">Get Asset Details</button>
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Ocean Protocol Explorer</title>
+          <style>
+            body { padding: 10px; }
+            input, button { margin: 5px 0; width: 100%; }
+          </style>
+      </head>
+      <body>
+          <input id="rpcUrl" placeholder="RPC URL" />
+          <input id="aquariusUrl" placeholder="Aquarius URL" />
+          <input id="providerUrl" placeholder="Provider URL" />
+          <button id="searchAssetsBtn">Search Assets</button>
+          <button id="getAssetDetailsBtn">Get Asset Details</button>
 
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    document.getElementById('searchAssetsBtn').addEventListener('click', () => {
-                        vscode.postMessage({ type: 'searchAssets' });
-                    });
-                    document.getElementById('getAssetDetailsBtn').addEventListener('click', () => {
-                        vscode.postMessage({ type: 'getAssetDetails' });
-                    });
-                </script>
-            </body>
-            </html>
-        `
+          <script>
+              const vscode = acquireVsCodeApi();
+              
+              function getConfig() {
+                return {
+                  rpcUrl: document.getElementById('rpcUrl').value,
+                  aquariusUrl: document.getElementById('aquariusUrl').value,
+                  providerUrl: document.getElementById('providerUrl').value
+                };
+              }
+
+              document.getElementById('searchAssetsBtn').addEventListener('click', () => {
+                  vscode.postMessage({ type: 'searchAssets', config: getConfig() });
+              });
+              document.getElementById('getAssetDetailsBtn').addEventListener('click', () => {
+                  vscode.postMessage({ type: 'getAssetDetails', config: getConfig() });
+              });
+          </script>
+      </body>
+      </html>
+    `
   }
 }
