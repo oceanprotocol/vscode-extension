@@ -1,6 +1,9 @@
 import * as vscode from 'vscode'
-import { Aquarius, Asset } from '@oceanprotocol/lib'
+import { Aquarius, Asset, ConfigHelper } from '@oceanprotocol/lib'
 import { OceanProtocolViewProvider } from './viewProvider'
+import { ethers } from 'ethers'
+import * as fs from 'fs'
+import { createAsset } from './helpers/publish'
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Ocean Protocol extension is now active!')
@@ -56,7 +59,95 @@ export function activate(context: vscode.ExtensionContext) {
     }
   )
 
-  context.subscriptions.push(getAssetDetails)
+  let publishAsset = vscode.commands.registerCommand(
+    'ocean-protocol.publishAsset',
+    async (config: any, filePath: string, privateKey: string) => {
+      vscode.window.showInformationMessage(`Private key: ${privateKey}`)
+      vscode.window.showInformationMessage(`File path: ${filePath}`)
+      vscode.window.showInformationMessage(`Config: ${JSON.stringify(config)}`)
+      if (!filePath) {
+        vscode.window.showErrorMessage('No file path provided.')
+        return
+      }
+
+      if (!privateKey) {
+        vscode.window.showErrorMessage('No private key provided.')
+        return
+      }
+
+      try {
+        // Read the file
+        const fileContent = fs.readFileSync(filePath, 'utf8')
+        vscode.window.showInformationMessage('File content read successfully.')
+
+        const asset: Asset = JSON.parse(fileContent)
+        vscode.window.showInformationMessage('Asset JSON parsed successfully.')
+
+        // Set up the signer
+        const chainId = config.chainId
+        const provider = new ethers.providers.StaticJsonRpcProvider(
+          config.rpcUrl,
+          chainId
+        )
+        vscode.window.showInformationMessage(
+          `Provider initialized with chainId ${chainId}.`
+        )
+
+        const signer = new ethers.Wallet(privateKey, provider)
+        vscode.window.showInformationMessage(`Signer: ${signer}`)
+
+        // Test provider connectivity
+        try {
+          const network = provider.network
+          vscode.window.showInformationMessage(
+            `Connected to network: ${network.name} (${network.chainId})`
+          )
+        } catch (networkError) {
+          console.error('Error connecting to network:', networkError)
+          vscode.window.showErrorMessage(
+            `Error connecting to network: ${networkError.message}`
+          )
+          return
+        }
+
+        const aquarius = new Aquarius(config.aquariusUrl)
+        console.log('Chain ID:', chainId)
+        vscode.window.showInformationMessage(`Chain ID: ${chainId}`)
+        const oceanConfig = new ConfigHelper().getConfig(chainId)
+        vscode.window.showInformationMessage(
+          `Ocean Config: ${JSON.stringify(oceanConfig)}`
+        )
+        console.log('Ocean Config:', oceanConfig)
+
+        const urlAssetId = await createAsset(
+          asset.nft.name,
+          asset.nft.symbol,
+          signer,
+          asset.services[0].files,
+          asset,
+          config.providerUrl,
+          aquarius,
+          undefined, // macOsProviderUrl
+          true // encryptDDO
+        )
+
+        vscode.window.showInformationMessage(
+          `Asset published successfully. ID: ${urlAssetId}`
+        )
+      } catch (error) {
+        console.error('Error details:', error)
+        if (error instanceof Error) {
+          vscode.window.showErrorMessage(`Error publishing asset: ${error.message}`)
+        } else {
+          vscode.window.showErrorMessage(
+            `An unknown error occurred while publishing the asset.`
+          )
+        }
+      }
+    }
+  )
+
+  context.subscriptions.push(getAssetDetails, publishAsset)
 }
 
 export function deactivate() {}

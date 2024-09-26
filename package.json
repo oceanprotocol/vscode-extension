@@ -69,7 +69,13 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@oceanprotocol/lib": "^3.3.3"
+    "@oceanprotocol/lib": "^3.3.3",
+    "crypto": "^1.0.1",
+    "crypto-js": "^4.2.0",
+    "ethers": "^5.7.2",
+    "fs": "^0.0.1-security",
+    "os": "^0.1.2",
+    "path": "^0.12.7"
   },
   "activationEvents": [
     "onCommand:ocean-protocol.searchAssets",
