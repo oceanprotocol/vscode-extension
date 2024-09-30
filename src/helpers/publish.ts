@@ -45,7 +45,9 @@ export async function createAsset(
   // Read the address file
   const addressFileContent = fs.readFileSync(addressFilePath, 'utf8')
   const addresses = JSON.parse(addressFileContent)
+  console.log('Addresses:', addresses)
 
+  // const chainId = 137
   const { chainId } = await owner.provider.getNetwork()
   console.log('Chain ID:', chainId)
   const nft = new Nft(owner, chainId)
@@ -54,6 +56,7 @@ export async function createAsset(
 
   // Use the addresses from the file if available
   const networkAddresses = addresses[config.network]
+  console.log('Network addresses:', networkAddresses)
   if (networkAddresses) {
     config.nftFactoryAddress = networkAddresses.ERC721Factory || config.nftFactoryAddress
     config.oceanTokenAddress = networkAddresses.Ocean || config.oceanTokenAddress
@@ -69,6 +72,7 @@ export async function createAsset(
   const nftFactory = new NftFactory(config.nftFactoryAddress, owner)
 
   ddo.chainId = parseInt(chainId.toString(10))
+  console.log('DDO chain ID:', ddo.chainId)
   const nftParamsAsset: NftCreateData = {
     name,
     symbol,
@@ -77,6 +81,7 @@ export async function createAsset(
     transferable: true,
     owner: await owner.getAddress()
   }
+  console.log('NFT params:', nftParamsAsset)
   const datatokenParams: DatatokenCreateParams = {
     templateIndex: 1,
     cap: '100000',
@@ -86,11 +91,14 @@ export async function createAsset(
     minter: await owner.getAddress(),
     mpFeeAddress: ZERO_ADDRESS
   }
+  console.log('Datatoken params:', datatokenParams)
 
   let bundleNFT
   if (!ddo.stats.price.value) {
+    console.log('Creating NFT with datatoken')
     bundleNFT = await nftFactory.createNftWithDatatoken(nftParamsAsset, datatokenParams)
   } else if (ddo.stats.price.value === '0') {
+    console.log('Creating NFT with datatoken and dispenser')
     const dispenserParams: DispenserCreationParams = {
       dispenserAddress: config.dispenserAddress,
       maxTokens: '1',
@@ -105,6 +113,7 @@ export async function createAsset(
       dispenserParams
     )
   } else {
+    console.log('Creating NFT with datatoken and fixed rate')
     const fixedPriceParams: FreCreationParams = {
       fixedRateAddress: config.fixedRateExchangeAddress,
       baseTokenAddress: config.oceanTokenAddress,
@@ -124,13 +133,16 @@ export async function createAsset(
       fixedPriceParams
     )
   }
+  console.log('Bundle NFT:', bundleNFT)
 
   const trxReceipt = await bundleNFT.wait()
+  console.log('Transaction receipt:', trxReceipt)
   // events have been emitted
   const nftCreatedEvent = getEventFromTx(trxReceipt, 'NFTCreated')
   const tokenCreatedEvent = getEventFromTx(trxReceipt, 'TokenCreated')
 
   const nftAddress = nftCreatedEvent.args.newTokenAddress
+  console.log('NFT address:', nftAddress)
   const datatokenAddressAsset = tokenCreatedEvent.args.newTokenAddress
   // create the files encrypted string
   assetUrl.datatokenAddress = datatokenAddressAsset

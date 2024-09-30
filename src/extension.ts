@@ -89,6 +89,11 @@ export function activate(context: vscode.ExtensionContext) {
           config.rpcUrl,
           chainId
         )
+        console.log('RPC URL:', config.rpcUrl)
+        console.log('Chain ID:', chainId)
+        console.log('NFT Factory Address:', config.nftFactoryAddress)
+        console.log('Ocean Token Address:', config.oceanTokenAddress)
+
         vscode.window.showInformationMessage(
           `Provider initialized with chainId ${chainId}.`
         )
@@ -99,15 +104,19 @@ export function activate(context: vscode.ExtensionContext) {
         // Test provider connectivity
         try {
           const network = provider.network
-          vscode.window.showInformationMessage(
-            `Connected to network: ${network.name} (${network.chainId})`
-          )
+          vscode.window.showInformationMessage(`Connected to network: ${network}`)
         } catch (networkError) {
           console.error('Error connecting to network:', networkError)
           vscode.window.showErrorMessage(
             `Error connecting to network: ${networkError.message}`
           )
           return
+        }
+        try {
+          const blockNumber = await provider.getBlockNumber()
+          console.log('Current block number:', blockNumber)
+        } catch (error) {
+          console.error('Error connecting to provider:', error)
         }
 
         const aquarius = new Aquarius(config.aquariusUrl)
@@ -118,6 +127,7 @@ export function activate(context: vscode.ExtensionContext) {
           `Ocean Config: ${JSON.stringify(oceanConfig)}`
         )
         console.log('Ocean Config:', oceanConfig)
+        console.log('creating asset:', asset)
 
         const urlAssetId = await createAsset(
           asset.nft.name,

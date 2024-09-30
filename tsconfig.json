@@ -1,14 +1,21 @@
 {
   "compilerOptions": {
-    "module": "Node16",
-    "target": "ES2022",
-    "lib": ["ES2022"],
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "lib": ["ESNext", "dom"],
+    "declaration": true,
+    "target": "es6",
+    "module": "commonjs",
+    "removeComments": true,
+    "experimentalDecorators": true,
+    "preserveConstEnums": true,
+    "outDir": "./dist/node/",
+    "rootDir": "./src/",
     "sourceMap": true,
-    "rootDir": "src",
-    "strict": false /* enable all strict type-checking options */
-    /* Additional Checks */
-    // "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
-    // "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
-    // "noUnusedParameters": true,  /* Report errors on unused parameters. */
-  }
+    "typeRoots": ["node_modules/@types"]
+  },
+  "include": ["src/**/*", "src/tests/**/*"],
+  "exclude": ["node_modules"]
 }

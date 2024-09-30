@@ -136,7 +136,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   rpcUrl: document.getElementById('rpcUrl').value || 'http://127.0.0.1:8545',
                   aquariusUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl,
                   providerUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl,
-                  chainId: 8996 // Barge chainId
+                  chainId: 137 
                 };
               }
 
@@ -180,3 +180,4 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
     `
   }
 }
+// 8996 // Barge chainId
