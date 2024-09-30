@@ -4,6 +4,9 @@ import { OceanProtocolViewProvider } from './viewProvider'
 import { ethers } from 'ethers'
 import * as fs from 'fs'
 import { createAsset } from './helpers/publish'
+import fetch from 'cross-fetch'
+
+globalThis.fetch = fetch
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Ocean Protocol extension is now active!')
@@ -84,21 +87,20 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage('Asset JSON parsed successfully.')
 
         // Set up the signer
-        const chainId = config.chainId
-        const provider = new ethers.providers.StaticJsonRpcProvider(
-          config.rpcUrl,
-          chainId
-        )
+        const provider = new ethers.providers.StaticJsonRpcProvider(config.rpcUrl, {
+          name: 'polygon', // or the network name you're using
+          chainId: 8996 // appropriate chain ID (e.g., 1 for Ethereum mainnet)
+        })
+
         console.log('RPC URL:', config.rpcUrl)
-        console.log('Chain ID:', chainId)
+
         console.log('NFT Factory Address:', config.nftFactoryAddress)
         console.log('Ocean Token Address:', config.oceanTokenAddress)
 
-        vscode.window.showInformationMessage(
-          `Provider initialized with chainId ${chainId}.`
-        )
-
         const signer = new ethers.Wallet(privateKey, provider)
+        console.log('Signer:', signer)
+        const chainId = await signer.getChainId()
+        console.log('Chain ID:', chainId)
         vscode.window.showInformationMessage(`Signer: ${signer}`)
 
         // Test provider connectivity

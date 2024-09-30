@@ -75,11 +75,14 @@
   },
   "dependencies": {
     "@oceanprotocol/lib": "^3.3.3",
+    "axios": "^1.7.7",
     "chai": "^4.3.10",
+    "cross-fetch": "^4.0.0",
     "crypto": "^1.0.1",
     "crypto-js": "^4.2.0",
     "ethers": "^5.7.2",
     "fs": "^0.0.1-security",
+    "node-polyfill-webpack-plugin": "^4.0.0",
     "os": "^0.1.2",
     "path": "^0.12.7"
   },

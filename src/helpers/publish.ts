@@ -135,11 +135,17 @@ export async function createAsset(
     console.log('datatoken params:', datatokenParams)
     console.log('Fixed rate params:', fixedPriceParams)
 
-    bundleNFT = await nftFactory.createNftWithDatatokenWithFixedRate(
-      nftParamsAsset,
-      datatokenParams,
-      fixedPriceParams
-    )
+    try {
+      bundleNFT = await nftFactory.createNftWithDatatokenWithFixedRate(
+        nftParamsAsset,
+        datatokenParams,
+        fixedPriceParams
+      )
+    } catch (error) {
+      console.error('Error creating NFT with fixed rate!')
+      console.error('Error creating NFT with fixed rate:', error)
+      throw error
+    }
   }
   console.log('Bundle NFT:', bundleNFT)
 

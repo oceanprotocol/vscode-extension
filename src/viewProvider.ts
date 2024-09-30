@@ -135,8 +135,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 return {
                   rpcUrl: document.getElementById('rpcUrl').value || 'http://127.0.0.1:8545',
                   aquariusUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl,
-                  providerUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl,
-                  chainId: 137 
+                  providerUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl
                 };
               }
 
