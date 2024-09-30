@@ -114,6 +114,11 @@ export async function createAsset(
     )
   } else {
     console.log('Creating NFT with datatoken and fixed rate')
+    console.log('fixed rate address: ', config.fixedRateExchangeAddress)
+    console.log('ocean token address: ', config.oceanTokenAddress)
+    console.log('owner: ', await owner.getAddress())
+    console.log('fixed rate:', ddo.stats.price.value)
+
     const fixedPriceParams: FreCreationParams = {
       fixedRateAddress: config.fixedRateExchangeAddress,
       baseTokenAddress: config.oceanTokenAddress,
@@ -121,11 +126,14 @@ export async function createAsset(
       marketFeeCollector: await owner.getAddress(),
       baseTokenDecimals: 18,
       datatokenDecimals: 18,
-      fixedRate: ddo.stats.price.value,
+      fixedRate: ddo.stats.price.value.toString(),
       marketFee: '0',
       allowedConsumer: await owner.getAddress(),
       withMint: true
     }
+    console.log('nft params:', nftParamsAsset)
+    console.log('datatoken params:', datatokenParams)
+    console.log('Fixed rate params:', fixedPriceParams)
 
     bundleNFT = await nftFactory.createNftWithDatatokenWithFixedRate(
       nftParamsAsset,
