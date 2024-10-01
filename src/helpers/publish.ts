@@ -47,7 +47,6 @@ export async function createAsset(
   const addresses = JSON.parse(addressFileContent)
   console.log('Addresses:', addresses)
 
-  // const chainId = 137
   const { chainId } = await owner.provider.getNetwork()
   console.log('Chain ID:', chainId)
   const nft = new Nft(owner, chainId)

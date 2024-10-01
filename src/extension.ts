@@ -87,10 +87,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage('Asset JSON parsed successfully.')
 
         // Set up the signer
-        const provider = new ethers.providers.StaticJsonRpcProvider(config.rpcUrl, {
-          name: 'polygon', // or the network name you're using
-          chainId: 8996 // appropriate chain ID (e.g., 1 for Ethereum mainnet)
-        })
+        const provider = new ethers.providers.JsonRpcProvider(process.env.RPC)
 
         console.log('RPC URL:', config.rpcUrl)
 

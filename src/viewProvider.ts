@@ -179,4 +179,3 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
     `
   }
 }
-// 8996 // Barge chainId
