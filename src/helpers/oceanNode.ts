@@ -1,5 +1,3 @@
-// import diff from 'hyperdiff'
-
 import EventEmitter from 'node:events'
 
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
@@ -10,7 +8,7 @@ import { mdns } from '@libp2p/mdns'
 import { yamux } from '@chainsafe/libp2p-yamux'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { pipe } from 'it-pipe'
-// import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery'
+
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2'
 import { tcp } from '@libp2p/tcp'
 import { webSockets } from '@libp2p/websockets'
