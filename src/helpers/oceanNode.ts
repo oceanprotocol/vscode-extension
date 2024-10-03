@@ -23,9 +23,9 @@ import is_ip_private from 'private-ip'
 import ip from 'ip'
 import { type Multiaddr, multiaddr } from '@multiformats/multiaddr'
 
-import { OceanNodeConfig, OceanNodeKeys, P2PCommandResponse } from '../@types/p2p'
-import { NodeIpAndDns, NodeCheckResult } from './@types/monitor'
-import { defaultBootstrapAddresses } from './const.js'
+import { OceanNodeConfig, P2PCommandResponse } from '../@types/p2p'
+import { NodeIpAndDns, NodeCheckResult } from '../@types/monitor'
+import { defaultBootstrapAddresses } from './constants'
 import { extractPublicIp } from './utils.js'
 
 EventEmitter.defaultMaxListeners = 500
