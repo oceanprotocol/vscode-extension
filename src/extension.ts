@@ -5,6 +5,7 @@ import { ethers } from 'ethers'
 import * as fs from 'fs'
 import { createAsset } from './helpers/publish'
 import fetch from 'cross-fetch'
+import { download } from './helpers/download'
 
 globalThis.fetch = fetch
 
@@ -156,7 +157,95 @@ export function activate(context: vscode.ExtensionContext) {
     }
   )
 
-  context.subscriptions.push(getAssetDetails, publishAsset)
+  let downloadAsset = vscode.commands.registerCommand(
+    'ocean-protocol.downloadAsset',
+    async (config: any, filePath: string, privateKey: string, assetDid: string) => {
+      vscode.window.showInformationMessage(`Private key: ${privateKey}`)
+      vscode.window.showInformationMessage(`File path: ${filePath}`)
+      vscode.window.showInformationMessage(`Config: ${JSON.stringify(config)}`)
+      vscode.window.showInformationMessage(`Asset DID: ${assetDid}`)
+      if (!assetDid) {
+        vscode.window.showErrorMessage('No DID provided.')
+        return
+      }
+      if (!filePath) {
+        vscode.window.showErrorMessage('No file path provided.')
+        return
+      }
+
+      if (!privateKey) {
+        vscode.window.showErrorMessage('No private key provided.')
+        return
+      }
+
+      try {
+        // Set up the signer
+        const provider = new ethers.providers.JsonRpcProvider(process.env.RPC)
+
+        console.log('RPC URL:', config.rpcUrl)
+
+        console.log('NFT Factory Address:', config.nftFactoryAddress)
+        console.log('Ocean Token Address:', config.oceanTokenAddress)
+
+        const signer = new ethers.Wallet(privateKey, provider)
+        console.log('Signer:', signer)
+        const chainId = await signer.getChainId()
+        console.log('Chain ID:', chainId)
+        vscode.window.showInformationMessage(`Signer: ${signer}`)
+
+        // Test provider connectivity
+        try {
+          const network = provider.network
+          vscode.window.showInformationMessage(`Connected to network: ${network}`)
+        } catch (networkError) {
+          console.error('Error connecting to network:', networkError)
+          vscode.window.showErrorMessage(
+            `Error connecting to network: ${networkError.message}`
+          )
+          return
+        }
+        try {
+          const blockNumber = await provider.getBlockNumber()
+          console.log('Current block number:', blockNumber)
+        } catch (error) {
+          console.error('Error connecting to provider:', error)
+        }
+
+        const aquarius = new Aquarius(config.aquariusUrl)
+        console.log('Chain ID:', chainId)
+        vscode.window.showInformationMessage(`Chain ID: ${chainId}`)
+        const oceanConfig = new ConfigHelper().getConfig(chainId)
+        vscode.window.showInformationMessage(
+          `Ocean Config: ${JSON.stringify(oceanConfig)}`
+        )
+        console.log('Ocean Config:', oceanConfig)
+
+        await download(
+          assetDid,
+          signer,
+          filePath,
+          aquarius,
+          undefined,
+          config.providerUrl
+        )
+
+        vscode.window.showInformationMessage(
+          `Asset download successfully. Path: ${filePath}`
+        )
+      } catch (error) {
+        console.error('Error details:', error)
+        if (error instanceof Error) {
+          vscode.window.showErrorMessage(`Error downloading asset: ${error.message}`)
+        } else {
+          vscode.window.showErrorMessage(
+            `An unknown error occurred while downloading the asset.`
+          )
+        }
+      }
+    }
+  )
+
+  context.subscriptions.push(getAssetDetails, publishAsset, downloadAsset)
 }
 
 export function deactivate() {}
