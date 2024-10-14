@@ -174,6 +174,45 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   }
               });
           </script>
+          <h3>Download Asset</h3>
+          <label for="privateKeyInput">Private Key</label>
+          <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
+
+          <label for="assetDidInput">Asset DID</label>
+          <input id="assetDidInput" placeholder="Enter your asset DID" />
+
+          <label for="filePathInput">File Path</label>
+          <input id="filePathInput" placeholder="Enter your file path" />
+
+          <button id="downloadAssetBtn">Download Asset</button>
+
+          <script>
+              const vscode = acquireVsCodeApi();
+              let selectedFilePath = '';
+              
+              function getConfig() {
+                const defaultAquariusUrl = 'http://127.0.0.1:8001';
+                return {
+                  rpcUrl: document.getElementById('rpcUrl').value || 'http://127.0.0.1:8545',
+                  aquariusUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl,
+                  providerUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl
+                };
+              }
+
+              document.getElementById('downloadAssetBtn').addEventListener('click', () => {
+                  const config = getConfig();
+                  const privateKey = document.getElementById('privateKeyInput').value;
+                  const assetDidSelected = document.getElementById('assetDidInput').value;
+                  const filePathSelected = document.getElementById('filePathInput').value;
+                  vscode.postMessage({ 
+                    type: 'downloadAsset',
+                    privateKey: privateKey, 
+                    filePath: filePathSelected,
+                    config: config,
+                    assetDid: assetDidSelected
+                  });
+              });
+          </script>
       </body>
       </html>
     `
