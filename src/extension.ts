@@ -66,9 +66,6 @@ export function activate(context: vscode.ExtensionContext) {
   let publishAsset = vscode.commands.registerCommand(
     'ocean-protocol.publishAsset',
     async (config: any, filePath: string, privateKey: string) => {
-      vscode.window.showInformationMessage(`Private key: ${privateKey}`)
-      vscode.window.showInformationMessage(`File path: ${filePath}`)
-      vscode.window.showInformationMessage(`Config: ${JSON.stringify(config)}`)
       if (!filePath) {
         vscode.window.showErrorMessage('No file path provided.')
         return
@@ -90,15 +87,8 @@ export function activate(context: vscode.ExtensionContext) {
         // Set up the signer
         const provider = new ethers.providers.JsonRpcProvider(process.env.RPC)
 
-        console.log('RPC URL:', config.rpcUrl)
-
-        console.log('NFT Factory Address:', config.nftFactoryAddress)
-        console.log('Ocean Token Address:', config.oceanTokenAddress)
-
         const signer = new ethers.Wallet(privateKey, provider)
-        console.log('Signer:', signer)
         const chainId = await signer.getChainId()
-        console.log('Chain ID:', chainId)
         vscode.window.showInformationMessage(`Signer: ${signer}`)
 
         // Test provider connectivity
@@ -112,22 +102,13 @@ export function activate(context: vscode.ExtensionContext) {
           )
           return
         }
-        try {
-          const blockNumber = await provider.getBlockNumber()
-          console.log('Current block number:', blockNumber)
-        } catch (error) {
-          console.error('Error connecting to provider:', error)
-        }
 
         const aquarius = new Aquarius(config.aquariusUrl)
-        console.log('Chain ID:', chainId)
         vscode.window.showInformationMessage(`Chain ID: ${chainId}`)
         const oceanConfig = new ConfigHelper().getConfig(chainId)
         vscode.window.showInformationMessage(
           `Ocean Config: ${JSON.stringify(oceanConfig)}`
         )
-        console.log('Ocean Config:', oceanConfig)
-        console.log('creating asset:', asset)
 
         const urlAssetId = await createAsset(
           asset.nft.name,
@@ -160,10 +141,6 @@ export function activate(context: vscode.ExtensionContext) {
   let downloadAsset = vscode.commands.registerCommand(
     'ocean-protocol.downloadAsset',
     async (config: any, filePath: string, privateKey: string, assetDid: string) => {
-      vscode.window.showInformationMessage(`Private key: ${privateKey}`)
-      vscode.window.showInformationMessage(`File path: ${filePath}`)
-      vscode.window.showInformationMessage(`Config: ${JSON.stringify(config)}`)
-      vscode.window.showInformationMessage(`Asset DID: ${assetDid}`)
       if (!assetDid) {
         vscode.window.showErrorMessage('No DID provided.')
         return
@@ -181,16 +158,8 @@ export function activate(context: vscode.ExtensionContext) {
       try {
         // Set up the signer
         const provider = new ethers.providers.JsonRpcProvider(process.env.RPC)
-
-        console.log('RPC URL:', config.rpcUrl)
-
-        console.log('NFT Factory Address:', config.nftFactoryAddress)
-        console.log('Ocean Token Address:', config.oceanTokenAddress)
-
         const signer = new ethers.Wallet(privateKey, provider)
-        console.log('Signer:', signer)
         const chainId = await signer.getChainId()
-        console.log('Chain ID:', chainId)
         vscode.window.showInformationMessage(`Signer: ${signer}`)
 
         // Test provider connectivity
@@ -204,21 +173,13 @@ export function activate(context: vscode.ExtensionContext) {
           )
           return
         }
-        try {
-          const blockNumber = await provider.getBlockNumber()
-          console.log('Current block number:', blockNumber)
-        } catch (error) {
-          console.error('Error connecting to provider:', error)
-        }
 
         const aquarius = new Aquarius(config.aquariusUrl)
-        console.log('Chain ID:', chainId)
         vscode.window.showInformationMessage(`Chain ID: ${chainId}`)
         const oceanConfig = new ConfigHelper().getConfig(chainId)
         vscode.window.showInformationMessage(
           `Ocean Config: ${JSON.stringify(oceanConfig)}`
         )
-        console.log('Ocean Config:', oceanConfig)
 
         await download(
           assetDid,
