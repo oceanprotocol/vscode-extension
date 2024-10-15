@@ -235,6 +235,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 document.getElementById('setupHeader').addEventListener('click', () => toggleSection('setup'));
                 document.getElementById('getAssetHeader').addEventListener('click', () => toggleSection('getAsset'));
                 document.getElementById('publishHeader').addEventListener('click', () => toggleSection('publish'));
+                document.getElementById('downloadHeader').addEventListener('click', () => toggleSection('download'));
             });
 
             document.getElementById('getAssetDetailsBtn').addEventListener('click', () => {
@@ -271,7 +272,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                         break;
                 }
             });
-            
+
+            <label for="assetDidInput">Asset DID</label>
+            <input id="assetDidInput" placeholder="Enter your asset DID" />
+            <label for="pathInput">File Path</label>
+            <input id="pathInput" placeholder="Enter your file path" /> 
+
             document.getElementById('downloadAssetBtn').addEventListener('click', () => {
                   const config = getConfig();
                   const privateKey = document.getElementById('privateKeyInput').value;

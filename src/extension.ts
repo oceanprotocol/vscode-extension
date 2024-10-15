@@ -66,6 +66,10 @@ export function activate(context: vscode.ExtensionContext) {
   let publishAsset = vscode.commands.registerCommand(
     'ocean-protocol.publishAsset',
     async (config: any, filePath: string, privateKey: string) => {
+      if (!config) {
+        vscode.window.showErrorMessage('No config provided.')
+        return
+      }
       if (!filePath) {
         vscode.window.showErrorMessage('No file path provided.')
         return
@@ -88,13 +92,10 @@ export function activate(context: vscode.ExtensionContext) {
         const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
 
         const signer = new ethers.Wallet(privateKey, provider)
-        const chainId = await signer.getChainId()
-        vscode.window.showInformationMessage(`Signer: ${signer}`)
 
         // Test provider connectivity
         try {
-          const network = provider.network
-          vscode.window.showInformationMessage(`Connected to network: ${network}`)
+          provider.network
         } catch (networkError) {
           console.error('Error connecting to network:', networkError)
           vscode.window.showErrorMessage(
@@ -104,11 +105,6 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         const aquarius = new Aquarius(config.aquariusUrl)
-        vscode.window.showInformationMessage(`Chain ID: ${chainId}`)
-        const oceanConfig = new ConfigHelper().getConfig(chainId)
-        vscode.window.showInformationMessage(
-          `Ocean Config: ${JSON.stringify(oceanConfig)}`
-        )
 
         const urlAssetId = await createAsset(
           asset.nft.name,
@@ -141,6 +137,10 @@ export function activate(context: vscode.ExtensionContext) {
   let downloadAsset = vscode.commands.registerCommand(
     'ocean-protocol.downloadAsset',
     async (config: any, filePath: string, privateKey: string, assetDid: string) => {
+      if (!config) {
+        vscode.window.showErrorMessage('No config provided.')
+        return
+      }
       if (!assetDid) {
         vscode.window.showErrorMessage('No DID provided.')
         return
