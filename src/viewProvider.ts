@@ -112,6 +112,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           <label for="nodeUrl">Ocean Node URL</label>
           <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8001" />
 
+          <label for="privateKeyInput">Private Key</label>
+          <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
+
           <h3>Get Asset Details</h3>
           <label for="didInput">Ocean Asset DID</label>
           <input id="didInput" placeholder="Enter the DID for the asset" />
@@ -120,9 +123,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           <h3>Publish Asset</h3>
           <button id="selectFileBtn">Select Asset File</button>
           <div id="selectedFilePath"></div>
-
-          <label for="privateKeyInput">Private Key</label>
-          <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
 
           <button id="publishAssetBtn">Publish Asset</button>
 
@@ -175,8 +175,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               });
           </script>
           <h3>Download Asset</h3>
-          <label for="privateKeyInput">Private Key</label>
-          <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
 
           <label for="assetDidInput">Asset DID</label>
           <input id="assetDidInput" placeholder="Enter your asset DID" />
