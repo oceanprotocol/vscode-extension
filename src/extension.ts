@@ -85,7 +85,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage('Asset JSON parsed successfully.')
 
         // Set up the signer
-        const provider = new ethers.providers.JsonRpcProvider(process.env.RPC)
+        const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
 
         const signer = new ethers.Wallet(privateKey, provider)
         const chainId = await signer.getChainId()
@@ -157,7 +157,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       try {
         // Set up the signer
-        const provider = new ethers.providers.JsonRpcProvider(process.env.RPC)
+        const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
         const signer = new ethers.Wallet(privateKey, provider)
         const chainId = await signer.getChainId()
         vscode.window.showInformationMessage(`Signer: ${signer}`)

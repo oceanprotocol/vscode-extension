@@ -38,6 +38,15 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             data.privateKey
           )
           break
+        case 'downloadAsset':
+          vscode.commands.executeCommand(
+            'ocean-protocol.downloadAsset',
+            data.config,
+            data.filePath,
+            data.privateKey,
+            data.assetDid
+          )
+          break
         case 'openFilePicker':
           this.openFilePicker()
           break
