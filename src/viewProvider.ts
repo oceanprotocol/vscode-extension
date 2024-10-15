@@ -204,9 +204,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   const filePathSelected = document.getElementById('filePathInput').value;
                   vscode.postMessage({ 
                     type: 'downloadAsset',
-                    privateKey: privateKey, 
-                    filePath: filePathSelected,
                     config: config,
+                    filePath: filePathSelected,
+                    privateKey: privateKey, 
                     assetDid: assetDidSelected
                   });
               });
