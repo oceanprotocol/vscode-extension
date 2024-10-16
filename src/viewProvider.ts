@@ -44,6 +44,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
         case 'openFilePicker':
           this.openFilePicker()
           break
+        case 'getOceanPeers': // Add this case
+          vscode.commands.executeCommand('ocean-protocol.getOceanPeers')
+          break
       }
     })
   }
@@ -207,6 +210,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 <div class="container">
                     <label>Node ID:</label>
                     <div id="nodeIdDisplay">${nodeId || 'Connecting...'}</div>
+                    <button id="getOceanPeersBtn">Get Ocean Peers</button>
                 </div>
             </div>
         </div>
@@ -236,6 +240,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 document.getElementById('getAssetHeader').addEventListener('click', () => toggleSection('getAsset'));
                 document.getElementById('publishHeader').addEventListener('click', () => toggleSection('publish'));
                 document.getElementById('p2pHeader').addEventListener('click', () => toggleSection('p2p'));
+                document.getElementById('getOceanPeersBtn').addEventListener('click', () => {
+                  vscode.postMessage({ type: 'getOceanPeers' });
+                });
             });
 
             document.getElementById('getAssetDetailsBtn').addEventListener('click', () => {

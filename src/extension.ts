@@ -171,5 +171,28 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   )
 
-  context.subscriptions.push(getAssetDetails, publishAsset)
+  let getOceanPeers = vscode.commands.registerCommand(
+    'ocean-protocol.getOceanPeers',
+    async () => {
+      try {
+        const peers = await node.getOceanPeers()
+        if (peers && peers.length > 0) {
+          vscode.window.showInformationMessage(`Ocean Peers:\n${peers.join('\n')}`)
+        } else {
+          vscode.window.showInformationMessage('No Ocean Peers found.')
+        }
+      } catch (error) {
+        console.error('Error getting Ocean Peers:', error)
+        if (error instanceof Error) {
+          vscode.window.showErrorMessage(`Error getting Ocean Peers: ${error.message}`)
+        } else {
+          vscode.window.showErrorMessage(
+            'An unknown error occurred while getting Ocean Peers.'
+          )
+        }
+      }
+    }
+  )
+
+  context.subscriptions.push(getAssetDetails, publishAsset, getOceanPeers)
 }
