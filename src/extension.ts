@@ -17,7 +17,7 @@ async function startOceanNode() {
 
   const thisNodeId = node._config.keys.peerId.toString()
   console.log('Node ' + thisNodeId + ' started.')
-  vscode.window.showInformationMessage('Ocean Node started with ID: ', thisNodeId)
+  vscode.window.showInformationMessage(`Ocean Node started with ID: ${thisNodeId}`)
 }
 
 export async function activate(context: vscode.ExtensionContext) {
