@@ -5,7 +5,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView
 
-  constructor(private readonly _extensionUri: vscode.Uri) {}
+  constructor(
+    private readonly _extensionUri: vscode.Uri,
+    private nodeId: string
+  ) {}
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -64,6 +67,11 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
+    // Escape the nodeId to prevent XSS
+    const nodeId = this.nodeId
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
     return `
     <!DOCTYPE html>
     <html lang="en">
@@ -156,6 +164,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
                     <label for="nodeUrl">Ocean Node URL</label>
                     <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8001" />
+
                 </div>
             </div>
         </div>
@@ -190,6 +199,18 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             </div>
         </div>
 
+        <div class="section">
+            <div id="p2pHeader" class="section-header">
+                <span class="chevron">&#9658;</span>P2P
+            </div>
+            <div id="p2p" class="section-content">
+                <div class="container">
+                    <label>Node ID:</label>
+                    <div id="nodeIdDisplay">${nodeId || 'Connecting...'}</div>
+                </div>
+            </div>
+        </div>
+
         <script>
             const vscode = acquireVsCodeApi();
             let selectedFilePath = '';
@@ -214,6 +235,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 document.getElementById('setupHeader').addEventListener('click', () => toggleSection('setup'));
                 document.getElementById('getAssetHeader').addEventListener('click', () => toggleSection('getAsset'));
                 document.getElementById('publishHeader').addEventListener('click', () => toggleSection('publish'));
+                document.getElementById('p2pHeader').addEventListener('click', () => toggleSection('p2p'));
             });
 
             document.getElementById('getAssetDetailsBtn').addEventListener('click', () => {
@@ -247,6 +269,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     case 'fileSelected':
                         selectedFilePath = message.filePath;
                         document.getElementById('selectedFilePath').textContent = 'Selected file: ' + selectedFilePath;
+                        break;
+                    case 'nodeId':
+                        document.getElementById('nodeIdDisplay').textContent = message.nodeId;
                         break;
                 }
             });
