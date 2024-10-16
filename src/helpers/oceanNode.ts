@@ -1,5 +1,5 @@
 import EventEmitter from 'node:events'
-
+import { ethers } from 'ethers'
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
 import { bootstrap } from '@libp2p/bootstrap'
@@ -46,6 +46,10 @@ export function hexStringToByteArray(hexString: any) {
   }
   return byteArray
 }
+function generateNewPrivateKey(): string {
+  const wallet = ethers.Wallet.createRandom()
+  return wallet.privateKey
+}
 export async function getPeerIdFromPrivateKey(
   privateKey: string
 ): Promise<OceanNodeKeys> {
@@ -86,8 +90,9 @@ export class OceanP2P extends EventEmitter {
 
   async start(options: any = null) {
     this._topic = 'oceanprotocol'
+    const privateKey = generateNewPrivateKey()
     this._config = {
-      keys: await getPeerIdFromPrivateKey(process.env.PRIVATE_KEY),
+      keys: await getPeerIdFromPrivateKey(privateKey),
       p2pConfig: {
         bootstrapNodes: defaultBootstrapAddresses,
         enableIPV4: true,
