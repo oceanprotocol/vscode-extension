@@ -210,6 +210,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 <div class="container">
                     <label>Node ID:</label>
                     <div id="nodeIdDisplay">${nodeId || 'Connecting...'}</div>
+                    <br />
                     <button id="getOceanPeersBtn">Get Ocean Peers</button>
                 </div>
             </div>
