@@ -174,9 +174,16 @@ export function activate(context: vscode.ExtensionContext) {
           return
         }
 
-        const aquarius = new Aquarius(config.nodeUrl)
+        const aquarius = new Aquarius(config.aquariusUrl)
 
-        await download(assetDid, signer, filePath, aquarius, undefined, config.nodeUrl)
+        await download(
+          assetDid,
+          signer,
+          filePath,
+          aquarius,
+          undefined,
+          config.providerUrl
+        )
 
         vscode.window.showInformationMessage(
           `Asset download successfully. Path: ${filePath}`
