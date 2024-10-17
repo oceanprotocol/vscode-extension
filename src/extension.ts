@@ -55,10 +55,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
         if (asset) {
           const details = `
-            Name: ${asset.metadata.name}
-            Type: ${asset.metadata.type}
-            Description: ${asset.metadata.description}
-            Author: ${asset.metadata.author}
+            Name: ${asset.metadata.name}\n
+            Type: ${asset.metadata.type}\n
+            Description: ${asset.metadata.description}\n
+            Author: ${asset.metadata.author}\n
           `
           vscode.window.showInformationMessage(details)
         } else {
@@ -80,9 +80,6 @@ export async function activate(context: vscode.ExtensionContext) {
   let publishAsset = vscode.commands.registerCommand(
     'ocean-protocol.publishAsset',
     async (config: any, filePath: string, privateKey: string) => {
-      vscode.window.showInformationMessage(`Private key: ${privateKey}`)
-      vscode.window.showInformationMessage(`File path: ${filePath}`)
-      vscode.window.showInformationMessage(`Config: ${JSON.stringify(config)}`)
       if (!filePath) {
         vscode.window.showErrorMessage('No file path provided.')
         return
@@ -92,14 +89,15 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.showErrorMessage('No private key provided.')
         return
       }
+      vscode.window.showInformationMessage('Publishing asset')
 
       try {
         // Read the file
         const fileContent = fs.readFileSync(filePath, 'utf8')
-        vscode.window.showInformationMessage('File content read successfully.')
+        console.log('File content read successfully.')
 
         const asset: Asset = JSON.parse(fileContent)
-        vscode.window.showInformationMessage('Asset JSON parsed successfully.')
+        console.log('Asset JSON parsed successfully.')
 
         // Set up the signer
         const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
@@ -113,12 +111,16 @@ export async function activate(context: vscode.ExtensionContext) {
         console.log('Signer:', signer)
         const chainId = await signer.getChainId()
         console.log('Chain ID:', chainId)
-        vscode.window.showInformationMessage(`Signer: ${signer}`)
 
         // Test provider connectivity
         try {
+<<<<<<< HEAD
           const network = await provider.getNetwork()
           vscode.window.showInformationMessage(`Connected to network: ${network.name}`)
+=======
+          const network = provider.network
+          console.log(`Connected to network: ${network}`)
+>>>>>>> 371c67148e1a76b101bb8f9debd8eb0f13eabcd5
         } catch (networkError) {
           console.error('Error connecting to network:', networkError)
           vscode.window.showErrorMessage(
@@ -135,11 +137,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
         const aquarius = new Aquarius(config.aquariusUrl)
         console.log('Chain ID:', chainId)
-        vscode.window.showInformationMessage(`Chain ID: ${chainId}`)
         const oceanConfig = new ConfigHelper().getConfig(chainId)
-        vscode.window.showInformationMessage(
-          `Ocean Config: ${JSON.stringify(oceanConfig)}`
-        )
+
         console.log('Ocean Config:', oceanConfig)
         console.log('creating asset:', asset)
 
