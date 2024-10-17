@@ -74,7 +74,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@oceanprotocol/lib": "^3.4.2",
+    "@oceanprotocol/lib": "^3.3.3",
     "axios": "^1.7.7",
     "chai": "^4.3.10",
     "cross-fetch": "^4.0.0",
