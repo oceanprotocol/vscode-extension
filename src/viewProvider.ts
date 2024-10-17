@@ -161,10 +161,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             <div id="setup" class="section-content active">
                 <div class="container">
                     <label for="rpcUrl">RPC URL</label>
-                    <input id="rpcUrl" placeholder="RPC URL" value="http://127.0.0.1:8545" />
+                    <input id="rpcUrl" placeholder="RPC URL" value="https://testnet.sapphire.oasis.io" />
 
                     <label for="nodeUrl">Ocean Node URL</label>
-                    <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8001" />
+                    <input id="nodeUrl" placeholder="Ocean Node URL" value="https://node5.oceanprotocol.com:8000" />
 
                     <label for="privateKeyInput">Private Key</label>
                     <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
@@ -205,7 +205,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             </div>
             <div id="download" class="section-content">
                 <div class="container">
-
+                      <label for="assetDidInput">Asset DID</label>
+                      <input id="assetDidInput" placeholder="Enter your asset DID" />
+                      <label for="pathInput">File Path</label>
+                      <input id="pathInput" placeholder="Enter your file path" /> 
                     <button id="downloadAssetBtn">Download Asset</button>
                 </div>
             </div>
@@ -272,11 +275,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                         break;
                 }
             });
-
-            <label for="assetDidInput">Asset DID</label>
-            <input id="assetDidInput" placeholder="Enter your asset DID" />
-            <label for="pathInput">File Path</label>
-            <input id="pathInput" placeholder="Enter your file path" /> 
 
             document.getElementById('downloadAssetBtn').addEventListener('click', () => {
                   const config = getConfig();
