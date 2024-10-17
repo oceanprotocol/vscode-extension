@@ -161,10 +161,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             <div id="setup" class="section-content active">
                 <div class="container">
                     <label for="rpcUrl">RPC URL</label>
-                    <input id="rpcUrl" placeholder="RPC URL" value="https://testnet.sapphire.oasis.io" />
+                    <input id="rpcUrl" placeholder="RPC URL" value="http://127.0.0.1:8545" />
 
                     <label for="nodeUrl">Ocean Node URL</label>
-                    <input id="nodeUrl" placeholder="Ocean Node URL" value="https://node5.oceanprotocol.com:8000" />
+                    <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8000" />
 
                     <label for="privateKeyInput">Private Key</label>
                     <input id="privateKeyInput" type="password" placeholder="Enter your private key" />

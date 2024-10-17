@@ -160,8 +160,7 @@ export function activate(context: vscode.ExtensionContext) {
         // Set up the signer
         const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
         const signer = new ethers.Wallet(privateKey, provider)
-        const chainId = await signer.getChainId()
-        vscode.window.showInformationMessage(`Signer: ${signer}`)
+        console.log(`Signer: ${signer}`)
 
         // Test provider connectivity
         try {
@@ -175,21 +174,9 @@ export function activate(context: vscode.ExtensionContext) {
           return
         }
 
-        const aquarius = new Aquarius(config.aquariusUrl)
-        vscode.window.showInformationMessage(`Chain ID: ${chainId}`)
-        const oceanConfig = new ConfigHelper().getConfig(chainId)
-        vscode.window.showInformationMessage(
-          `Ocean Config: ${JSON.stringify(oceanConfig)}`
-        )
+        const aquarius = new Aquarius(config.nodeUrl)
 
-        await download(
-          assetDid,
-          signer,
-          filePath,
-          aquarius,
-          undefined,
-          config.providerUrl
-        )
+        await download(assetDid, signer, filePath, aquarius, undefined, config.nodeUrl)
 
         vscode.window.showInformationMessage(
           `Asset download successfully. Path: ${filePath}`
