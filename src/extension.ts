@@ -41,10 +41,10 @@ export function activate(context: vscode.ExtensionContext) {
 
         if (asset) {
           const details = `
-            Name: ${asset.metadata.name}
-            Type: ${asset.metadata.type}
-            Description: ${asset.metadata.description}
-            Author: ${asset.metadata.author}
+            Name: ${asset.metadata.name}\n
+            Type: ${asset.metadata.type}\n
+            Description: ${asset.metadata.description}\n
+            Author: ${asset.metadata.author}\n
           `
           vscode.window.showInformationMessage(details)
         } else {
@@ -79,23 +79,35 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showErrorMessage('No private key provided.')
         return
       }
+      vscode.window.showInformationMessage('Publishing asset')
 
       try {
         // Read the file
         const fileContent = fs.readFileSync(filePath, 'utf8')
-        vscode.window.showInformationMessage('File content read successfully.')
+        console.log('File content read successfully.')
 
         const asset: Asset = JSON.parse(fileContent)
-        vscode.window.showInformationMessage('Asset JSON parsed successfully.')
+        console.log('Asset JSON parsed successfully.')
 
         // Set up the signer
         const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
 
         const signer = new ethers.Wallet(privateKey, provider)
+<<<<<<< HEAD
 
         // Test provider connectivity
         try {
           provider.network
+=======
+        console.log('Signer:', signer)
+        const chainId = await signer.getChainId()
+        console.log('Chain ID:', chainId)
+
+        // Test provider connectivity
+        try {
+          const network = provider.network
+          console.log(`Connected to network: ${network}`)
+>>>>>>> main
         } catch (networkError) {
           console.error('Error connecting to network:', networkError)
           vscode.window.showErrorMessage(
