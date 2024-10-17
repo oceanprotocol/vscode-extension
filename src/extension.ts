@@ -93,21 +93,10 @@ export function activate(context: vscode.ExtensionContext) {
         const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
 
         const signer = new ethers.Wallet(privateKey, provider)
-<<<<<<< HEAD
 
         // Test provider connectivity
         try {
           provider.network
-=======
-        console.log('Signer:', signer)
-        const chainId = await signer.getChainId()
-        console.log('Chain ID:', chainId)
-
-        // Test provider connectivity
-        try {
-          const network = provider.network
-          console.log(`Connected to network: ${network}`)
->>>>>>> main
         } catch (networkError) {
           console.error('Error connecting to network:', networkError)
           vscode.window.showErrorMessage(
