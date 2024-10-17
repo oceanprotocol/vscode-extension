@@ -5,13 +5,28 @@ import { ethers } from 'ethers'
 import * as fs from 'fs'
 import { createAsset } from './helpers/publish'
 import fetch from 'cross-fetch'
+import { OceanP2P } from './helpers/oceanNode'
 
 globalThis.fetch = fetch
+const node = new OceanP2P()
 
-export function activate(context: vscode.ExtensionContext) {
+async function startOceanNode(): Promise<string> {
+  await node.start()
+  // sleep for 3 seconds
+  await new Promise((resolve) => setTimeout(resolve, 3000))
+
+  const thisNodeId = node._config.keys.peerId.toString()
+  console.log('Node ' + thisNodeId + ' started.')
+  vscode.window.showInformationMessage(`Ocean Node started with ID: ${thisNodeId}`)
+  return thisNodeId
+}
+
+export async function activate(context: vscode.ExtensionContext) {
   console.log('Ocean Protocol extension is now active!')
 
-  const provider = new OceanProtocolViewProvider(context.extensionUri)
+  const nodeId = await startOceanNode()
+
+  const provider = new OceanProtocolViewProvider(context.extensionUri, nodeId)
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
@@ -85,7 +100,7 @@ export function activate(context: vscode.ExtensionContext) {
         console.log('Asset JSON parsed successfully.')
 
         // Set up the signer
-        const provider = new ethers.providers.JsonRpcProvider(process.env.RPC)
+        const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
 
         console.log('RPC URL:', config.rpcUrl)
 
@@ -99,8 +114,13 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Test provider connectivity
         try {
+<<<<<<< HEAD
+          const network = await provider.getNetwork()
+          vscode.window.showInformationMessage(`Connected to network: ${network.name}`)
+=======
           const network = provider.network
           console.log(`Connected to network: ${network}`)
+>>>>>>> 371c67148e1a76b101bb8f9debd8eb0f13eabcd5
         } catch (networkError) {
           console.error('Error connecting to network:', networkError)
           vscode.window.showErrorMessage(
@@ -150,7 +170,28 @@ export function activate(context: vscode.ExtensionContext) {
     }
   )
 
-  context.subscriptions.push(getAssetDetails, publishAsset)
-}
+  let getOceanPeers = vscode.commands.registerCommand(
+    'ocean-protocol.getOceanPeers',
+    async () => {
+      try {
+        const peers = await node.getOceanPeers()
+        if (peers && peers.length > 0) {
+          vscode.window.showInformationMessage(`Ocean Peers:\n${peers.join('\n')}`)
+        } else {
+          vscode.window.showInformationMessage('No Ocean Peers found.')
+        }
+      } catch (error) {
+        console.error('Error getting Ocean Peers:', error)
+        if (error instanceof Error) {
+          vscode.window.showErrorMessage(`Error getting Ocean Peers: ${error.message}`)
+        } else {
+          vscode.window.showErrorMessage(
+            'An unknown error occurred while getting Ocean Peers.'
+          )
+        }
+      }
+    }
+  )
 
-export function deactivate() {}
+  context.subscriptions.push(getAssetDetails, publishAsset, getOceanPeers)
+}
