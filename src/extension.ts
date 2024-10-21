@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { Aquarius, Asset, ConfigHelper } from '@oceanprotocol/lib'
+import { Aquarius, Asset } from '@oceanprotocol/lib'
 import { OceanProtocolViewProvider } from './viewProvider'
 import { ethers } from 'ethers'
 import * as fs from 'fs'
@@ -90,6 +90,7 @@ export function activate(context: vscode.ExtensionContext) {
         console.log('Asset JSON parsed successfully.')
 
         // Set up the signer
+        console.log(config.rpcUrl)
         const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
 
         const signer = new ethers.Wallet(privateKey, provider)
