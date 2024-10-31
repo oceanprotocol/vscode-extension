@@ -41,6 +41,15 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             data.privateKey
           )
           break
+        case 'downloadAsset':
+          vscode.commands.executeCommand(
+            'ocean-protocol.downloadAsset',
+            data.config,
+            data.filePath,
+            data.privateKey,
+            data.assetDid
+          )
+          break
         case 'openFilePicker':
           this.openFilePicker()
           break
@@ -166,8 +175,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     <input id="rpcUrl" placeholder="RPC URL" value="http://127.0.0.1:8545" />
 
                     <label for="nodeUrl">Ocean Node URL</label>
-                    <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8001" />
+                    <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8000" />
 
+                    <label for="privateKeyInput">Private Key</label>
+                    <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
                 </div>
             </div>
         </div>
@@ -194,9 +205,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     <button id="selectFileBtn">Select Asset File</button>
                     <div id="selectedFilePath"></div>
 
-                    <label for="privateKeyInput">Private Key</label>
-                    <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
-
                     <button id="publishAssetBtn">Publish Asset</button>
                 </div>
             </div>
@@ -212,6 +220,19 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     <div id="nodeIdDisplay">${nodeId || 'Connecting...'}</div>
                     <br />
                     <button id="getOceanPeersBtn">Get Ocean Peers</button>
+                </div>
+            </div>
+        </div>
+            <div id="downloadHeader" class="section-header">
+                <span class="chevron">&#9658;</span>Download Asset
+            </div>
+            <div id="download" class="section-content">
+                <div class="container">
+                      <label for="assetDidInput">Asset DID</label>
+                      <input id="assetDidInput" placeholder="Enter your asset DID" />
+                      <label for="pathInput">File Path</label>
+                      <input id="pathInput" placeholder="Enter your file path" /> 
+                    <button id="downloadAssetBtn">Download Asset</button>
                 </div>
             </div>
         </div>
@@ -244,6 +265,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 document.getElementById('getOceanPeersBtn').addEventListener('click', () => {
                   vscode.postMessage({ type: 'getOceanPeers' });
                 });
+                document.getElementById('downloadHeader').addEventListener('click', () => toggleSection('download'));
             });
 
             document.getElementById('getAssetDetailsBtn').addEventListener('click', () => {
@@ -283,7 +305,22 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                         break;
                 }
             });
+
+            document.getElementById('downloadAssetBtn').addEventListener('click', () => {
+                  const config = getConfig();
+                  const privateKey = document.getElementById('privateKeyInput').value;
+                  const assetDidSelected = document.getElementById('assetDidInput').value;
+                  const pathSelected = document.getElementById('pathInput').value;
+                  vscode.postMessage({ 
+                    type: 'downloadAsset',
+                    config: config,
+                    filePath: pathSelected,
+                    privateKey: privateKey, 
+                    assetDid: assetDidSelected
+                  });
+              });
         </script>
+        
     </body>
     </html>
     `
