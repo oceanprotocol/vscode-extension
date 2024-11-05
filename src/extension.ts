@@ -26,7 +26,7 @@ async function startOceanNode(): Promise<string> {
 }
 
 export async function activate(context: vscode.ExtensionContext) {
-  outputChannel.show() // Add this line
+  outputChannel.show()
   outputChannel.appendLine('Ocean Protocol extension is now active!')
   console.log('Ocean Protocol extension is now active!')
 
@@ -86,6 +86,8 @@ export async function activate(context: vscode.ExtensionContext) {
   let publishAsset = vscode.commands.registerCommand(
     'ocean-protocol.publishAsset',
     async (config: any, filePath: string, privateKey: string) => {
+      outputChannel.appendLine('\n\nPublishing file...')
+
       if (!config) {
         vscode.window.showErrorMessage('No config provided.')
         return
@@ -105,6 +107,7 @@ export async function activate(context: vscode.ExtensionContext) {
         // Read the file
         const fileContent = fs.readFileSync(filePath, 'utf8')
         console.log('File content read successfully.')
+        outputChannel.appendLine('File content read successfully.')
 
         const asset: Asset = JSON.parse(fileContent)
         console.log('Asset JSON parsed successfully.')
@@ -132,6 +135,8 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage(
           `Asset published successfully. ID: ${urlAssetId}`
         )
+
+        outputChannel.appendLine(`\n\nAsset published successfully. ID: ${urlAssetId}`)
       } catch (error) {
         console.error('Error details:', error)
         if (error instanceof Error) {
@@ -149,6 +154,7 @@ export async function activate(context: vscode.ExtensionContext) {
     'ocean-protocol.getOceanPeers',
     async () => {
       try {
+        outputChannel.appendLine('\n\nGetting Ocean Node Peers...')
         const peers = await node.getOceanPeers()
         if (peers && peers.length > 0) {
           vscode.window.showInformationMessage(`Ocean Peers:\n${peers.join('\n')}`)
@@ -171,6 +177,7 @@ export async function activate(context: vscode.ExtensionContext) {
   let downloadAsset = vscode.commands.registerCommand(
     'ocean-protocol.downloadAsset',
     async (config: any, filePath: string, privateKey: string, assetDid: string) => {
+      outputChannel.appendLine('\n\nDownloading asset...')
       if (!config) {
         vscode.window.showErrorMessage('No config provided.')
         return
@@ -221,6 +228,8 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage(
           `Asset download successfully. Path: ${filePath}`
         )
+
+        outputChannel.appendLine(`Asset download successfully. Path: ${filePath}`)
       } catch (error) {
         console.error('Error details:', error)
         if (error instanceof Error) {
