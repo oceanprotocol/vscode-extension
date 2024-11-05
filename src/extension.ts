@@ -120,8 +120,6 @@ export async function activate(context: vscode.ExtensionContext) {
           asset,
           config.providerUrl,
           aquarius,
-          1,
-          undefined, // macOsProviderUrl
           true // encryptDDO
         )
 

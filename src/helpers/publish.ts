@@ -9,9 +9,10 @@ export async function createAssetUtil(
   ddo: any,
   providerUrl: string,
   aquariusInstance: Aquarius,
+  encryptDDO: boolean = true,
   templateIndex: number = 1,
-  macOsProviderUrl?: string,
-  encryptDDO: boolean = true
+  providerFeeToken?: string,
+  macOsProviderUrl?: string
 ) {
   return await createAsset(
     name,
@@ -22,7 +23,7 @@ export async function createAssetUtil(
     ddo,
     encryptDDO,
     macOsProviderUrl || providerUrl,
-    ZERO_ADDRESS,
+    providerFeeToken || ZERO_ADDRESS,
     aquariusInstance
   )
 }
