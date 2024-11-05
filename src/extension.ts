@@ -11,6 +11,8 @@ import { download } from './helpers/download'
 globalThis.fetch = fetch
 const node = new OceanP2P()
 
+const outputChannel = vscode.window.createOutputChannel('Ocean Protocol')
+
 async function startOceanNode(): Promise<string> {
   await node.start()
   // sleep for 3 seconds
@@ -19,6 +21,7 @@ async function startOceanNode(): Promise<string> {
   const thisNodeId = node._config.keys.peerId.toString()
   console.log('Node ' + thisNodeId + ' started.')
   vscode.window.showInformationMessage(`Ocean Node started with ID: ${thisNodeId}`)
+  outputChannel.appendLine(`Ocean Node started with ID: ${thisNodeId}`)
   return thisNodeId
 }
 
