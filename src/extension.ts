@@ -44,6 +44,7 @@ export async function activate(context: vscode.ExtensionContext) {
   let getAssetDetails = vscode.commands.registerCommand(
     'ocean-protocol.getAssetDetails',
     async (config: any, did: string) => {
+      outputChannel.appendLine('\n\nGetting asset details...')
       if (!did) {
         vscode.window.showErrorMessage('No DID provided.')
         return
@@ -58,6 +59,8 @@ export async function activate(context: vscode.ExtensionContext) {
         const aquariusUrl = new URL(config.aquariusUrl).toString()
         const aquarius = new Aquarius(aquariusUrl)
         const asset = await aquarius.resolve(did)
+
+        outputChannel.appendLine(`Asset details: ${JSON.stringify(asset)}`)
 
         if (asset) {
           const details = `
