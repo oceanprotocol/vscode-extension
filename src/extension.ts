@@ -26,6 +26,8 @@ async function startOceanNode(): Promise<string> {
 }
 
 export async function activate(context: vscode.ExtensionContext) {
+  outputChannel.show() // Add this line
+  outputChannel.appendLine('Ocean Protocol extension is now active!')
   console.log('Ocean Protocol extension is now active!')
 
   const nodeId = await startOceanNode()
