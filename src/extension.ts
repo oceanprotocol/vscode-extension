@@ -235,10 +235,15 @@ export async function activate(context: vscode.ExtensionContext) {
         outputChannel.appendLine(`Asset download successfully. Path: ${filePath}`)
       } catch (error) {
         console.error('Error details:', error)
+        outputChannel.appendLine(`Error details: ${filePath}`)
         if (error instanceof Error) {
           vscode.window.showErrorMessage(`Error downloading asset: ${error.message}`)
+          outputChannel.appendLine(`Error downloading asset: ${error.message}`)
         } else {
           vscode.window.showErrorMessage(
+            `An unknown error occurred while downloading the asset.`
+          )
+          outputChannel.appendLine(
             `An unknown error occurred while downloading the asset.`
           )
         }
