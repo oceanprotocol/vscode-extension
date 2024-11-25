@@ -1,7 +1,7 @@
 import { expect } from 'chai'
 import { ethers } from 'ethers'
 import { Aquarius } from '@oceanprotocol/lib'
-import { createAsset } from '../src/helpers/publish'
+import { createAssetUtil } from '../src/helpers/publish'
 import * as dotenv from 'dotenv'
 
 dotenv.config()
@@ -77,7 +77,7 @@ describe('createAsset function', function () {
     const providerUrl = process.env.OCEAN_NODE_URL || 'http://localhost:8001'
 
     try {
-      const assetId = await createAsset(
+      const assetId = await createAssetUtil(
         name,
         symbol,
         signer,
