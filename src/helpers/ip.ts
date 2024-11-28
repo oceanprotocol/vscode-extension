@@ -15,6 +15,38 @@ function lookupPromise(addr: string) {
   })
 }
 
+export function isPrivateIP(ip): boolean {
+  const reg = /^(127\.[\d.]+|[0:]+1|localhost)$/
+  const result = ip.match(reg)
+  if (result !== null) {
+    // is loopback address
+    return true
+  }
+  const parts = ip.split('.')
+  return (
+    parts[0] === '10' ||
+    (parts[0] === '172' &&
+      parseInt(parts[1], 10) >= 16 &&
+      parseInt(parts[1], 10) <= 31) ||
+    (parts[0] === '192' && parts[1] === '168')
+  )
+}
+
+// get public IP address using free service API
+export async function getPublicIP(): Promise<string> {
+  try {
+    const response = await fetch('https://api.ipify.org?format=json')
+    const data = await response.json()
+    if (data) {
+      return data.ip
+    }
+  } catch (err) {
+    console.error('Erro getting public IP: ', err.message)
+  }
+
+  return null
+}
+
 export async function extractPublicIp(addrs: Multiaddr[]): Promise<NodeIpAndDns> {
   const ipFound: NodeIpAndDns = {
     ip: null,
