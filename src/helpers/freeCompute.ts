@@ -152,6 +152,22 @@ export async function isOrderable(
   return true
 }
 
+function getFreeStartComputePayload(
+  nonce: number,
+  signature: string,
+  dataset: any,
+  algorithm: any
+) {
+  return {
+    command: 'freeStartCompute',
+    consumerAddress: '0xC7EC1970B09224B317c52d92f37F5e1E4fF6B687',
+    nonce: nonce,
+    signature: signature,
+    datasets: [dataset],
+    algorithm: algorithm
+  }
+}
+
 export async function computeStart(
   datasets: string,
   algorithm: string,
@@ -329,7 +345,22 @@ export async function computeStart(
   const output: ComputeOutput = {
     metadataUri: await getMetadataURI()
   }
-
+  if (aquariusInstance.aquariusURL === providerURI) {
+    // for ocean nodes
+    const nonce =
+      (await ProviderInstance.getNonce(providerURI, await signer.getAddress())) + 1
+    let signatureMessage = await signer.getAddress()
+    signatureMessage += assets[0].documentId
+    signatureMessage += nonce
+    const signature = await ProviderInstance.signProviderRequest(signer, signatureMessage)
+    fetch(providerURI + '/directCommand', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(getFreeStartComputePayload(nonce, signature, assets[0], algo))
+    })
+  }
   const computeJobs = await ProviderInstance.computeStart(
     providerURI,
     signer,
