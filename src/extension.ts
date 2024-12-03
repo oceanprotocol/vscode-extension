@@ -7,6 +7,7 @@ import { createAsset } from './helpers/publish'
 import fetch from 'cross-fetch'
 import { OceanP2P } from './helpers/oceanNode'
 import { download } from './helpers/download'
+import { computeStart } from './helpers/freeCompute'
 
 globalThis.fetch = fetch
 const node = new OceanP2P()
@@ -229,5 +230,71 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   )
 
-  context.subscriptions.push(getAssetDetails, publishAsset, downloadAsset, getOceanPeers)
+  let startComputeJob = vscode.commands.registerCommand(
+    'ocean-protocol.startComputeJob',
+    async (
+      config: any,
+      privateKey: string,
+      datasets: string,
+      algorithm: string,
+      computeEnv: string
+    ) => {
+      if (!config) {
+        vscode.window.showErrorMessage('No config provided.')
+        return
+      }
+      if (!privateKey) {
+        vscode.window.showErrorMessage('No private key provided.')
+        return
+      }
+      if (!datasets) {
+        vscode.window.showErrorMessage('No datasets provided.')
+        return
+      }
+      if (!algorithm) {
+        vscode.window.showErrorMessage('No algorithm provided.')
+        return
+      }
+      if (!computeEnv) {
+        vscode.window.showErrorMessage('No compute environment provided.')
+        return
+      }
+
+      try {
+        const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
+        const signer = new ethers.Wallet(privateKey, provider)
+        const aquarius = new Aquarius(config.aquariusUrl)
+
+        await computeStart(
+          datasets,
+          algorithm,
+          computeEnv,
+          signer,
+          '.',
+          aquarius,
+          undefined,
+          config.providerUrl
+        )
+
+        vscode.window.showInformationMessage('Compute job started successfully!')
+      } catch (error) {
+        console.error('Error details:', error)
+        if (error instanceof Error) {
+          vscode.window.showErrorMessage(`Error starting compute job: ${error.message}`)
+        } else {
+          vscode.window.showErrorMessage(
+            `An unknown error occurred while starting the compute job.`
+          )
+        }
+      }
+    }
+  )
+
+  context.subscriptions.push(
+    getAssetDetails,
+    publishAsset,
+    downloadAsset,
+    getOceanPeers,
+    startComputeJob
+  )
 }
