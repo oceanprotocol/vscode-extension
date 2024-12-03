@@ -152,26 +152,10 @@ export async function isOrderable(
   return true
 }
 
-function getFreeStartComputePayload(
-  nonce: number,
-  signature: string,
-  dataset: any,
-  algorithm: any
-) {
-  return {
-    command: 'freeStartCompute',
-    consumerAddress: '0xC7EC1970B09224B317c52d92f37F5e1E4fF6B687',
-    nonce: nonce,
-    signature: signature,
-    datasets: [dataset],
-    algorithm: algorithm
-  }
-}
-
 export async function computeStart(
   datasets: string,
   algorithm: string,
-  freeStartComputeEnv: string,
+  computeEnv: string,
   signer: Signer,
   pathString: string = '.',
   aquariusInstance: Aquarius,
@@ -228,14 +212,14 @@ export async function computeStart(
   mytime.setMinutes(mytime.getMinutes() + computeMinutes)
   const computeValidUntil = Math.floor(mytime.getTime() / 1000)
 
-  const computeEnvID = freeStartComputeEnv
+  const computeEnvID = computeEnv
   const chainComputeEnvs = computeEnvs[algoDdo.chainId]
-  let computeEnv = chainComputeEnvs[0]
+  let chainComputeEnv = chainComputeEnvs[0]
 
   if (computeEnvID && computeEnvID.length > 1) {
     for (const index in chainComputeEnvs) {
       if (computeEnvID == chainComputeEnvs[index].id) {
-        computeEnv = chainComputeEnvs[index]
+        chainComputeEnv = chainComputeEnvs[index]
         continue
       }
     }
@@ -294,7 +278,7 @@ export async function computeStart(
     providerInitializeComputeJob.algorithm,
     algoDdo,
     this.signer,
-    computeEnv.consumerAddress,
+    chainComputeEnv.consumerAddress,
     0,
     datatoken,
     this.config,
@@ -315,7 +299,7 @@ export async function computeStart(
       providerInitializeComputeJob.datasets[i],
       ddos[i],
       this.signer,
-      computeEnv.consumerAddress,
+      chainComputeEnv.consumerAddress,
       0,
       datatoken,
       this.config,
@@ -345,32 +329,15 @@ export async function computeStart(
   const output: ComputeOutput = {
     metadataUri: await getMetadataURI()
   }
-  if (aquariusInstance.aquariusURL === providerURI) {
-    // for ocean nodes
-    const nonce =
-      (await ProviderInstance.getNonce(providerURI, await signer.getAddress())) + 1
-    let signatureMessage = await signer.getAddress()
-    signatureMessage += assets[0].documentId
-    signatureMessage += nonce
-    const signature = await ProviderInstance.signProviderRequest(signer, signatureMessage)
-    fetch(providerURI + '/directCommand', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(getFreeStartComputePayload(nonce, signature, assets[0], algo))
-    })
-  }
   const computeJobs = await ProviderInstance.computeStart(
     providerURI,
     signer,
-    computeEnv.id,
+    chainComputeEnv.id,
     assets[0], // assets[0] // only c2d v1,
     algo,
     null,
-    // additionalDatasets, only c2d v1
     output,
-    computeEnv.free ? true : false //
+    chainComputeEnv.free ? true : false //
   )
 
   if (computeJobs && computeJobs[0]) {
