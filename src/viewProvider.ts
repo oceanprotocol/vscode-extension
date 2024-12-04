@@ -51,16 +51,26 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           )
           break
         case 'openFilePicker':
-          this.openFilePicker()
+          this.openFilePicker(data.elementId)
           break
-        case 'getOceanPeers': // Add this case
+        case 'getOceanPeers':
           vscode.commands.executeCommand('ocean-protocol.getOceanPeers')
+          break
+        case 'startComputeJob':
+          vscode.commands.executeCommand(
+            'ocean-protocol.startComputeJob',
+            data.config,
+            data.datasetPath,
+            data.algorithmPath,
+            data.privateKey,
+            data.nodeUrl
+          )
           break
       }
     })
   }
 
-  private async openFilePicker() {
+  private async openFilePicker(elementId: string) {
     const options: vscode.OpenDialogOptions = {
       canSelectMany: false,
       openLabel: 'Select',
@@ -73,7 +83,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
     if (fileUri && fileUri[0]) {
       this._view?.webview.postMessage({
         type: 'fileSelected',
-        filePath: fileUri[0].fsPath
+        filePath: fileUri[0].fsPath,
+        elementId: elementId
       })
     }
   }
@@ -126,7 +137,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             margin-top: 10px;
             display: block;
           }
-          #selectedFilePath {
+          .selectedFile {
             margin-top: 5px;
             font-style: italic;
           }
@@ -209,18 +220,20 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 </div>
             </div>
         </div>
-
+        
         <div class="section">
             <div id="computeHeader" class="section-header">
                 <span class="chevron">&#9658;</span>Start Compute Job
             </div>
             <div id="compute" class="section-content">
                 <div class="container">
-                    <label for="datasetsInput">Dataset</label>
-                    <input id="datasetsInput" placeholder="Select the dataset file" />
+                    <label>Dataset</label>
+                    <button id="selectDatasetBtn">Select Dataset File</button>
+                    <div id="selectedDatasetPath" class="selectedFile"></div>
                     
-                    <label for="algorithmInput">Algorithm</label>
-                    <input id="algorithmInput" placeholder="Select the Algorithm file" />
+                    <label>Algorithm</label>
+                    <button id="selectAlgorithmBtn">Select Algorithm File</button>
+                    <div id="selectedAlgorithmPath" class="selectedFile"></div>
                     
                     <label for="nodeUrlInput">Node URL (including port)</label>
                     <input id="nodeUrlInput" placeholder="Enter compute environment ID" />
@@ -230,7 +243,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             </div>
         </div>
 
-        <div class="section">
+            <div class="section">
             <div id="p2pHeader" class="section-header">
                 <span class="chevron">&#9658;</span>P2P
             </div>
@@ -260,7 +273,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
         <script>
             const vscode = acquireVsCodeApi();
             let selectedFilePath = '';
-            
+            let selectedDatasetPath = '';
+            let selectedAlgorithmPath = '';
+
             function getConfig() {
               const defaultAquariusUrl = 'http://127.0.0.1:8001';
               return {
@@ -282,34 +297,90 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 document.getElementById('getAssetHeader').addEventListener('click', () => toggleSection('getAsset'));
                 document.getElementById('publishHeader').addEventListener('click', () => toggleSection('publish'));
                 document.getElementById('p2pHeader').addEventListener('click', () => toggleSection('p2p'));
-                document.getElementById('getOceanPeersBtn').addEventListener('click', () => {
-                  vscode.postMessage({ type: 'getOceanPeers' });
-                });
                 document.getElementById('downloadHeader').addEventListener('click', () => toggleSection('download'));
-            });
+                document.getElementById('computeHeader').addEventListener('click', () => toggleSection('compute'));
 
-            document.getElementById('getAssetDetailsBtn').addEventListener('click', () => {
-                const config = getConfig();
-                const did = document.getElementById('didInput').value;
-                vscode.postMessage({ 
-                  type: 'getAssetDetails', 
-                  config: config, 
-                  did: did 
+                document.getElementById('getOceanPeersBtn').addEventListener('click', () => {
+                    vscode.postMessage({ type: 'getOceanPeers' });
                 });
-            });
 
-            document.getElementById('selectFileBtn').addEventListener('click', () => {
-                vscode.postMessage({ type: 'openFilePicker' });
-            });
+                document.getElementById('selectFileBtn').addEventListener('click', () => {
+                    vscode.postMessage({ 
+                        type: 'openFilePicker',
+                        elementId: 'selectedFilePath'
+                    });
+                });
 
-            document.getElementById('publishAssetBtn').addEventListener('click', () => {
-                const config = getConfig();
-                const privateKey = document.getElementById('privateKeyInput').value;
-                vscode.postMessage({ 
-                  type: 'publishAsset', 
-                  config: config, 
-                  filePath: selectedFilePath,
-                  privateKey: privateKey
+                document.getElementById('selectDatasetBtn').addEventListener('click', () => {
+                    vscode.postMessage({ 
+                        type: 'openFilePicker',
+                        elementId: 'selectedDatasetPath'
+                    });
+                });
+
+                document.getElementById('selectAlgorithmBtn').addEventListener('click', () => {
+                    vscode.postMessage({ 
+                        type: 'openFilePicker',
+                        elementId: 'selectedAlgorithmPath'
+                    });
+                });
+
+                document.getElementById('getAssetDetailsBtn').addEventListener('click', () => {
+                    const config = getConfig();
+                    const did = document.getElementById('didInput').value;
+                    vscode.postMessage({ 
+                        type: 'getAssetDetails', 
+                        config: config, 
+                        did: did 
+                    });
+                });
+
+                document.getElementById('publishAssetBtn').addEventListener('click', () => {
+                    const config = getConfig();
+                    const privateKey = document.getElementById('privateKeyInput').value;
+                    vscode.postMessage({ 
+                        type: 'publishAsset', 
+                        config: config, 
+                        filePath: selectedFilePath,
+                        privateKey: privateKey
+                    });
+                });
+
+                document.getElementById('downloadAssetBtn').addEventListener('click', () => {
+                    const config = getConfig();
+                    const privateKey = document.getElementById('privateKeyInput').value;
+                    const assetDidSelected = document.getElementById('assetDidInput').value;
+                    const pathSelected = document.getElementById('pathInput').value;
+                    vscode.postMessage({ 
+                        type: 'downloadAsset',
+                        config: config,
+                        filePath: pathSelected,
+                        privateKey: privateKey, 
+                        assetDid: assetDidSelected
+                    });
+                });
+
+                document.getElementById('startComputeBtn').addEventListener('click', () => {
+                    const config = getConfig();
+                    const privateKey = document.getElementById('privateKeyInput').value;
+                    const nodeUrl = document.getElementById('nodeUrlInput').value;
+
+                    if (!selectedDatasetPath || !selectedAlgorithmPath) {
+                        vscode.postMessage({
+                            type: 'error',
+                            message: 'Please select both dataset and algorithm files'
+                        });
+                        return;
+                    }
+
+                    vscode.postMessage({ 
+                        type: 'startComputeJob',
+                        config: config,
+                        privateKey: privateKey,
+                        datasetPath: selectedDatasetPath,
+                        algorithmPath: selectedAlgorithmPath,
+                        nodeUrl: nodeUrl
+                    });
                 });
             });
 
@@ -317,49 +388,22 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 const message = event.data;
                 switch (message.type) {
                     case 'fileSelected':
-                        selectedFilePath = message.filePath;
-                        document.getElementById('selectedFilePath').textContent = 'Selected file: ' + selectedFilePath;
+                        if (message.elementId === 'selectedDatasetPath') {
+                            selectedDatasetPath = message.filePath;
+                            document.getElementById('selectedDatasetPath').textContent = 'Selected dataset: ' + message.filePath;
+                        } else if (message.elementId === 'selectedAlgorithmPath') {
+                            selectedAlgorithmPath = message.filePath;
+                            document.getElementById('selectedAlgorithmPath').textContent = 'Selected algorithm: ' + message.filePath;
+                        } else {
+                            selectedFilePath = message.filePath;
+                            document.getElementById('selectedFilePath').textContent = 'Selected file: ' + message.filePath;
+                        }
                         break;
                     case 'nodeId':
                         document.getElementById('nodeIdDisplay').textContent = message.nodeId;
                         break;
                 }
             });
-
-            document.getElementById('downloadAssetBtn').addEventListener('click', () => {
-                  const config = getConfig();
-                  const privateKey = document.getElementById('privateKeyInput').value;
-                  const assetDidSelected = document.getElementById('assetDidInput').value;
-                  const pathSelected = document.getElementById('pathInput').value;
-                  vscode.postMessage({ 
-                    type: 'downloadAsset',
-                    config: config,
-                    filePath: pathSelected,
-                    privateKey: privateKey, 
-                    assetDid: assetDidSelected
-                  });
-              });
-
-              // Add in the DOMContentLoaded event listener
-              document.getElementById('computeHeader').addEventListener('click', () => toggleSection('compute'));
-
-              // Add new event listener for compute button
-              document.getElementById('startComputeBtn').addEventListener('click', () => {
-                  const config = getConfig();
-                  const privateKey = document.getElementById('privateKeyInput').value;
-                  const datasets = document.getElementById('datasetsInput').value;
-                  const algorithm = document.getElementById('algorithmInput').value;
-                  const nodeUrl = document.getElementById('nodeUrlInput').value;
-
-                  vscode.postMessage({ 
-                      type: 'startComputeJob',
-                      config: config,
-                      privateKey: privateKey,
-                      datasets: datasets,
-                      algorithm: algorithm,
-                      nodeUrl: nodeUrl
-                  });
-              });
         </script>
         
     </body>

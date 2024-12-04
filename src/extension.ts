@@ -264,7 +264,7 @@ export async function activate(context: vscode.ExtensionContext) {
         const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
         const signer = new ethers.Wallet(privateKey, provider)
 
-        await computeStart(datasets, algorithm, computeEnv, signer, nodeUrl)
+        await computeStart(datasets, algorithm, signer, nodeUrl)
 
         vscode.window.showInformationMessage('Compute job started successfully!')
       } catch (error) {
