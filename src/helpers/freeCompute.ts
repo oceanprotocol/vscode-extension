@@ -4,48 +4,28 @@ import { Signer } from 'ethers'
 export async function computeStart(
   dataset: any,
   algorithm: any,
-  computeEnv: string,
   signer: Signer,
-  macOsProviderUrl?: string,
-  providerUrl?: string
+  nodeUrl: string
 ) {
-  const { chainId } = await signer.provider.getNetwork()
-  const providerURI =
-    this.macOsProviderUrl && chainId === 8996 ? macOsProviderUrl : providerUrl
+  console.log('Starting free compute job using provider: ', nodeUrl)
+  const consumerAddress: string = await signer.getAddress()
 
-  const computeEnvs = await ProviderInstance.getComputeEnvironments(
-    this.macOsProviderUrl || this.providerUrl
+  const nonce = (await ProviderInstance.getNonce(nodeUrl, await signer.getAddress())) + 1
+  console.log('Nonce: ', nonce)
+
+  const signature = await ProviderInstance.signProviderRequest(
+    signer,
+    consumerAddress + nonce
   )
-
-  const computeEnvID = computeEnv
-  const chainComputeEnvs = computeEnvs[chainId]
-  let chainComputeEnv = chainComputeEnvs[0]
-
-  if (computeEnvID && computeEnvID.length > 1) {
-    for (const index in chainComputeEnvs) {
-      if (computeEnvID == chainComputeEnvs[index].id) {
-        chainComputeEnv = chainComputeEnvs[index]
-        continue
-      }
-    }
-  }
-
-  console.log('Starting free compute job using provider: ', providerURI)
-
-  const nonce =
-    (await ProviderInstance.getNonce(providerURI, await signer.getAddress())) + 1
-  let signatureMessage = await signer.getAddress()
-  signatureMessage += nonce
-  const signature = await ProviderInstance.signProviderRequest(signer, signatureMessage)
   try {
-    const response = await fetch(providerURI + '/directCommand', {
+    const response = await fetch(nodeUrl + '/directCommand', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         command: 'freeStartCompute',
-        consumerAddress: chainComputeEnv.consumerAddress,
+        consumerAddress: consumerAddress,
         nonce: nonce,
         signature: signature,
         datasets: [dataset],

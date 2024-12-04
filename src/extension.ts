@@ -237,7 +237,7 @@ export async function activate(context: vscode.ExtensionContext) {
       privateKey: string,
       datasets: string,
       algorithm: string,
-      computeEnv: string
+      nodeUrl: string
     ) => {
       if (!config) {
         vscode.window.showErrorMessage('No config provided.')
@@ -255,8 +255,8 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.showErrorMessage('No algorithm provided.')
         return
       }
-      if (!computeEnv) {
-        vscode.window.showErrorMessage('No compute environment provided.')
+      if (!nodeUrl) {
+        vscode.window.showErrorMessage('No ocean node url provided.')
         return
       }
 
@@ -264,7 +264,7 @@ export async function activate(context: vscode.ExtensionContext) {
         const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
         const signer = new ethers.Wallet(privateKey, provider)
 
-        await computeStart(datasets, algorithm, computeEnv, signer)
+        await computeStart(datasets, algorithm, computeEnv, signer, nodeUrl)
 
         vscode.window.showInformationMessage('Compute job started successfully!')
       } catch (error) {
