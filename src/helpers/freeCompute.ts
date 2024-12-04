@@ -1,35 +1,5 @@
-import {
-  Aquarius,
-  DatatokenCreateParams,
-  Nft,
-  NftCreateData,
-  NftFactory,
-  ProviderInstance,
-  ComputeAlgorithm,
-  Datatoken,
-  Asset,
-  DDO,
-  ComputeOutput,
-  ProviderComputeInitialize,
-  ZERO_ADDRESS,
-  ConfigHelper,
-  getEventFromTx,
-  DispenserCreationParams,
-  FreCreationParams,
-  approveWei,
-  orderAsset,
-  Config,
-  ProviderFees,
-  ConsumeMarketFee,
-  ComputeAsset
-} from '@oceanprotocol/lib'
-import { ethers, Signer } from 'ethers'
-import { SHA256 } from 'crypto-js'
-import { hexlify } from 'ethers/lib/utils'
-import { createHash } from 'crypto'
-import fs from 'fs'
-import os from 'os'
-import path from 'path'
+import { ProviderInstance } from '@oceanprotocol/lib'
+import { Signer } from 'ethers'
 import { isPrivateIP, getPublicIP } from './ip'
 
 export async function getMetadataURI() {
