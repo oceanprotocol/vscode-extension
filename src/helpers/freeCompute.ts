@@ -1,51 +1,8 @@
 import { ProviderInstance } from '@oceanprotocol/lib'
 import { Signer } from 'ethers'
-import { isPrivateIP, getPublicIP } from './ip'
-
-export async function getMetadataURI() {
-  const metadataURI = process.env.AQUARIUS_URL
-  const parsed = new URL(metadataURI)
-  let ip = metadataURI // by default
-  // has port number?
-  const hasPort = parsed.port && !isNaN(Number(parsed.port))
-  if (hasPort) {
-    // remove the port, just get the host part
-    ip = parsed.hostname
-  }
-  // check if is private or loopback
-  if (isPrivateIP(ip)) {
-    // get public V4 ip address
-    ip = await getPublicIP()
-    if (!ip) {
-      return metadataURI
-    }
-  }
-  // if we removed the port add it back
-  if (hasPort) {
-    ip = `http://${ip}:${parsed.port}`
-  }
-  return ip
-}
-
-function getFreeStartComputePayload(
-  nonce: number,
-  signature: string,
-  consumerAddress: string,
-  dataset: any,
-  algorithm: any
-) {
-  return {
-    command: 'freeStartCompute',
-    consumerAddress: consumerAddress,
-    nonce: nonce,
-    signature: signature,
-    datasets: [dataset],
-    algorithm: algorithm
-  }
-}
 
 export async function computeStart(
-  datasets: any,
+  dataset: any,
   algorithm: any,
   computeEnv: string,
   signer: Signer,
@@ -86,15 +43,14 @@ export async function computeStart(
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(
-        getFreeStartComputePayload(
-          nonce,
-          signature,
-          chainComputeEnv.consumerAddress,
-          datasets,
-          algorithm
-        )
-      )
+      body: JSON.stringify({
+        command: 'freeStartCompute',
+        consumerAddress: chainComputeEnv.consumerAddress,
+        nonce: nonce,
+        signature: signature,
+        datasets: [dataset],
+        algorithm: algorithm
+      })
     })
     console.log('Free Start Compute response: ' + JSON.stringify(response))
   } catch (e) {
