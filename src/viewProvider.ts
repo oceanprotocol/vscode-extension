@@ -222,8 +222,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     <label for="algorithmInput">Algorithm</label>
                     <input id="algorithmInput" placeholder="Select the Algorithm file" />
                     
-                    <label for="computeEnvInput">Node URL (including port)</label>
-                    <input id="computeEnvInput" placeholder="Enter compute environment ID" />
+                    <label for="nodeUrlInput">Node URL (including port)</label>
+                    <input id="nodeUrlInput" placeholder="Enter compute environment ID" />
                     
                     <button id="startComputeBtn">Start Compute Job</button>
                 </div>
@@ -337,6 +337,27 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     filePath: pathSelected,
                     privateKey: privateKey, 
                     assetDid: assetDidSelected
+                  });
+              });
+
+              // Add in the DOMContentLoaded event listener
+              document.getElementById('computeHeader').addEventListener('click', () => toggleSection('compute'));
+
+              // Add new event listener for compute button
+              document.getElementById('startComputeBtn').addEventListener('click', () => {
+                  const config = getConfig();
+                  const privateKey = document.getElementById('privateKeyInput').value;
+                  const datasets = document.getElementById('datasetsInput').value;
+                  const algorithm = document.getElementById('algorithmInput').value;
+                  const nodeUrl = document.getElementById('nodeUrlInput').value;
+
+                  vscode.postMessage({ 
+                      type: 'startComputeJob',
+                      config: config,
+                      privateKey: privateKey,
+                      datasets: datasets,
+                      algorithm: algorithm,
+                      nodeUrl: nodeUrl
                   });
               });
         </script>
