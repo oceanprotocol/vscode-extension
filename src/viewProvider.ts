@@ -211,6 +211,26 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
         </div>
 
         <div class="section">
+            <div id="computeHeader" class="section-header">
+                <span class="chevron">&#9658;</span>Start Compute Job
+            </div>
+            <div id="compute" class="section-content">
+                <div class="container">
+                    <label for="datasetsInput">Dataset</label>
+                    <input id="datasetsInput" placeholder="Select the dataset file" />
+                    
+                    <label for="algorithmInput">Algorithm</label>
+                    <input id="algorithmInput" placeholder="Select the Algorithm file" />
+                    
+                    <label for="computeEnvInput">Node URL (including port)</label>
+                    <input id="computeEnvInput" placeholder="Enter compute environment ID" />
+                    
+                    <button id="startComputeBtn">Start Compute Job</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
             <div id="p2pHeader" class="section-header">
                 <span class="chevron">&#9658;</span>P2P
             </div>
