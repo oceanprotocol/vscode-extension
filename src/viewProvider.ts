@@ -405,7 +405,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 }
             });
         </script>
-        
     </body>
     </html>
     `

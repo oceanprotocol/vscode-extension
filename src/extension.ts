@@ -234,9 +234,9 @@ export async function activate(context: vscode.ExtensionContext) {
     'ocean-protocol.startComputeJob',
     async (
       config: any,
+      datasetPath: string,
+      algorithmPath: string,
       privateKey: string,
-      datasets: string,
-      algorithm: string,
       nodeUrl: string
     ) => {
       if (!config) {
@@ -247,12 +247,12 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.showErrorMessage('No private key provided.')
         return
       }
-      if (!datasets) {
-        vscode.window.showErrorMessage('No datasets provided.')
+      if (!datasetPath) {
+        vscode.window.showErrorMessage('No dataset file path provided.')
         return
       }
-      if (!algorithm) {
-        vscode.window.showErrorMessage('No algorithm provided.')
+      if (!algorithmPath) {
+        vscode.window.showErrorMessage('No algorithm file path provided.')
         return
       }
       if (!nodeUrl) {
@@ -264,7 +264,15 @@ export async function activate(context: vscode.ExtensionContext) {
         const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
         const signer = new ethers.Wallet(privateKey, provider)
 
-        await computeStart(datasets, algorithm, signer, nodeUrl)
+        // Read the dataset file
+        const datasetContent = fs.readFileSync(datasetPath, 'utf8')
+        const dataset = JSON.parse(datasetContent)
+
+        // Read the algorithm file
+        const algorithmContent = fs.readFileSync(algorithmPath, 'utf8')
+        const algorithm = JSON.parse(algorithmContent)
+
+        await computeStart(dataset, algorithm, signer, nodeUrl)
 
         vscode.window.showInformationMessage('Compute job started successfully!')
       } catch (error) {
