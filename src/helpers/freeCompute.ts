@@ -13,10 +13,6 @@ export async function computeStart(
   const nonce = (await ProviderInstance.getNonce(nodeUrl, await signer.getAddress())) + 1
   console.log('Nonce: ', nonce)
 
-  const signature = await ProviderInstance.signProviderRequest(
-    signer,
-    consumerAddress + nonce
-  )
   try {
     const response = await fetch(nodeUrl + '/directCommand', {
       method: 'POST',
@@ -27,7 +23,7 @@ export async function computeStart(
         command: 'freeStartCompute',
         consumerAddress: consumerAddress,
         nonce: nonce,
-        signature: signature,
+        signature: '0x123',
         datasets: [dataset],
         algorithm: algorithm
       })
