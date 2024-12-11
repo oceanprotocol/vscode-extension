@@ -36,13 +36,11 @@ export async function computeStart(
   dataset: any,
   algorithm: any,
   signer: Signer,
-  nodeUrl: string
+  nodeUrl: string,
+  nonce: number = 1
 ): Promise<ComputeResponse> {
   console.log('Starting free compute job using provider: ', nodeUrl)
   const consumerAddress: string = await signer.getAddress()
-
-  const nonce = (await ProviderInstance.getNonce(nodeUrl, await signer.getAddress())) + 1
-  console.log('Nonce: ', nonce)
 
   try {
     console.log('Sending compute request with body:', {
@@ -103,24 +101,40 @@ export async function getComputeResult(
   consumerAddress: string,
   signature: string,
   index: number = 0,
-  nonce: number = 1
+  nonce: number = 0
 ) {
-  const response = await axios.post(`${nodeUrl}/directCommand`, {
-    command: 'getComputeResult',
-    jobId,
-    consumerAddress,
-    signature,
-    index,
-    nonce
-  })
-  return response.data
+  try {
+    console.log('Getting compute result for jobId:', jobId)
+    console.log('Using consumerAddress:', consumerAddress)
+    console.log('Using signature:', signature)
+    console.log('Using index:', index)
+    console.log('Using nonce:', nonce)
+
+    const response = await axios.post(`${nodeUrl}/directCommand`, {
+      command: 'getComputeResult',
+      jobId,
+      consumerAddress,
+      signature,
+      index,
+      nonce
+    })
+    return response.data
+  } catch (error) {
+    console.error('Error getting compute result:', error)
+    throw error
+  }
 }
 
 export async function saveResults(results: any): Promise<string> {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-  const fileName = `compute-results-${timestamp}.txt`
-  const filePath = path.join(process.cwd(), fileName)
+  try {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const fileName = `compute-results-${timestamp}.txt`
+    const filePath = path.join(process.cwd(), fileName)
 
-  await fs.promises.writeFile(filePath, JSON.stringify(results, null, 2), 'utf-8')
-  return filePath
+    await fs.promises.writeFile(filePath, JSON.stringify(results, null, 2), 'utf-8')
+    return filePath
+  } catch (error) {
+    console.error('Error saving results:', error)
+    throw error
+  }
 }

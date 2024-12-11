@@ -276,7 +276,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
       const progressOptions = {
         location: vscode.ProgressLocation.Notification,
-        title: 'Ocean Protocol Compute Job',
+        title: 'Compute Job Status',
         cancellable: false
       }
       console.log('Progress options:', progressOptions)
@@ -296,8 +296,18 @@ export async function activate(context: vscode.ExtensionContext) {
           const algorithm = JSON.parse(fs.readFileSync(algorithmPath, 'utf8'))
           console.log('Algorithm read successfully')
 
+          // nonce equals date in milliseconds
+          const nonce = Date.now()
+          console.log('Nonce: ', nonce)
+
           // Start compute job
-          const computeResponse = await computeStart(dataset, algorithm, signer, nodeUrl)
+          const computeResponse = await computeStart(
+            dataset,
+            algorithm,
+            signer,
+            nodeUrl,
+            nonce
+          )
           console.log('Compute result received:', computeResponse)
           const jobId = computeResponse.jobId // Assuming computeStart returns jobId
           console.log('Job ID:', jobId)
@@ -309,17 +319,22 @@ export async function activate(context: vscode.ExtensionContext) {
             console.log('Checking job status...')
             const status = await checkComputeStatus(nodeUrl, jobId)
             console.log('Job status:', status)
-            progress.report({ message: `Job status: ${status.statusText}` })
+            console.log('Status text:', status.statusText)
+            progress.report({ message: `${status.statusText}` })
 
             if (status.statusText === 'Job finished') {
               // Generate signature for result retrieval
+              console.log('Generating signature for result retrieval...')
               progress.report({ message: 'Generating signature for result retrieval...' })
+
+              const index = 0
+
               const signatureResult = await generateOceanSignature({
                 privateKey,
                 consumerAddress: signer.address,
                 jobId,
-                index: 0,
-                nonce: '1'
+                index,
+                nonce
               })
 
               // Retrieve results
@@ -328,7 +343,9 @@ export async function activate(context: vscode.ExtensionContext) {
                 nodeUrl,
                 jobId,
                 signer.address,
-                signatureResult.signature
+                signatureResult.signature,
+                index,
+                nonce
               )
 
               // Save results

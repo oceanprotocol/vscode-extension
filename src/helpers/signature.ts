@@ -5,7 +5,7 @@ export interface SignatureParams {
   consumerAddress: string
   jobId: string
   index?: number
-  nonce?: string
+  nonce?: number
 }
 
 export interface SignatureResult {
@@ -21,7 +21,7 @@ export async function generateOceanSignature({
   consumerAddress,
   jobId,
   index = 0,
-  nonce = '1'
+  nonce = 1
 }: SignatureParams): Promise<SignatureResult> {
   try {
     // Create wallet instance from private key
@@ -33,24 +33,32 @@ export async function generateOceanSignature({
     // Hash the message exactly as done in Ocean Protocol
     const consumerMessage = ethers.utils.solidityKeccak256(
       ['bytes'],
-      [ethers.utils.toUtf8Bytes(message)]
+      [ethers.utils.hexlify(ethers.utils.toUtf8Bytes(message))]
     )
 
-    // Convert the hash to bytes
+    // Convert to bytes and sign
     const messageHashBytes = ethers.utils.arrayify(consumerMessage)
-
-    // Sign the hashed message
     const signature = await wallet.signMessage(messageHashBytes)
 
-    // Verify the signature
-    const recoveredAddress = ethers.utils.verifyMessage(messageHashBytes, signature)
-    const isValid = recoveredAddress.toLowerCase() === consumerAddress.toLowerCase()
+    // Verify using both methods like Ocean Protocol does
+    const addressFromHashSignature = ethers.utils.verifyMessage(
+      consumerMessage,
+      signature
+    )
+    const addressFromBytesSignature = ethers.utils.verifyMessage(
+      messageHashBytes,
+      signature
+    )
+
+    const isValid =
+      addressFromHashSignature.toLowerCase() === consumerAddress.toLowerCase() ||
+      addressFromBytesSignature.toLowerCase() === consumerAddress.toLowerCase()
 
     return {
       signature,
       walletAddress: wallet.address,
       hashedMessage: consumerMessage,
-      recoveredAddress,
+      recoveredAddress: addressFromHashSignature,
       isValid
     }
   } catch (error) {
