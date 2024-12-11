@@ -355,6 +355,16 @@ export async function activate(context: vscode.ExtensionContext) {
               vscode.window.showInformationMessage(
                 `Compute job completed successfully! Results saved to: ${filePath}`
               )
+
+              // Open the saved file in a new editor window
+              const uri = vscode.Uri.file(filePath)
+              const document = await vscode.workspace.openTextDocument(uri)
+              await vscode.window.showTextDocument(document, { preview: false })
+
+              vscode.window.showInformationMessage(
+                `Compute job completed successfully! Results opened in editor.`
+              )
+
               break
             }
 
