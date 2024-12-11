@@ -45,35 +45,39 @@ export async function computeStart(
   console.log('Nonce: ', nonce)
 
   try {
-    const response = await fetch(nodeUrl + '/directCommand', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        command: 'freeStartCompute',
-        consumerAddress: consumerAddress,
-        nonce: nonce,
-        signature: '0x123',
-        datasets: [dataset],
-        algorithm: algorithm
-      })
+    console.log('Sending compute request with body:', {
+      command: 'freeStartCompute',
+      consumerAddress: consumerAddress,
+      nonce: nonce,
+      signature: '0x123',
+      datasets: [dataset],
+      algorithm: algorithm
     })
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
+    const response = await axios.post(`${nodeUrl}/directCommand`, {
+      command: 'freeStartCompute',
+      consumerAddress: consumerAddress,
+      nonce: nonce,
+      signature: '0x123',
+      datasets: [dataset],
+      algorithm: algorithm
+    })
 
-    const computeResponse: ComputeResponse[] = await response.json()
-    console.log('Free Start Compute response: ' + JSON.stringify(computeResponse))
+    console.log('Free Start Compute response: ' + JSON.stringify(response.data))
 
-    if (!computeResponse || computeResponse.length === 0) {
+    if (!response.data || response.data.length === 0) {
       throw new Error('Empty response from compute start')
     }
 
-    return computeResponse[0]
+    return response.data[0]
   } catch (e) {
     console.error('Free start compute error: ', e)
+    // Log additional error details if available
+    if (e.response) {
+      console.error('Error response data:', e.response.data)
+      console.error('Error response status:', e.response.status)
+      console.error('Error response headers:', e.response.headers)
+    }
     throw e
   }
 }

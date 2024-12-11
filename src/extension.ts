@@ -268,6 +268,7 @@ export async function activate(context: vscode.ExtensionContext) {
       privateKey: string,
       nodeUrl: string
     ) => {
+      console.log('Starting compute job...')
       if (!config || !privateKey || !datasetPath || !algorithmPath || !nodeUrl) {
         vscode.window.showErrorMessage('Missing required parameters.')
         return
@@ -278,27 +279,36 @@ export async function activate(context: vscode.ExtensionContext) {
         title: 'Ocean Protocol Compute Job',
         cancellable: false
       }
+      console.log('Progress options:', progressOptions)
 
       try {
         await vscode.window.withProgress(progressOptions, async (progress) => {
           // Initial setup
           progress.report({ message: 'Starting compute job...' })
           const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
+          console.log('Provider started')
           const signer = new ethers.Wallet(privateKey, provider)
+          console.log('Signer created')
 
           // Read files
           const dataset = JSON.parse(fs.readFileSync(datasetPath, 'utf8'))
+          console.log('Dataset read successfully')
           const algorithm = JSON.parse(fs.readFileSync(algorithmPath, 'utf8'))
+          console.log('Algorithm read successfully')
 
           // Start compute job
           const computeResponse = await computeStart(dataset, algorithm, signer, nodeUrl)
+          console.log('Compute result received:', computeResponse)
           const jobId = computeResponse.jobId // Assuming computeStart returns jobId
+          console.log('Job ID:', jobId)
 
           // Monitor job status
           progress.report({ message: 'Monitoring compute job status...' })
 
           while (true) {
+            console.log('Checking job status...')
             const status = await checkComputeStatus(nodeUrl, jobId)
+            console.log('Job status:', status)
             progress.report({ message: `Job status: ${status.statusText}` })
 
             if (status.statusText === 'Job finished') {
