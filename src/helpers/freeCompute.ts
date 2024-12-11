@@ -19,12 +19,25 @@ interface ComputeStatus {
   }>
 }
 
+interface ComputeResponse {
+  owner: string
+  jobId: string
+  dateCreated: string
+  dateFinished: null
+  status: number
+  statusText: string
+  results: any[]
+  agreementId: string
+  expireTimestamp: number
+  environment: string
+}
+
 export async function computeStart(
   dataset: any,
   algorithm: any,
   signer: Signer,
   nodeUrl: string
-) {
+): Promise<ComputeResponse> {
   console.log('Starting free compute job using provider: ', nodeUrl)
   const consumerAddress: string = await signer.getAddress()
 
@@ -46,9 +59,22 @@ export async function computeStart(
         algorithm: algorithm
       })
     })
-    console.log('Free Start Compute response: ' + JSON.stringify(response))
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const computeResponse: ComputeResponse[] = await response.json()
+    console.log('Free Start Compute response: ' + JSON.stringify(computeResponse))
+
+    if (!computeResponse || computeResponse.length === 0) {
+      throw new Error('Empty response from compute start')
+    }
+
+    return computeResponse[0]
   } catch (e) {
     console.error('Free start compute error: ', e)
+    throw e
   }
 }
 
