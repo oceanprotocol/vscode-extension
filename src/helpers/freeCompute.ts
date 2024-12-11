@@ -86,7 +86,7 @@ export async function getComputeResult(
   return response.data
 }
 
-async function saveResults(results: any): Promise<string> {
+export async function saveResults(results: any): Promise<string> {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
   const fileName = `compute-results-${timestamp}.txt`
   const filePath = path.join(process.cwd(), fileName)
