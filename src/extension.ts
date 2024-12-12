@@ -265,10 +265,17 @@ export async function activate(context: vscode.ExtensionContext) {
       config: any,
       datasetPath: string,
       algorithmPath: string,
+      resultsFolderPath: string,
       privateKey: string,
       nodeUrl: string
     ) => {
       console.log('Starting compute job...')
+      console.log('Config:', config)
+      console.log('Dataset path:', datasetPath)
+      console.log('Algorithm path:', algorithmPath)
+      console.log('Results folder path:', resultsFolderPath)
+      console.log('Private key:', privateKey)
+      console.log('Node URL:', nodeUrl)
       if (!config || !privateKey || !datasetPath || !algorithmPath || !nodeUrl) {
         vscode.window.showErrorMessage('Missing required parameters.')
         return
@@ -350,7 +357,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
               // Save results
               progress.report({ message: 'Saving results...' })
-              const filePath = await saveResults(results)
+              const filePath = await saveResults(results, resultsFolderPath)
 
               vscode.window.showInformationMessage(
                 `Compute job completed successfully! Results saved to: ${filePath}`

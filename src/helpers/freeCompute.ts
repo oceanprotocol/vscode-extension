@@ -125,11 +125,14 @@ export async function getComputeResult(
   }
 }
 
-export async function saveResults(results: any): Promise<string> {
+export async function saveResults(
+  results: any,
+  destinationFolder: string
+): Promise<string> {
   try {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const fileName = `compute-results-${timestamp}.txt`
-    const filePath = path.join(process.cwd(), fileName)
+    const filePath = path.join(destinationFolder, fileName)
 
     await fs.promises.writeFile(filePath, JSON.stringify(results, null, 2), 'utf-8')
     return filePath

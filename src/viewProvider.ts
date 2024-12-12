@@ -24,7 +24,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview)
 
-    webviewView.webview.onDidReceiveMessage((data) => {
+    webviewView.webview.onDidReceiveMessage(async (data) => {
       switch (data.type) {
         case 'getAssetDetails':
           vscode.commands.executeCommand(
@@ -56,12 +56,29 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
         case 'getOceanPeers':
           vscode.commands.executeCommand('ocean-protocol.getOceanPeers')
           break
+        case 'selectResultsFolder': {
+          const folderUri = await vscode.window.showOpenDialog({
+            canSelectFiles: false,
+            canSelectFolders: true,
+            canSelectMany: false,
+            openLabel: 'Select Results Folder'
+          })
+
+          if (folderUri && folderUri[0]) {
+            webviewView.webview.postMessage({
+              type: 'resultsFolder',
+              path: folderUri[0].fsPath
+            })
+          }
+          break
+        }
         case 'startComputeJob':
           vscode.commands.executeCommand(
             'ocean-protocol.startComputeJob',
             data.config,
             data.datasetPath,
             data.algorithmPath,
+            data.resultsFolderPath,
             data.privateKey,
             data.nodeUrl
           )
@@ -220,7 +237,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 </div>
             </div>
         </div>
-        
+                
         <div class="section">
             <div id="computeHeader" class="section-header">
                 <span class="chevron">&#9658;</span>Start Compute Job
@@ -234,6 +251,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     <label>Algorithm</label>
                     <button id="selectAlgorithmBtn">Select Algorithm File</button>
                     <div id="selectedAlgorithmPath" class="selectedFile"></div>
+                    
+                    <label>Results Folder</label>
+                    <button id="selectResultsFolderBtn">Select Results Folder</button>
+                    <div id="selectedResultsFolderPath" class="selectedFile"></div>
                     
                     <label for="nodeUrlInput">Node URL (including port)</label>
                     <input id="nodeUrlInput" placeholder="Enter compute environment ID" />
@@ -325,6 +346,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     });
                 });
 
+                document.getElementById('selectResultsFolderBtn').addEventListener('click', () => {
+                    vscode.postMessage({
+                        type: 'selectResultsFolder'
+                    });
+                });
+
                 document.getElementById('getAssetDetailsBtn').addEventListener('click', () => {
                     const config = getConfig();
                     const did = document.getElementById('didInput').value;
@@ -361,7 +388,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 });
 
                 document.getElementById('startComputeBtn').addEventListener('click', () => {
-                    const config = getConfig();
+                  const config = getConfig();
                     const privateKey = document.getElementById('privateKeyInput').value;
                     const nodeUrl = document.getElementById('nodeUrlInput').value;
 
@@ -379,6 +406,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                         privateKey: privateKey,
                         datasetPath: selectedDatasetPath,
                         algorithmPath: selectedAlgorithmPath,
+                        resultsFolderPath: selectedResultsFolderPath,
                         nodeUrl: nodeUrl
                     });
                 });
@@ -402,7 +430,11 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     case 'nodeId':
                         document.getElementById('nodeIdDisplay').textContent = message.nodeId;
                         break;
-                }
+                    case 'resultsFolder':
+                        selectedResultsFolderPath = message.path;
+                        document.getElementById('selectedResultsFolderPath').textContent = message.path;
+                        break;
+                  }
             });
         </script>
     </body>
