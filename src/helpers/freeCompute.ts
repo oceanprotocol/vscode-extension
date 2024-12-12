@@ -1,4 +1,4 @@
-import { ProviderInstance } from '@oceanprotocol/lib'
+import * as vscode from 'vscode'
 import { Signer } from 'ethers'
 import fs from 'fs'
 import axios from 'axios'
@@ -139,5 +139,46 @@ export async function saveResults(
   } catch (error) {
     console.error('Error saving results:', error)
     throw error
+  }
+}
+
+// Create output channel for compute logs
+export const computeLogsChannel = vscode.window.createOutputChannel('Ocean Compute Logs')
+
+export async function getComputeLogs(
+  nodeUrl: string,
+  jobId: string,
+  consumerAddress: string,
+  nonce: number,
+  signature: string
+): Promise<void> {
+  try {
+    // Make request to get compute logs
+    const response = await fetch(`${nodeUrl}/directCommand`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        command: 'getComputeStreamableLogs',
+        jobId,
+        consumerAddress,
+        nonce,
+        signature
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get compute logs: ${response.statusText}`)
+    }
+
+    const logs = await response.json()
+    if (logs && Array.isArray(logs)) {
+      logs.forEach((log) => {
+        computeLogsChannel.appendLine(log)
+      })
+    }
+  } catch (error) {
+    console.error('Error fetching compute logs:', error)
   }
 }

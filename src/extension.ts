@@ -9,8 +9,10 @@ import { OceanP2P } from './helpers/oceanNode'
 import { download } from './helpers/download'
 import {
   checkComputeStatus,
+  computeLogsChannel,
   computeStart,
   delay,
+  getComputeLogs,
   getComputeResult,
   saveResults
 } from './helpers/freeCompute'
@@ -316,8 +318,35 @@ export async function activate(context: vscode.ExtensionContext) {
             nonce
           )
           console.log('Compute result received:', computeResponse)
-          const jobId = computeResponse.jobId // Assuming computeStart returns jobId
+          const jobId = computeResponse.jobId
           console.log('Job ID:', jobId)
+
+          computeLogsChannel.show()
+          computeLogsChannel.appendLine(`Starting compute job with ID: ${jobId}`)
+
+          // Start fetching logs periodically
+
+          const index = 0
+
+          console.log('Generating signature for retrieval...')
+          progress.report({ message: 'Generating signature for retrieval...' })
+          const signatureResult = await generateOceanSignature({
+            privateKey,
+            consumerAddress: signer.address,
+            jobId,
+            index,
+            nonce
+          })
+
+          const logInterval = setInterval(async () => {
+            await getComputeLogs(
+              nodeUrl,
+              jobId,
+              signer.address,
+              nonce,
+              signatureResult.signature
+            )
+          }, 5000)
 
           // Monitor job status
           progress.report({ message: 'Monitoring compute job status...' })
@@ -330,19 +359,9 @@ export async function activate(context: vscode.ExtensionContext) {
             progress.report({ message: `${status.statusText}` })
 
             if (status.statusText === 'Job finished') {
+              // Clear the logging interval
+              clearInterval(logInterval)
               // Generate signature for result retrieval
-              console.log('Generating signature for result retrieval...')
-              progress.report({ message: 'Generating signature for result retrieval...' })
-
-              const index = 0
-
-              const signatureResult = await generateOceanSignature({
-                privateKey,
-                consumerAddress: signer.address,
-                jobId,
-                index,
-                nonce
-              })
 
               // Retrieve results
               progress.report({ message: 'Retrieving compute results...' })
