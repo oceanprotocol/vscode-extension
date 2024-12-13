@@ -330,6 +330,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
           console.log('Generating signature for retrieval...')
           progress.report({ message: 'Generating signature for retrieval...' })
+          computeLogsChannel.appendLine('Generating signature for retrieval...')
           const signatureResult = await generateOceanSignature({
             privateKey,
             consumerAddress: signer.address,
@@ -350,6 +351,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
           // Monitor job status
           progress.report({ message: 'Monitoring compute job status...' })
+          computeLogsChannel.appendLine('Monitoring compute job status...')
 
           while (true) {
             console.log('Checking job status...')
@@ -357,6 +359,7 @@ export async function activate(context: vscode.ExtensionContext) {
             console.log('Job status:', status)
             console.log('Status text:', status.statusText)
             progress.report({ message: `${status.statusText}` })
+            computeLogsChannel.appendLine(`Job status: ${status.statusText}`)
 
             if (status.statusText === 'Job finished') {
               // Clear the logging interval
@@ -365,6 +368,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
               // Retrieve results
               progress.report({ message: 'Retrieving compute results...' })
+              computeLogsChannel.appendLine('Retrieving compute results...')
               const results = await getComputeResult(
                 nodeUrl,
                 jobId,
@@ -376,9 +380,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
               // Save results
               progress.report({ message: 'Saving results...' })
+              computeLogsChannel.appendLine('Saving results...')
               const filePath = await saveResults(results, resultsFolderPath)
 
               vscode.window.showInformationMessage(
+                `Compute job completed successfully! Results saved to: ${filePath}`
+              )
+              computeLogsChannel.appendLine(
                 `Compute job completed successfully! Results saved to: ${filePath}`
               )
 
@@ -388,6 +396,9 @@ export async function activate(context: vscode.ExtensionContext) {
               await vscode.window.showTextDocument(document, { preview: false })
 
               vscode.window.showInformationMessage(
+                `Compute job completed successfully! Results opened in editor.`
+              )
+              computeLogsChannel.appendLine(
                 `Compute job completed successfully! Results opened in editor.`
               )
 
