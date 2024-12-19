@@ -49,7 +49,7 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "lint": "eslint src",
     "test-vs": "vscode-test",
-    "test": "npm run mocha 'test/publish.test.ts'",
+    "test": "vscode-test",
     "mocha": "TS_NODE_PROJECT='./test/tsconfig.json' mocha --extensions ts --config=test/.mocharc.json --node-env=test --exit"
   },
   "devDependencies": {
