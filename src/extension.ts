@@ -3,7 +3,7 @@ import { Aquarius, Asset } from '@oceanprotocol/lib'
 import { OceanProtocolViewProvider } from './viewProvider'
 import { ethers } from 'ethers'
 import * as fs from 'fs'
-import { createAsset } from './helpers/publish'
+import { createAssetUtil } from './helpers/publish'
 import fetch from 'cross-fetch'
 import { OceanP2P } from './helpers/oceanNode'
 import { download } from './helpers/download'
@@ -124,7 +124,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
         const aquarius = new Aquarius(config.aquariusUrl)
 
-        const urlAssetId = await createAsset(
+        const urlAssetId = await createAssetUtil(
           asset.nft.name,
           asset.nft.symbol,
           signer,
@@ -132,7 +132,6 @@ export async function activate(context: vscode.ExtensionContext) {
           asset,
           config.providerUrl,
           aquarius,
-          undefined, // macOsProviderUrl
           true // encryptDDO
         )
 
