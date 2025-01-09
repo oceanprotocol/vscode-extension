@@ -7,9 +7,12 @@ import { createAssetUtil } from './helpers/publish'
 import fetch from 'cross-fetch'
 import { OceanP2P } from './helpers/oceanNode'
 import { download } from './helpers/download'
+import { computeStart } from './helpers/freeCompute'
 
 globalThis.fetch = fetch
 const node = new OceanP2P()
+
+const outputChannel = vscode.window.createOutputChannel('Ocean Protocol')
 
 async function startOceanNode(): Promise<string> {
   await node.start()
@@ -19,10 +22,13 @@ async function startOceanNode(): Promise<string> {
   const thisNodeId = node._config.keys.peerId.toString()
   console.log('Node ' + thisNodeId + ' started.')
   vscode.window.showInformationMessage(`Ocean Node started with ID: ${thisNodeId}`)
+  outputChannel.appendLine(`Ocean Node started with ID: ${thisNodeId}`)
   return thisNodeId
 }
 
 export async function activate(context: vscode.ExtensionContext) {
+  outputChannel.show()
+  outputChannel.appendLine('Ocean Protocol extension is now active!')
   console.log('Ocean Protocol extension is now active!')
 
   const nodeId = await startOceanNode()
@@ -39,6 +45,7 @@ export async function activate(context: vscode.ExtensionContext) {
   let getAssetDetails = vscode.commands.registerCommand(
     'ocean-protocol.getAssetDetails',
     async (config: any, did: string) => {
+      outputChannel.appendLine('\n\nGetting asset details...')
       if (!did) {
         vscode.window.showErrorMessage('No DID provided.')
         return
@@ -53,6 +60,8 @@ export async function activate(context: vscode.ExtensionContext) {
         const aquariusUrl = new URL(config.aquariusUrl).toString()
         const aquarius = new Aquarius(aquariusUrl)
         const asset = await aquarius.resolve(did)
+
+        outputChannel.appendLine(`Asset details: ${JSON.stringify(asset)}`)
 
         if (asset) {
           const details = `
@@ -81,6 +90,8 @@ export async function activate(context: vscode.ExtensionContext) {
   let publishAsset = vscode.commands.registerCommand(
     'ocean-protocol.publishAsset',
     async (config: any, filePath: string, privateKey: string) => {
+      outputChannel.appendLine('\n\nPublishing file...')
+
       if (!config) {
         vscode.window.showErrorMessage('No config provided.')
         return
@@ -100,6 +111,7 @@ export async function activate(context: vscode.ExtensionContext) {
         // Read the file
         const fileContent = fs.readFileSync(filePath, 'utf8')
         console.log('File content read successfully.')
+        outputChannel.appendLine('File content read successfully.')
 
         const asset: Asset = JSON.parse(fileContent)
         console.log('Asset JSON parsed successfully.')
@@ -126,6 +138,8 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage(
           `Asset published successfully. ID: ${urlAssetId}`
         )
+
+        outputChannel.appendLine(`\n\nAsset published successfully. ID: ${urlAssetId}`)
       } catch (error) {
         console.error('Error details:', error)
         if (error instanceof Error) {
@@ -143,6 +157,7 @@ export async function activate(context: vscode.ExtensionContext) {
     'ocean-protocol.getOceanPeers',
     async () => {
       try {
+        outputChannel.appendLine('\n\nGetting Ocean Node Peers...')
         const peers = await node.getOceanPeers()
         if (peers && peers.length > 0) {
           vscode.window.showInformationMessage(`Ocean Peers:\n${peers.join('\n')}`)
@@ -165,6 +180,7 @@ export async function activate(context: vscode.ExtensionContext) {
   let downloadAsset = vscode.commands.registerCommand(
     'ocean-protocol.downloadAsset',
     async (config: any, filePath: string, privateKey: string, assetDid: string) => {
+      outputChannel.appendLine('\n\nDownloading asset...')
       if (!config) {
         vscode.window.showErrorMessage('No config provided.')
         return
@@ -215,12 +231,19 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage(
           `Asset download successfully. Path: ${filePath}`
         )
+
+        outputChannel.appendLine(`Asset download successfully. Path: ${filePath}`)
       } catch (error) {
         console.error('Error details:', error)
+        outputChannel.appendLine(`Error details: ${filePath}`)
         if (error instanceof Error) {
           vscode.window.showErrorMessage(`Error downloading asset: ${error.message}`)
+          outputChannel.appendLine(`Error downloading asset: ${error.message}`)
         } else {
           vscode.window.showErrorMessage(
+            `An unknown error occurred while downloading the asset.`
+          )
+          outputChannel.appendLine(
             `An unknown error occurred while downloading the asset.`
           )
         }
@@ -228,5 +251,69 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   )
 
-  context.subscriptions.push(getAssetDetails, publishAsset, downloadAsset, getOceanPeers)
+  let startComputeJob = vscode.commands.registerCommand(
+    'ocean-protocol.startComputeJob',
+    async (
+      config: any,
+      datasetPath: string,
+      algorithmPath: string,
+      privateKey: string,
+      nodeUrl: string
+    ) => {
+      if (!config) {
+        vscode.window.showErrorMessage('No config provided.')
+        return
+      }
+      if (!privateKey) {
+        vscode.window.showErrorMessage('No private key provided.')
+        return
+      }
+      if (!datasetPath) {
+        vscode.window.showErrorMessage('No dataset file path provided.')
+        return
+      }
+      if (!algorithmPath) {
+        vscode.window.showErrorMessage('No algorithm file path provided.')
+        return
+      }
+      if (!nodeUrl) {
+        vscode.window.showErrorMessage('No ocean node url provided.')
+        return
+      }
+
+      try {
+        const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
+        const signer = new ethers.Wallet(privateKey, provider)
+
+        // Read the dataset file
+        const datasetContent = fs.readFileSync(datasetPath, 'utf8')
+        const dataset = JSON.parse(datasetContent)
+
+        // Read the algorithm file
+        const algorithmContent = fs.readFileSync(algorithmPath, 'utf8')
+        const algorithm = JSON.parse(algorithmContent)
+
+        await computeStart(dataset, algorithm, signer, nodeUrl)
+
+        vscode.window.showInformationMessage('Compute job started successfully!')
+      } catch (error) {
+        console.error('Error details:', error)
+        if (error instanceof Error) {
+          vscode.window.showErrorMessage(`Error starting compute job: ${error.message}`)
+        } else {
+          vscode.window.showErrorMessage(
+            `An unknown error occurred while starting the compute job.`
+          )
+        }
+      }
+    }
+  )
+
+  context.subscriptions.push(
+    getAssetDetails,
+    publishAsset,
+    downloadAsset,
+    getOceanPeers,
+    startComputeJob
+  )
 }
