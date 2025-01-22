@@ -1,0 +1,18 @@
+{
+  "fileObject": {
+    "type": "url",
+    "url": "https://raw.githubusercontent.com/oceanprotocol/vscode-extension/82f5691f34a9055b6f33a82d52b1a4f12bff367d/metadata/pyAlgoDDO.json",
+    "method": "GET"
+  },
+  "meta": {
+    "container": {
+      "image": "oceanprotocol/algo_dockers",
+      "tag": "python-branin",
+      "entrypoint": "python $ALGO",
+      "termsAndConditions": true
+    },
+    "additionalInformation": {
+      "termsAndConditions": true
+    }
+  }
+}
