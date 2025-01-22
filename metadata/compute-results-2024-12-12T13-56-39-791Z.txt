@@ -1,1 +1,0 @@
-"Traceback (most recent call last):\r\n  File \"data/transformations/algorithm\", line 18, in <module>\r\n    \"termsAndConditions\": true\r\nNameError: name 'true' is not defined\r\n"
