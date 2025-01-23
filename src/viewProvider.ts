@@ -80,11 +80,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
-    // Escape the nodeId to prevent XSS
-    const nodeId = this.nodeId
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
     return `
     <!DOCTYPE html>
     <html lang="en">
@@ -166,29 +161,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
         </style>
     </head>
     <body>
-        <div class="section">
-            <div id="setupHeader" class="section-header active">
-                <span class="chevron">&#9658;</span>Setup
-            </div>
-            <div id="setup" class="section-content active">
-                <div class="container">
-                    <label for="rpcUrl">RPC URL</label>
-                    <input id="rpcUrl" placeholder="RPC URL" value="http://127.0.0.1:8545" />
-
-                    <label for="nodeUrl">Ocean Node URL</label>
-                    <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8000" />
-
-                    <label for="privateKeyInput">Private Key</label>
-                    <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
-                </div>
-            </div>
-        </div>
                 
         <div class="section">
-            <div id="computeHeader" class="section-header">
+            <div id="computeHeader" class="section-header active">
                 <span class="chevron">&#9658;</span>Start Compute Job
             </div>
-            <div id="compute" class="section-content">
+            <div id="compute" class="section-content active">
                 <div class="container">
                     <label>Dataset</label>
                     <button id="selectDatasetBtn">Select Dataset File</button>
@@ -208,6 +186,24 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     <button id="startComputeBtn">Start Compute Job</button>
                 </div>
             </div>
+
+            <div class="section">
+            <div id="setupHeader" class="section-header">
+                <span class="chevron">&#9658;</span>Setup
+            </div>
+            <div id="setup" class="section-content">
+                <div class="container">
+                    <label for="rpcUrl">RPC URL</label>
+                    <input id="rpcUrl" placeholder="RPC URL" value="http://127.0.0.1:8545" />
+
+                    <label for="nodeUrl">Ocean Node URL</label>
+                    <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8000" />
+
+                    <label for="privateKeyInput">Private Key</label>
+                    <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
+                </div>
+            </div>
+        </div>
         </div>
         </div>
         </div>
