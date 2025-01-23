@@ -37,9 +37,7 @@ export async function activate(context: vscode.ExtensionContext) {
   outputChannel.appendLine('Ocean Protocol extension is now active!')
   console.log('Ocean Protocol extension is now active!')
 
-  const nodeId = await startOceanNode()
-
-  const provider = new OceanProtocolViewProvider(context.extensionUri, nodeId)
+  const provider = new OceanProtocolViewProvider(context.extensionUri)
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(

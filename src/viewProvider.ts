@@ -159,7 +159,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
     </head>
     <body>
                 
-        <div class="section">
+          <div class="section">
             <div id="computeHeader" class="section-header active">
                 <span class="chevron">&#9658;</span>Start Compute Job
             </div>
@@ -183,8 +183,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     <button id="startComputeBtn">Start Compute Job</button>
                 </div>
             </div>
+        </div>
 
-            <div class="section">
+        <div class="section">
             <div id="setupHeader" class="section-header">
                 <span class="chevron">&#9658;</span>Setup
             </div>
@@ -201,9 +202,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 </div>
             </div>
         </div>
-        </div>
-        </div>
-        </div>
+
 
         <script>
             const vscode = acquireVsCodeApi();
