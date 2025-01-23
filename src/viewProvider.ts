@@ -26,35 +26,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.onDidReceiveMessage(async (data) => {
       switch (data.type) {
-        case 'getAssetDetails':
-          vscode.commands.executeCommand(
-            'ocean-protocol.getAssetDetails',
-            data.config,
-            data.did
-          )
-          break
-        case 'publishAsset':
-          vscode.commands.executeCommand(
-            'ocean-protocol.publishAsset',
-            data.config,
-            data.filePath,
-            data.privateKey
-          )
-          break
-        case 'downloadAsset':
-          vscode.commands.executeCommand(
-            'ocean-protocol.downloadAsset',
-            data.config,
-            data.filePath,
-            data.privateKey,
-            data.assetDid
-          )
-          break
         case 'openFilePicker':
           this.openFilePicker(data.elementId)
-          break
-        case 'getOceanPeers':
-          vscode.commands.executeCommand('ocean-protocol.getOceanPeers')
           break
         case 'selectResultsFolder': {
           const folderUri = await vscode.window.showOpenDialog({
@@ -210,33 +183,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 </div>
             </div>
         </div>
-
-        <div class="section">
-            <div id="getAssetHeader" class="section-header">
-                <span class="chevron">&#9658;</span>Get Asset Details
-            </div>
-            <div id="getAsset" class="section-content">
-                <div class="container">
-                    <label for="didInput">Ocean Asset DID</label>
-                    <input id="didInput" placeholder="Enter the DID for the asset" />
-                    <button id="getAssetDetailsBtn">Get Asset DDO</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="section">
-            <div id="publishHeader" class="section-header">
-                <span class="chevron">&#9658;</span>Publish Asset
-            </div>
-            <div id="publish" class="section-content">
-                <div class="container">
-                    <button id="selectFileBtn">Select Asset File</button>
-                    <div id="selectedFilePath"></div>
-
-                    <button id="publishAssetBtn">Publish Asset</button>
-                </div>
-            </div>
-        </div>
                 
         <div class="section">
             <div id="computeHeader" class="section-header">
@@ -263,32 +209,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 </div>
             </div>
         </div>
-
-            <div class="section">
-            <div id="p2pHeader" class="section-header">
-                <span class="chevron">&#9658;</span>P2P
-            </div>
-            <div id="p2p" class="section-content">
-                <div class="container">
-                    <label>Node ID:</label>
-                    <div id="nodeIdDisplay">${nodeId || 'Connecting...'}</div>
-                    <br />
-                    <button id="getOceanPeersBtn">Get Ocean Peers</button>
-                </div>
-            </div>
         </div>
-            <div id="downloadHeader" class="section-header">
-                <span class="chevron">&#9658;</span>Download Asset
-            </div>
-            <div id="download" class="section-content">
-                <div class="container">
-                      <label for="assetDidInput">Asset DID</label>
-                      <input id="assetDidInput" placeholder="Enter your asset DID" />
-                      <label for="pathInput">File Path</label>
-                      <input id="pathInput" placeholder="Enter your file path" /> 
-                    <button id="downloadAssetBtn">Download Asset</button>
-                </div>
-            </div>
         </div>
 
         <script>
@@ -315,15 +236,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
             document.addEventListener('DOMContentLoaded', (event) => {
                 document.getElementById('setupHeader').addEventListener('click', () => toggleSection('setup'));
-                document.getElementById('getAssetHeader').addEventListener('click', () => toggleSection('getAsset'));
-                document.getElementById('publishHeader').addEventListener('click', () => toggleSection('publish'));
-                document.getElementById('p2pHeader').addEventListener('click', () => toggleSection('p2p'));
-                document.getElementById('downloadHeader').addEventListener('click', () => toggleSection('download'));
                 document.getElementById('computeHeader').addEventListener('click', () => toggleSection('compute'));
-
-                document.getElementById('getOceanPeersBtn').addEventListener('click', () => {
-                    vscode.postMessage({ type: 'getOceanPeers' });
-                });
 
                 document.getElementById('selectFileBtn').addEventListener('click', () => {
                     vscode.postMessage({ 
@@ -349,41 +262,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 document.getElementById('selectResultsFolderBtn').addEventListener('click', () => {
                     vscode.postMessage({
                         type: 'selectResultsFolder'
-                    });
-                });
-
-                document.getElementById('getAssetDetailsBtn').addEventListener('click', () => {
-                    const config = getConfig();
-                    const did = document.getElementById('didInput').value;
-                    vscode.postMessage({ 
-                        type: 'getAssetDetails', 
-                        config: config, 
-                        did: did 
-                    });
-                });
-
-                document.getElementById('publishAssetBtn').addEventListener('click', () => {
-                    const config = getConfig();
-                    const privateKey = document.getElementById('privateKeyInput').value;
-                    vscode.postMessage({ 
-                        type: 'publishAsset', 
-                        config: config, 
-                        filePath: selectedFilePath,
-                        privateKey: privateKey
-                    });
-                });
-
-                document.getElementById('downloadAssetBtn').addEventListener('click', () => {
-                    const config = getConfig();
-                    const privateKey = document.getElementById('privateKeyInput').value;
-                    const assetDidSelected = document.getElementById('assetDidInput').value;
-                    const pathSelected = document.getElementById('pathInput').value;
-                    vscode.postMessage({ 
-                        type: 'downloadAsset',
-                        config: config,
-                        filePath: pathSelected,
-                        privateKey: privateKey, 
-                        assetDid: assetDidSelected
                     });
                 });
 
