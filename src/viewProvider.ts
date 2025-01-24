@@ -209,11 +209,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             let selectedFilePath = '';
             let selectedDatasetPath = '';
             let selectedAlgorithmPath = '';
-            const activeEditor = vscode.window.activeTextEditor
-            if (activeEditor) {
-            selectedAlgorithmPath = activeEditor.document.uri.fsPath;
-            }
-
 
             function getConfig() {
               const defaultAquariusUrl = 'http://127.0.0.1:8001';
