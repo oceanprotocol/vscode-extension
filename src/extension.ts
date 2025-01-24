@@ -1,13 +1,19 @@
 import * as vscode from 'vscode'
-import { Aquarius, Asset } from '@oceanprotocol/lib'
 import { OceanProtocolViewProvider } from './viewProvider'
 import { ethers } from 'ethers'
 import * as fs from 'fs'
-import { createAssetUtil } from './helpers/publish'
 import fetch from 'cross-fetch'
 import { OceanP2P } from './helpers/oceanNode'
-import { download } from './helpers/download'
-import { computeStart } from './helpers/freeCompute'
+import {
+  checkComputeStatus,
+  computeLogsChannel,
+  computeStart,
+  delay,
+  getComputeLogs,
+  getComputeResult,
+  saveResults
+} from './helpers/freeCompute'
+import { generateOceanSignature } from './helpers/signature'
 
 globalThis.fetch = fetch
 const node = new OceanP2P()
@@ -31,9 +37,7 @@ export async function activate(context: vscode.ExtensionContext) {
   outputChannel.appendLine('Ocean Protocol extension is now active!')
   console.log('Ocean Protocol extension is now active!')
 
-  const nodeId = await startOceanNode()
-
-  const provider = new OceanProtocolViewProvider(context.extensionUri, nodeId)
+  const provider = new OceanProtocolViewProvider(context.extensionUri)
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
@@ -42,278 +46,172 @@ export async function activate(context: vscode.ExtensionContext) {
     )
   )
 
-  let getAssetDetails = vscode.commands.registerCommand(
-    'ocean-protocol.getAssetDetails',
-    async (config: any, did: string) => {
-      outputChannel.appendLine('\n\nGetting asset details...')
-      if (!did) {
-        vscode.window.showErrorMessage('No DID provided.')
-        return
-      }
-
-      if (!config.aquariusUrl) {
-        vscode.window.showErrorMessage('No Aquarius URL provided.')
-        return
-      }
-
-      try {
-        const aquariusUrl = new URL(config.aquariusUrl).toString()
-        const aquarius = new Aquarius(aquariusUrl)
-        const asset = await aquarius.resolve(did)
-
-        outputChannel.appendLine(`Asset details: ${JSON.stringify(asset)}`)
-
-        if (asset) {
-          const details = `
-            Name: ${asset.metadata.name}\n
-            Type: ${asset.metadata.type}\n
-            Description: ${asset.metadata.description}\n
-            Author: ${asset.metadata.author}\n
-          `
-          vscode.window.showInformationMessage(details)
-        } else {
-          vscode.window.showInformationMessage('Asset not found.')
-        }
-      } catch (error) {
-        console.error('Error details:', error)
-        if (error instanceof Error) {
-          vscode.window.showErrorMessage(`Error getting asset details: ${error.message}`)
-        } else {
-          vscode.window.showErrorMessage(
-            `An unknown error occurred while getting asset details.`
-          )
-        }
-      }
-    }
-  )
-
-  let publishAsset = vscode.commands.registerCommand(
-    'ocean-protocol.publishAsset',
-    async (config: any, filePath: string, privateKey: string) => {
-      outputChannel.appendLine('\n\nPublishing file...')
-
-      if (!config) {
-        vscode.window.showErrorMessage('No config provided.')
-        return
-      }
-      if (!filePath) {
-        vscode.window.showErrorMessage('No file path provided.')
-        return
-      }
-
-      if (!privateKey) {
-        vscode.window.showErrorMessage('No private key provided.')
-        return
-      }
-      vscode.window.showInformationMessage('Publishing asset')
-
-      try {
-        // Read the file
-        const fileContent = fs.readFileSync(filePath, 'utf8')
-        console.log('File content read successfully.')
-        outputChannel.appendLine('File content read successfully.')
-
-        const asset: Asset = JSON.parse(fileContent)
-        console.log('Asset JSON parsed successfully.')
-
-        // Set up the signer
-        console.log(config.rpcUrl)
-        const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
-
-        const signer = new ethers.Wallet(privateKey, provider)
-
-        const aquarius = new Aquarius(config.aquariusUrl)
-
-        const urlAssetId = await createAssetUtil(
-          asset.nft.name,
-          asset.nft.symbol,
-          signer,
-          asset.services[0].files,
-          asset,
-          config.providerUrl,
-          aquarius,
-          true // encryptDDO
-        )
-
-        vscode.window.showInformationMessage(
-          `Asset published successfully. ID: ${urlAssetId}`
-        )
-
-        outputChannel.appendLine(`\n\nAsset published successfully. ID: ${urlAssetId}`)
-      } catch (error) {
-        console.error('Error details:', error)
-        if (error instanceof Error) {
-          vscode.window.showErrorMessage(`Error publishing asset: ${error.message}`)
-        } else {
-          vscode.window.showErrorMessage(
-            `An unknown error occurred while publishing the asset.`
-          )
-        }
-      }
-    }
-  )
-
-  let getOceanPeers = vscode.commands.registerCommand(
-    'ocean-protocol.getOceanPeers',
-    async () => {
-      try {
-        outputChannel.appendLine('\n\nGetting Ocean Node Peers...')
-        const peers = await node.getOceanPeers()
-        if (peers && peers.length > 0) {
-          vscode.window.showInformationMessage(`Ocean Peers:\n${peers.join('\n')}`)
-        } else {
-          vscode.window.showInformationMessage('No Ocean Peers found.')
-        }
-      } catch (error) {
-        console.error('Error getting Ocean Peers:', error)
-        if (error instanceof Error) {
-          vscode.window.showErrorMessage(`Error getting Ocean Peers: ${error.message}`)
-        } else {
-          vscode.window.showErrorMessage(
-            'An unknown error occurred while getting Ocean Peers.'
-          )
-        }
-      }
-    }
-  )
-
-  let downloadAsset = vscode.commands.registerCommand(
-    'ocean-protocol.downloadAsset',
-    async (config: any, filePath: string, privateKey: string, assetDid: string) => {
-      outputChannel.appendLine('\n\nDownloading asset...')
-      if (!config) {
-        vscode.window.showErrorMessage('No config provided.')
-        return
-      }
-      if (!assetDid) {
-        vscode.window.showErrorMessage('No DID provided.')
-        return
-      }
-      if (!filePath) {
-        vscode.window.showErrorMessage('No file path provided.')
-        return
-      }
-
-      if (!privateKey) {
-        vscode.window.showErrorMessage('No private key provided.')
-        return
-      }
-
-      try {
-        // Set up the signer
-        const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
-        const signer = new ethers.Wallet(privateKey, provider)
-        console.log(`Signer: ${signer}`)
-
-        // Test provider connectivity
-        try {
-          const network = provider.network
-          vscode.window.showInformationMessage(`Connected to network: ${network}`)
-        } catch (networkError) {
-          console.error('Error connecting to network:', networkError)
-          vscode.window.showErrorMessage(
-            `Error connecting to network: ${networkError.message}`
-          )
-          return
-        }
-
-        const aquarius = new Aquarius(config.aquariusUrl)
-
-        await download(
-          assetDid,
-          signer,
-          filePath,
-          aquarius,
-          undefined,
-          config.providerUrl
-        )
-
-        vscode.window.showInformationMessage(
-          `Asset download successfully. Path: ${filePath}`
-        )
-
-        outputChannel.appendLine(`Asset download successfully. Path: ${filePath}`)
-      } catch (error) {
-        console.error('Error details:', error)
-        outputChannel.appendLine(`Error details: ${filePath}`)
-        if (error instanceof Error) {
-          vscode.window.showErrorMessage(`Error downloading asset: ${error.message}`)
-          outputChannel.appendLine(`Error downloading asset: ${error.message}`)
-        } else {
-          vscode.window.showErrorMessage(
-            `An unknown error occurred while downloading the asset.`
-          )
-          outputChannel.appendLine(
-            `An unknown error occurred while downloading the asset.`
-          )
-        }
-      }
-    }
-  )
-
   let startComputeJob = vscode.commands.registerCommand(
     'ocean-protocol.startComputeJob',
     async (
       config: any,
       datasetPath: string,
       algorithmPath: string,
+      resultsFolderPath: string,
       privateKey: string,
       nodeUrl: string
     ) => {
-      if (!config) {
-        vscode.window.showErrorMessage('No config provided.')
+      console.log('Starting compute job...')
+      console.log('Config:', config)
+      console.log('Dataset path:', datasetPath)
+      console.log('Algorithm path:', algorithmPath)
+      console.log('Results folder path:', resultsFolderPath)
+      console.log('Private key:', privateKey)
+      console.log('Node URL:', nodeUrl)
+      if (!config || !privateKey || !datasetPath || !algorithmPath || !nodeUrl) {
+        vscode.window.showErrorMessage('Missing required parameters.')
         return
       }
-      if (!privateKey) {
-        vscode.window.showErrorMessage('No private key provided.')
-        return
+
+      const progressOptions = {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Compute Job Status',
+        cancellable: false
       }
-      if (!datasetPath) {
-        vscode.window.showErrorMessage('No dataset file path provided.')
-        return
-      }
-      if (!algorithmPath) {
-        vscode.window.showErrorMessage('No algorithm file path provided.')
-        return
-      }
-      if (!nodeUrl) {
-        vscode.window.showErrorMessage('No ocean node url provided.')
-        return
-      }
+      console.log('Progress options:', progressOptions)
 
       try {
-        const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
-        const signer = new ethers.Wallet(privateKey, provider)
+        await vscode.window.withProgress(progressOptions, async (progress) => {
+          // Initial setup
+          progress.report({ message: 'Starting compute job...' })
+          const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
+          console.log('Provider started')
+          const signer = new ethers.Wallet(privateKey, provider)
+          console.log('Signer created')
 
-        // Read the dataset file
-        const datasetContent = fs.readFileSync(datasetPath, 'utf8')
-        const dataset = JSON.parse(datasetContent)
+          // Read files
+          const dataset = JSON.parse(fs.readFileSync(datasetPath, 'utf8'))
+          console.log('Dataset read successfully')
+          const algorithm = JSON.parse(fs.readFileSync(algorithmPath, 'utf8'))
+          console.log('Algorithm read successfully')
 
-        // Read the algorithm file
-        const algorithmContent = fs.readFileSync(algorithmPath, 'utf8')
-        const algorithm = JSON.parse(algorithmContent)
+          // nonce equals date in milliseconds
+          const nonce = Date.now()
+          console.log('Nonce: ', nonce)
 
-        await computeStart(dataset, algorithm, signer, nodeUrl)
+          // Start compute job
+          const computeResponse = await computeStart(
+            dataset,
+            algorithm,
+            signer,
+            nodeUrl,
+            nonce
+          )
+          console.log('Compute result received:', computeResponse)
+          const jobId = computeResponse.jobId
+          console.log('Job ID:', jobId)
 
-        vscode.window.showInformationMessage('Compute job started successfully!')
+          computeLogsChannel.show()
+          computeLogsChannel.appendLine(`Starting compute job with ID: ${jobId}`)
+
+          // Start fetching logs periodically
+
+          const index = 0
+
+          console.log('Generating signature for retrieval...')
+          progress.report({ message: 'Generating signature for retrieval...' })
+          computeLogsChannel.appendLine('Generating signature for retrieval...')
+          const signatureResult = await generateOceanSignature({
+            privateKey,
+            consumerAddress: signer.address,
+            jobId,
+            index,
+            nonce
+          })
+
+          const logInterval = setInterval(async () => {
+            await getComputeLogs(
+              nodeUrl,
+              jobId,
+              signer.address,
+              nonce,
+              signatureResult.signature
+            )
+          }, 5000)
+
+          // Monitor job status
+          progress.report({ message: 'Monitoring compute job status...' })
+          computeLogsChannel.appendLine('Monitoring compute job status...')
+
+          while (true) {
+            console.log('Checking job status...')
+            const status = await checkComputeStatus(nodeUrl, jobId)
+            console.log('Job status:', status)
+            console.log('Status text:', status.statusText)
+            progress.report({ message: `${status.statusText}` })
+            computeLogsChannel.appendLine(`Job status: ${status.statusText}`)
+
+            if (status.statusText === 'Job finished') {
+              // Clear the logging interval
+              clearInterval(logInterval)
+              // Generate signature for result retrieval
+
+              // Retrieve results
+              progress.report({ message: 'Retrieving compute results...' })
+              computeLogsChannel.appendLine('Retrieving compute results...')
+              const results = await getComputeResult(
+                nodeUrl,
+                jobId,
+                signer.address,
+                signatureResult.signature,
+                index,
+                nonce
+              )
+
+              // Save results
+              progress.report({ message: 'Saving results...' })
+              computeLogsChannel.appendLine('Saving results...')
+              const filePath = await saveResults(results, resultsFolderPath)
+
+              vscode.window.showInformationMessage(
+                `Compute job completed successfully! Results saved to: ${filePath}`
+              )
+              computeLogsChannel.appendLine(
+                `Compute job completed successfully! Results saved to: ${filePath}`
+              )
+
+              // Open the saved file in a new editor window
+              const uri = vscode.Uri.file(filePath)
+              const document = await vscode.workspace.openTextDocument(uri)
+              await vscode.window.showTextDocument(document, { preview: false })
+
+              vscode.window.showInformationMessage(
+                `Compute job completed successfully! Results opened in editor.`
+              )
+              computeLogsChannel.appendLine(
+                `Compute job completed successfully! Results opened in editor.`
+              )
+
+              break
+            }
+
+            if (
+              status.statusText.toLowerCase().includes('error') ||
+              status.statusText.toLowerCase().includes('failed')
+            ) {
+              throw new Error(`Job failed with status: ${status.statusText}`)
+            }
+
+            await delay(5000) // Wait 5 seconds before checking again
+          }
+        })
       } catch (error) {
         console.error('Error details:', error)
         if (error instanceof Error) {
-          vscode.window.showErrorMessage(`Error starting compute job: ${error.message}`)
+          vscode.window.showErrorMessage(`Error with compute job: ${error.message}`)
         } else {
           vscode.window.showErrorMessage(
-            `An unknown error occurred while starting the compute job.`
+            'An unknown error occurred with the compute job.'
           )
         }
       }
     }
   )
 
-  context.subscriptions.push(
-    getAssetDetails,
-    publishAsset,
-    downloadAsset,
-    getOceanPeers,
-    startComputeJob
-  )
+  context.subscriptions.push(startComputeJob)
 }
