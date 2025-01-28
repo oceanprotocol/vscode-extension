@@ -234,180 +234,167 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           .section-header.active .chevron {
             transform: rotate(90deg);
           }
+          .compute-container {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border);
+          }
+          #startComputeBtn {
+            margin: 15px 0;
+          }
         </style>
     </head>
     <body>
-                
+          <div class="container">
+              <div id="selectedAlgorithmPath" class="selectedFile"></div>
+              
+              <button id="startComputeBtn">Start Compute Job</button>
+          </div>
+
           <div class="section">
-            <div id="computeHeader" class="section-header active">
-                <span class="chevron">&#9658;</span>Start Compute Job
-            </div>
-            <div id="compute" class="section-content active">
-                <div class="container">
-                    <div id="selectedAlgorithmPath" class="currentFile"></div>
-                    
-                    <button id="startComputeBtn">Start Compute Job</button>
-                </div>
-            </div>
-        </div>
+              <div id="setupHeader" class="section-header">
+                  <span class="chevron">&#9658;</span>Setup
+              </div>
+              <div id="setup" class="section-content">
+                  <div class="container">
+                      <label for="rpcUrl">RPC URL</label>
+                      <input id="rpcUrl" placeholder="RPC URL" value="http://127.0.0.1:8545" />
 
-        <div class="section">
-            <div id="setupHeader" class="section-header">
-                <span class="chevron">&#9658;</span>Setup
-            </div>
-            <div id="setup" class="section-content">
-                <div class="container">
-                    <label for="rpcUrl">RPC URL</label>
-                    <input id="rpcUrl" placeholder="RPC URL" value="http://127.0.0.1:8545" />
+                      <label for="nodeUrl">Ocean Node URL</label>
+                      <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8000" />
 
-                    <label for="nodeUrl">Ocean Node URL</label>
-                    <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8000" />
+                      <label for="nodeUrlInput">Node URL (including port)</label>
+                      <input id="nodeUrlInput" placeholder="Enter compute environment ID" />
 
-                    <label for="nodeUrlInput">Node URL (including port)</label>
-                    <input id="nodeUrlInput" placeholder="Enter compute environment ID" />
+                      <label>Dataset</label>
+                      <button id="selectDatasetBtn">Select Dataset File</button>
+                      <div id="selectedDatasetPath" class="selectedFile"></div>
 
-                    <label>Dataset</label>
-                    <button id="selectDatasetBtn">Select Dataset File</button>
-                    <div id="selectedDatasetPath" class="selectedFile"></div>
+                      <label>Algorithm</label>
+                      <button id="selectAlgorithmBtn">Select Algorithm File</button>
 
-                    <label>Algorithm</label>
-                    <button id="selectAlgorithmBtn">Select Algorithm File</button>
+                      <label>Results Folder</label>
+                      <button id="selectResultsFolderBtn">Select Results Folder</button>
+                      <div id="selectedResultsFolderPath" class="selectedFile"></div>
 
-                    <label>Results Folder</label>
-                    <button id="selectResultsFolderBtn">Select Results Folder</button>
-                    <div id="selectedResultsFolderPath" class="selectedFile"></div>
+                      <label for="privateKeyInput">Private Key</label>
+                      <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
+                  </div>
+              </div>
+          </div>
 
-                    <label for="privateKeyInput">Private Key</label>
-                    <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
-                </div>
-            </div>
-        </div>
+          <script>
+              const vscode = acquireVsCodeApi();
+              let selectedFilePath = '';
+              let selectedDatasetPath = '';
+              let selectedAlgorithmPath = '';
+              let selectedResultsFolderPath = '';
+              let isUsingDefaultAlgorithm = false;
 
-        <script>
-            const vscode = acquireVsCodeApi();
-            let selectedFilePath = '';
-            let selectedDatasetPath = '';
-            let selectedAlgorithmPath = '';
-            let selectedResultsFolderPath = '';
-            let isUsingDefaultAlgorithm = false;
+              function getConfig() {
+                const defaultAquariusUrl = 'http://127.0.0.1:8001';
+                return {
+                  rpcUrl: document.getElementById('rpcUrl').value || 'http://127.0.0.1:8545',
+                  aquariusUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl,
+                  providerUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl
+                };
+              }
 
-            function getConfig() {
-              const defaultAquariusUrl = 'http://127.0.0.1:8001';
-              return {
-                rpcUrl: document.getElementById('rpcUrl').value || 'http://127.0.0.1:8545',
-                aquariusUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl,
-                providerUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl
-              };
-            }
+              function toggleSection(sectionId) {
+                  const header = document.getElementById(sectionId + 'Header');
+                  const content = document.getElementById(sectionId);
+                  header.classList.toggle('active');
+                  content.classList.toggle('active');
+              }
 
-            function toggleSection(sectionId) {
-                const header = document.getElementById(sectionId + 'Header');
-                const content = document.getElementById(sectionId);
-                header.classList.toggle('active');
-                content.classList.toggle('active');
-            }
+              // Initialize only the setup section toggle
+              document.getElementById('setupHeader').addEventListener('click', () => toggleSection('setup'));
 
-            // Initialize immediately instead of waiting for DOMContentLoaded
-            const setupHeader = document.getElementById('setupHeader');
-            const computeHeader = document.getElementById('computeHeader');
-            const selectDatasetBtn = document.getElementById('selectDatasetBtn');
-            const selectAlgorithmBtn = document.getElementById('selectAlgorithmBtn');
-            const selectResultsFolderBtn = document.getElementById('selectResultsFolderBtn');
-            const startComputeBtn = document.getElementById('startComputeBtn');
+              if (document.getElementById('selectDatasetBtn')) {
+                  document.getElementById('selectDatasetBtn').addEventListener('click', () => {
+                      console.log('Dataset button clicked');
+                      vscode.postMessage({ 
+                          type: 'openFilePicker',
+                          elementId: 'selectedDatasetPath'
+                      });
+                  });
+              }
 
-            if (setupHeader) {
-                setupHeader.addEventListener('click', () => toggleSection('setup'));
-            }
-            if (computeHeader) {
-                computeHeader.addEventListener('click', () => toggleSection('compute'));
-            }
+              if (document.getElementById('selectAlgorithmBtn')) {
+                  document.getElementById('selectAlgorithmBtn').addEventListener('click', () => {
+                      console.log('Algorithm button clicked');
+                      vscode.postMessage({ 
+                          type: 'openFilePicker',
+                          elementId: 'selectedAlgorithmPath'
+                      });
+                  });
+              }
 
-            if (selectDatasetBtn) {
-                selectDatasetBtn.addEventListener('click', () => {
-                    console.log('Dataset button clicked');
-                    vscode.postMessage({ 
-                        type: 'openFilePicker',
-                        elementId: 'selectedDatasetPath'
-                    });
-                });
-            }
+              if (document.getElementById('selectResultsFolderBtn')) {
+                  document.getElementById('selectResultsFolderBtn').addEventListener('click', () => {
+                      console.log('Results folder button clicked');
+                      vscode.postMessage({
+                          type: 'selectResultsFolder'
+                      });
+                  });
+              }
 
-            if (selectAlgorithmBtn) {
-                selectAlgorithmBtn.addEventListener('click', () => {
-                    console.log('Algorithm button clicked');
-                    vscode.postMessage({ 
-                        type: 'openFilePicker',
-                        elementId: 'selectedAlgorithmPath'
-                    });
-                });
-            }
+              if (document.getElementById('startComputeBtn')) {
+                  document.getElementById('startComputeBtn').addEventListener('click', () => {
+                      const config = getConfig();
+                      const privateKey = document.getElementById('privateKeyInput').value;
+                      const nodeUrl = document.getElementById('nodeUrlInput').value;
 
-            if (selectResultsFolderBtn) {
-                selectResultsFolderBtn.addEventListener('click', () => {
-                    console.log('Results folder button clicked');
-                    vscode.postMessage({
-                        type: 'selectResultsFolder'
-                    });
-                });
-            }
+                      if (!selectedDatasetPath || !selectedAlgorithmPath) {
+                          vscode.postMessage({
+                              type: 'error',
+                              message: 'Please select both dataset and algorithm files'
+                          });
+                          return;
+                      }
 
-            if (startComputeBtn) {
-                startComputeBtn.addEventListener('click', () => {
-                    const config = getConfig();
-                    const privateKey = document.getElementById('privateKeyInput').value;
-                    const nodeUrl = document.getElementById('nodeUrlInput').value;
+                      vscode.postMessage({ 
+                          type: 'startComputeJob',
+                          config: config,
+                          privateKey: privateKey,
+                          datasetPath: selectedDatasetPath,
+                          algorithmPath: selectedAlgorithmPath,
+                          resultsFolderPath: selectedResultsFolderPath,
+                          nodeUrl: nodeUrl
+                      });
+                  });
+              }
 
-                    if (!selectedDatasetPath || !selectedAlgorithmPath) {
-                        vscode.postMessage({
-                            type: 'error',
-                            message: 'Please select both dataset and algorithm files'
-                        });
-                        return;
-                    }
-
-                    vscode.postMessage({ 
-                        type: 'startComputeJob',
-                        config: config,
-                        privateKey: privateKey,
-                        datasetPath: selectedDatasetPath,
-                        algorithmPath: selectedAlgorithmPath,
-                        resultsFolderPath: selectedResultsFolderPath,
-                        nodeUrl: nodeUrl
-                    });
-                });
-            }
-
-            window.addEventListener('message', event => {
-                const message = event.data;
-                console.log('Received message:', message);
-                
-                switch (message.type) {
-                    case 'fileSelected':
-                        if (message.elementId === 'selectedDatasetPath') {
-                            selectedDatasetPath = message.filePath;
-                            const element = document.getElementById('selectedDatasetPath');
-                            element.innerHTML = '<span class="filePrefix">Selected dataset: </span><span class="filePath">' + message.filePath + '</span>';
-                        } else if (message.elementId === 'selectedAlgorithmPath') {
-                            selectedAlgorithmPath = message.filePath;
-                            isUsingDefaultAlgorithm = message.isDefault || false;
-                            const element = document.getElementById('selectedAlgorithmPath');
-                            const prefix = isUsingDefaultAlgorithm ? 'Current algorithm file: ' : 'Selected algorithm: ';
-                            element.innerHTML = '<span class="filePrefix">' + prefix + '</span><span class="filePath">' + message.filePath + '</span>';
-                        } else {
-                            selectedFilePath = message.filePath;
-                            document.getElementById('selectedFilePath').textContent = 'Selected file: ' + message.filePath;
-                        }
-                        break;
-                    case 'nodeId':
-                        document.getElementById('nodeIdDisplay').textContent = message.nodeId;
-                        break;
-                    case 'resultsFolder':
-                        selectedResultsFolderPath = message.path;
-                        document.getElementById('selectedResultsFolderPath').textContent = message.path;
-                        break;
-                }
-            });
-        </script>
+              window.addEventListener('message', event => {
+                  const message = event.data;
+                  console.log('Received message:', message);
+                  
+                  switch (message.type) {
+                      case 'fileSelected':
+                          if (message.elementId === 'selectedDatasetPath') {
+                              selectedDatasetPath = message.filePath;
+                              const element = document.getElementById('selectedDatasetPath');
+                              element.innerHTML = '<span class="filePrefix">Selected dataset: </span><span class="filePath">' + message.filePath + '</span>';
+                          } else if (message.elementId === 'selectedAlgorithmPath') {
+                              selectedAlgorithmPath = message.filePath;
+                              isUsingDefaultAlgorithm = message.isDefault || false;
+                              const element = document.getElementById('selectedAlgorithmPath');
+                              const prefix = isUsingDefaultAlgorithm ? 'Current algorithm file: ' : 'Selected algorithm: ';
+                              element.innerHTML = '<span class="filePrefix">' + prefix + '</span><span class="filePath">' + message.filePath + '</span>';
+                          } else {
+                              selectedFilePath = message.filePath;
+                              document.getElementById('selectedFilePath').textContent = 'Selected file: ' + message.filePath;
+                          }
+                          break;
+                      case 'nodeId':
+                          document.getElementById('nodeIdDisplay').textContent = message.nodeId;
+                          break;
+                      case 'resultsFolder':
+                          selectedResultsFolderPath = message.path;
+                          document.getElementById('selectedResultsFolderPath').textContent = message.path;
+                          break;
+                  }
+              });
+          </script>
     </body>
     </html>
     `
