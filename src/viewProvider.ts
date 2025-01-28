@@ -12,52 +12,72 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
     context: vscode.WebviewViewResolveContext,
     _token: vscode.CancellationToken
   ) {
-    this._view = webviewView
+    console.log('resolveWebviewView called')
 
-    webviewView.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [this._extensionUri]
-    }
+    try {
+      this._view = webviewView
 
-    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview)
-
-    webviewView.webview.onDidReceiveMessage(async (data) => {
-      switch (data.type) {
-        case 'openFilePicker':
-          this.openFilePicker(data.elementId)
-          break
-        case 'selectResultsFolder': {
-          const folderUri = await vscode.window.showOpenDialog({
-            canSelectFiles: false,
-            canSelectFolders: true,
-            canSelectMany: false,
-            openLabel: 'Select Results Folder'
-          })
-
-          if (folderUri && folderUri[0]) {
-            webviewView.webview.postMessage({
-              type: 'resultsFolder',
-              path: folderUri[0].fsPath
-            })
-          }
-          break
-        }
-        case 'startComputeJob':
-          vscode.commands.executeCommand(
-            'ocean-protocol.startComputeJob',
-            data.config,
-            data.datasetPath,
-            data.algorithmPath,
-            data.resultsFolderPath,
-            data.privateKey,
-            data.nodeUrl
-          )
-          break
+      webviewView.webview.options = {
+        enableScripts: true,
+        localResourceRoots: [this._extensionUri]
       }
-    })
+
+      webviewView.webview.html = this._getHtmlForWebview(webviewView.webview)
+
+      webviewView.webview.onDidReceiveMessage(async (data) => {
+        console.log('Received message from webview:', data)
+
+        try {
+          switch (data.type) {
+            case 'openFilePicker':
+              console.log('Opening file picker for:', data.elementId)
+              await this.openFilePicker(data.elementId)
+              break
+            case 'selectResultsFolder': {
+              console.log('Opening folder picker')
+              const folderUri = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: 'Select Results Folder'
+              })
+
+              if (folderUri && folderUri[0]) {
+                console.log('Selected folder:', folderUri[0].fsPath)
+                webviewView.webview.postMessage({
+                  type: 'resultsFolder',
+                  path: folderUri[0].fsPath
+                })
+              }
+              break
+            }
+            case 'startComputeJob':
+              console.log('Starting compute job with data:', data)
+              await vscode.commands.executeCommand(
+                'ocean-protocol.startComputeJob',
+                data.config,
+                data.datasetPath,
+                data.algorithmPath,
+                data.resultsFolderPath,
+                data.privateKey,
+                data.nodeUrl
+              )
+              break
+          }
+        } catch (error) {
+          console.error('Error handling message:', error)
+          vscode.window.showErrorMessage(`Error handling message: ${error}`)
+        }
+      })
+    } catch (error) {
+      console.error('Error in resolveWebviewView:', error)
+      vscode.window.showErrorMessage(`Failed to resolve webview: ${error}`)
+    }
   }
 
   private async openFilePicker(elementId: string) {
+    console.log('openFilePicker called with elementId:', elementId)
+
     const options: vscode.OpenDialogOptions = {
       canSelectMany: false,
       openLabel: 'Select',
@@ -66,23 +86,34 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
       }
     }
 
-    const fileUri = await vscode.window.showOpenDialog(options)
-    if (fileUri && fileUri[0]) {
-      this._view?.webview.postMessage({
-        type: 'fileSelected',
-        filePath: fileUri[0].fsPath,
-        elementId: elementId
-      })
+    try {
+      const fileUri = await vscode.window.showOpenDialog(options)
+      console.log('File picker result:', fileUri)
+
+      if (fileUri && fileUri[0]) {
+        console.log('Posting message back to webview')
+        this._view?.webview.postMessage({
+          type: 'fileSelected',
+          filePath: fileUri[0].fsPath,
+          elementId: elementId
+        })
+      }
+    } catch (error) {
+      console.error('Error in openFilePicker:', error)
     }
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
+    // Generate nonce for script security
+    const nonce = getNonce()
+
     return `
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
         <title>Ocean Protocol Extension</title>
         <style>
           body { 
@@ -204,11 +235,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
         </div>
 
 
-        <script>
+        <script nonce="${nonce}">
             const vscode = acquireVsCodeApi();
             let selectedFilePath = '';
             let selectedDatasetPath = '';
             let selectedAlgorithmPath = '';
+            let selectedResultsFolderPath = '';
 
             function getConfig() {
               const defaultAquariusUrl = 'http://127.0.0.1:8001';
@@ -226,39 +258,53 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 content.classList.toggle('active');
             }
 
-            document.addEventListener('DOMContentLoaded', (event) => {
-                document.getElementById('setupHeader').addEventListener('click', () => toggleSection('setup'));
-                document.getElementById('computeHeader').addEventListener('click', () => toggleSection('compute'));
+            // Initialize immediately instead of waiting for DOMContentLoaded
+            const setupHeader = document.getElementById('setupHeader');
+            const computeHeader = document.getElementById('computeHeader');
+            const selectDatasetBtn = document.getElementById('selectDatasetBtn');
+            const selectAlgorithmBtn = document.getElementById('selectAlgorithmBtn');
+            const selectResultsFolderBtn = document.getElementById('selectResultsFolderBtn');
+            const startComputeBtn = document.getElementById('startComputeBtn');
 
-                document.getElementById('selectFileBtn').addEventListener('click', () => {
-                    vscode.postMessage({ 
-                        type: 'openFilePicker',
-                        elementId: 'selectedFilePath'
-                    });
-                });
+            if (setupHeader) {
+                setupHeader.addEventListener('click', () => toggleSection('setup'));
+            }
+            if (computeHeader) {
+                computeHeader.addEventListener('click', () => toggleSection('compute'));
+            }
 
-                document.getElementById('selectDatasetBtn').addEventListener('click', () => {
+            if (selectDatasetBtn) {
+                selectDatasetBtn.addEventListener('click', () => {
+                    console.log('Dataset button clicked');
                     vscode.postMessage({ 
                         type: 'openFilePicker',
                         elementId: 'selectedDatasetPath'
                     });
                 });
+            }
 
-                document.getElementById('selectAlgorithmBtn').addEventListener('click', () => {
+            if (selectAlgorithmBtn) {
+                selectAlgorithmBtn.addEventListener('click', () => {
+                    console.log('Algorithm button clicked');
                     vscode.postMessage({ 
                         type: 'openFilePicker',
                         elementId: 'selectedAlgorithmPath'
                     });
                 });
+            }
 
-                document.getElementById('selectResultsFolderBtn').addEventListener('click', () => {
+            if (selectResultsFolderBtn) {
+                selectResultsFolderBtn.addEventListener('click', () => {
+                    console.log('Results folder button clicked');
                     vscode.postMessage({
                         type: 'selectResultsFolder'
                     });
                 });
+            }
 
-                document.getElementById('startComputeBtn').addEventListener('click', () => {
-                  const config = getConfig();
+            if (startComputeBtn) {
+                startComputeBtn.addEventListener('click', () => {
+                    const config = getConfig();
                     const privateKey = document.getElementById('privateKeyInput').value;
                     const nodeUrl = document.getElementById('nodeUrlInput').value;
 
@@ -280,10 +326,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                         nodeUrl: nodeUrl
                     });
                 });
-            });
+            }
 
             window.addEventListener('message', event => {
                 const message = event.data;
+                console.log('Received message:', message);
+                
                 switch (message.type) {
                     case 'fileSelected':
                         if (message.elementId === 'selectedDatasetPath') {
@@ -304,11 +352,20 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                         selectedResultsFolderPath = message.path;
                         document.getElementById('selectedResultsFolderPath').textContent = message.path;
                         break;
-                  }
+                }
             });
         </script>
     </body>
     </html>
     `
   }
+}
+
+function getNonce() {
+  let text = ''
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length))
+  }
+  return text
 }

@@ -37,181 +37,212 @@ export async function activate(context: vscode.ExtensionContext) {
   outputChannel.appendLine('Ocean Protocol extension is now active!')
   console.log('Ocean Protocol extension is now active!')
 
-  const provider = new OceanProtocolViewProvider(context.extensionUri)
+  try {
+    // Create and register the webview provider
+    const provider = new OceanProtocolViewProvider(context.extensionUri)
+    console.log('Created OceanProtocolViewProvider')
 
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
+    const registration = vscode.window.registerWebviewViewProvider(
       OceanProtocolViewProvider.viewType,
-      provider
+      provider,
+      {
+        // This ensures the webview is retained even when not visible
+        webviewOptions: { retainContextWhenHidden: true }
+      }
     )
-  )
+    console.log('Registered webview provider')
 
-  let startComputeJob = vscode.commands.registerCommand(
-    'ocean-protocol.startComputeJob',
-    async (
-      config: any,
-      datasetPath: string,
-      algorithmPath: string,
-      resultsFolderPath: string,
-      privateKey: string,
-      nodeUrl: string
-    ) => {
-      console.log('Starting compute job...')
-      console.log('Config:', config)
-      console.log('Dataset path:', datasetPath)
-      console.log('Algorithm path:', algorithmPath)
-      console.log('Results folder path:', resultsFolderPath)
-      console.log('Private key:', privateKey)
-      console.log('Node URL:', nodeUrl)
-      if (!config || !privateKey || !datasetPath || !algorithmPath || !nodeUrl) {
-        vscode.window.showErrorMessage('Missing required parameters.')
-        return
+    // Add to subscriptions
+    context.subscriptions.push(registration)
+    console.log('Added registration to subscriptions')
+
+    // Create a test command to verify the webview is accessible
+    let testCommand = vscode.commands.registerCommand('ocean-protocol.test', () => {
+      console.log('Test command executed')
+      if (provider.resolveWebviewView) {
+        console.log('Webview is available')
+      } else {
+        console.log('Webview is not available')
       }
+    })
+    context.subscriptions.push(testCommand)
 
-      const progressOptions = {
-        location: vscode.ProgressLocation.Notification,
-        title: 'Compute Job Status',
-        cancellable: false
-      }
-      console.log('Progress options:', progressOptions)
+    // Rest of your existing startComputeJob command registration...
+    let startComputeJob = vscode.commands.registerCommand(
+      'ocean-protocol.startComputeJob',
+      async (
+        config: any,
+        datasetPath: string,
+        algorithmPath: string,
+        resultsFolderPath: string,
+        privateKey: string,
+        nodeUrl: string
+      ) => {
+        console.log('Starting compute job...')
+        console.log('Config:', config)
+        console.log('Dataset path:', datasetPath)
+        console.log('Algorithm path:', algorithmPath)
+        console.log('Results folder path:', resultsFolderPath)
+        console.log('Private key:', privateKey)
+        console.log('Node URL:', nodeUrl)
+        if (!config || !privateKey || !datasetPath || !algorithmPath || !nodeUrl) {
+          vscode.window.showErrorMessage('Missing required parameters.')
+          return
+        }
 
-      try {
-        await vscode.window.withProgress(progressOptions, async (progress) => {
-          // Initial setup
-          progress.report({ message: 'Starting compute job...' })
-          const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
-          console.log('Provider started')
-          const signer = new ethers.Wallet(privateKey, provider)
-          console.log('Signer created')
+        const progressOptions = {
+          location: vscode.ProgressLocation.Notification,
+          title: 'Compute Job Status',
+          cancellable: false
+        }
+        console.log('Progress options:', progressOptions)
 
-          // Read files
-          const dataset = JSON.parse(fs.readFileSync(datasetPath, 'utf8'))
-          console.log('Dataset read successfully')
-          const algorithm = JSON.parse(fs.readFileSync(algorithmPath, 'utf8'))
-          console.log('Algorithm read successfully')
+        try {
+          await vscode.window.withProgress(progressOptions, async (progress) => {
+            // Initial setup
+            progress.report({ message: 'Starting compute job...' })
+            const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
+            console.log('Provider started')
+            const signer = new ethers.Wallet(privateKey, provider)
+            console.log('Signer created')
 
-          // nonce equals date in milliseconds
-          const nonce = Date.now()
-          console.log('Nonce: ', nonce)
+            // Read files
+            const dataset = JSON.parse(fs.readFileSync(datasetPath, 'utf8'))
+            console.log('Dataset read successfully')
+            const algorithm = JSON.parse(fs.readFileSync(algorithmPath, 'utf8'))
+            console.log('Algorithm read successfully')
 
-          // Start compute job
-          const computeResponse = await computeStart(
-            dataset,
-            algorithm,
-            signer,
-            nodeUrl,
-            nonce
-          )
-          console.log('Compute result received:', computeResponse)
-          const jobId = computeResponse.jobId
-          console.log('Job ID:', jobId)
+            // nonce equals date in milliseconds
+            const nonce = Date.now()
+            console.log('Nonce: ', nonce)
 
-          computeLogsChannel.show()
-          computeLogsChannel.appendLine(`Starting compute job with ID: ${jobId}`)
-
-          // Start fetching logs periodically
-
-          const index = 0
-
-          console.log('Generating signature for retrieval...')
-          progress.report({ message: 'Generating signature for retrieval...' })
-          computeLogsChannel.appendLine('Generating signature for retrieval...')
-          const signatureResult = await generateOceanSignature({
-            privateKey,
-            consumerAddress: signer.address,
-            jobId,
-            index,
-            nonce
-          })
-
-          const logInterval = setInterval(async () => {
-            await getComputeLogs(
+            // Start compute job
+            const computeResponse = await computeStart(
+              dataset,
+              algorithm,
+              signer,
               nodeUrl,
-              jobId,
-              signer.address,
-              nonce,
-              signatureResult.signature
+              nonce
             )
-          }, 5000)
+            console.log('Compute result received:', computeResponse)
+            const jobId = computeResponse.jobId
+            console.log('Job ID:', jobId)
 
-          // Monitor job status
-          progress.report({ message: 'Monitoring compute job status...' })
-          computeLogsChannel.appendLine('Monitoring compute job status...')
+            computeLogsChannel.show()
+            computeLogsChannel.appendLine(`Starting compute job with ID: ${jobId}`)
 
-          while (true) {
-            console.log('Checking job status...')
-            const status = await checkComputeStatus(nodeUrl, jobId)
-            console.log('Job status:', status)
-            console.log('Status text:', status.statusText)
-            progress.report({ message: `${status.statusText}` })
-            computeLogsChannel.appendLine(`Job status: ${status.statusText}`)
+            // Start fetching logs periodically
 
-            if (status.statusText === 'Job finished') {
-              // Clear the logging interval
-              clearInterval(logInterval)
-              // Generate signature for result retrieval
+            const index = 0
 
-              // Retrieve results
-              progress.report({ message: 'Retrieving compute results...' })
-              computeLogsChannel.appendLine('Retrieving compute results...')
-              const results = await getComputeResult(
+            console.log('Generating signature for retrieval...')
+            progress.report({ message: 'Generating signature for retrieval...' })
+            computeLogsChannel.appendLine('Generating signature for retrieval...')
+            const signatureResult = await generateOceanSignature({
+              privateKey,
+              consumerAddress: signer.address,
+              jobId,
+              index,
+              nonce
+            })
+
+            const logInterval = setInterval(async () => {
+              await getComputeLogs(
                 nodeUrl,
                 jobId,
                 signer.address,
-                signatureResult.signature,
-                index,
-                nonce
+                nonce,
+                signatureResult.signature
               )
+            }, 5000)
 
-              // Save results
-              progress.report({ message: 'Saving results...' })
-              computeLogsChannel.appendLine('Saving results...')
-              const filePath = await saveResults(results, resultsFolderPath)
+            // Monitor job status
+            progress.report({ message: 'Monitoring compute job status...' })
+            computeLogsChannel.appendLine('Monitoring compute job status...')
 
-              vscode.window.showInformationMessage(
-                `Compute job completed successfully! Results saved to: ${filePath}`
-              )
-              computeLogsChannel.appendLine(
-                `Compute job completed successfully! Results saved to: ${filePath}`
-              )
+            while (true) {
+              console.log('Checking job status...')
+              const status = await checkComputeStatus(nodeUrl, jobId)
+              console.log('Job status:', status)
+              console.log('Status text:', status.statusText)
+              progress.report({ message: `${status.statusText}` })
+              computeLogsChannel.appendLine(`Job status: ${status.statusText}`)
 
-              // Open the saved file in a new editor window
-              const uri = vscode.Uri.file(filePath)
-              const document = await vscode.workspace.openTextDocument(uri)
-              await vscode.window.showTextDocument(document, { preview: false })
+              if (status.statusText === 'Job finished') {
+                // Clear the logging interval
+                clearInterval(logInterval)
+                // Generate signature for result retrieval
 
-              vscode.window.showInformationMessage(
-                `Compute job completed successfully! Results opened in editor.`
-              )
-              computeLogsChannel.appendLine(
-                `Compute job completed successfully! Results opened in editor.`
-              )
+                // Retrieve results
+                progress.report({ message: 'Retrieving compute results...' })
+                computeLogsChannel.appendLine('Retrieving compute results...')
+                const results = await getComputeResult(
+                  nodeUrl,
+                  jobId,
+                  signer.address,
+                  signatureResult.signature,
+                  index,
+                  nonce
+                )
 
-              break
+                // Save results
+                progress.report({ message: 'Saving results...' })
+                computeLogsChannel.appendLine('Saving results...')
+                const filePath = await saveResults(results, resultsFolderPath)
+
+                vscode.window.showInformationMessage(
+                  `Compute job completed successfully! Results saved to: ${filePath}`
+                )
+                computeLogsChannel.appendLine(
+                  `Compute job completed successfully! Results saved to: ${filePath}`
+                )
+
+                // Open the saved file in a new editor window
+                const uri = vscode.Uri.file(filePath)
+                const document = await vscode.workspace.openTextDocument(uri)
+                await vscode.window.showTextDocument(document, { preview: false })
+
+                vscode.window.showInformationMessage(
+                  `Compute job completed successfully! Results opened in editor.`
+                )
+                computeLogsChannel.appendLine(
+                  `Compute job completed successfully! Results opened in editor.`
+                )
+
+                break
+              }
+
+              if (
+                status.statusText.toLowerCase().includes('error') ||
+                status.statusText.toLowerCase().includes('failed')
+              ) {
+                throw new Error(`Job failed with status: ${status.statusText}`)
+              }
+
+              await delay(5000) // Wait 5 seconds before checking again
             }
-
-            if (
-              status.statusText.toLowerCase().includes('error') ||
-              status.statusText.toLowerCase().includes('failed')
-            ) {
-              throw new Error(`Job failed with status: ${status.statusText}`)
-            }
-
-            await delay(5000) // Wait 5 seconds before checking again
+          })
+        } catch (error) {
+          console.error('Error details:', error)
+          if (error instanceof Error) {
+            vscode.window.showErrorMessage(`Error with compute job: ${error.message}`)
+          } else {
+            vscode.window.showErrorMessage(
+              'An unknown error occurred with the compute job.'
+            )
           }
-        })
-      } catch (error) {
-        console.error('Error details:', error)
-        if (error instanceof Error) {
-          vscode.window.showErrorMessage(`Error with compute job: ${error.message}`)
-        } else {
-          vscode.window.showErrorMessage(
-            'An unknown error occurred with the compute job.'
-          )
         }
       }
-    }
-  )
+    )
+    context.subscriptions.push(startComputeJob)
+  } catch (error) {
+    console.error('Error during extension activation:', error)
+    outputChannel.appendLine(`Error during extension activation: ${error}`)
+  }
+}
 
-  context.subscriptions.push(startComputeJob)
+// Add deactivation handling
+export function deactivate() {
+  console.log('Ocean Protocol extension is being deactivated')
+  outputChannel.appendLine('Ocean Protocol extension is being deactivated')
 }
