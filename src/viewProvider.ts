@@ -104,16 +104,13 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
-    // Generate nonce for script security
-    const nonce = getNonce()
-
     return `
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'unsafe-inline';">
         <title>Ocean Protocol Extension</title>
         <style>
           body { 
@@ -235,7 +232,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
         </div>
 
 
-        <script nonce="${nonce}">
+        <script>
             const vscode = acquireVsCodeApi();
             let selectedFilePath = '';
             let selectedDatasetPath = '';
@@ -359,13 +356,4 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
     </html>
     `
   }
-}
-
-function getNonce() {
-  let text = ''
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length))
-  }
-  return text
 }
