@@ -201,13 +201,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     <button id="selectAlgorithmBtn">Select Algorithm File</button>
                     <div id="selectedAlgorithmPath" class="selectedFile"></div>
                     
-                    <label>Results Folder</label>
-                    <button id="selectResultsFolderBtn">Select Results Folder</button>
-                    <div id="selectedResultsFolderPath" class="selectedFile"></div>
-                    
-                    <label for="nodeUrlInput">Node URL (including port)</label>
-                    <input id="nodeUrlInput" placeholder="Enter compute environment ID" />
-                    
                     <button id="startComputeBtn">Start Compute Job</button>
                 </div>
             </div>
@@ -225,12 +218,18 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     <label for="nodeUrl">Ocean Node URL</label>
                     <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8000" />
 
+                    <label for="nodeUrlInput">Node URL (including port)</label>
+                    <input id="nodeUrlInput" placeholder="Enter compute environment ID" />
+
+                    <label>Results Folder</label>
+                    <button id="selectResultsFolderBtn">Select Results Folder</button>
+                    <div id="selectedResultsFolderPath" class="selectedFile"></div>
+
                     <label for="privateKeyInput">Private Key</label>
                     <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
                 </div>
             </div>
         </div>
-
 
         <script>
             const vscode = acquireVsCodeApi();
