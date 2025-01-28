@@ -22,7 +22,38 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
         localResourceRoots: [this._extensionUri]
       }
 
+      // Get the currently active file for algorithm
+      const activeEditor = vscode.window.activeTextEditor
+      const currentFilePath = activeEditor?.document.uri.fsPath
+
       webviewView.webview.html = this._getHtmlForWebview(webviewView.webview)
+
+      // If there's an active file, use it as the algorithm
+      if (currentFilePath && currentFilePath.endsWith('.json')) {
+        console.log('Setting default algorithm:', currentFilePath)
+        webviewView.webview.postMessage({
+          type: 'fileSelected',
+          filePath: currentFilePath,
+          elementId: 'selectedAlgorithmPath',
+          isDefault: true
+        })
+      }
+
+      // Listen for active editor changes
+      vscode.window.onDidChangeActiveTextEditor((editor) => {
+        if (editor && editor.document.uri.fsPath.endsWith('.json')) {
+          console.log(
+            'Active editor changed, new algorithm file:',
+            editor.document.uri.fsPath
+          )
+          webviewView.webview.postMessage({
+            type: 'fileSelected',
+            filePath: editor.document.uri.fsPath,
+            elementId: 'selectedAlgorithmPath',
+            isDefault: true
+          })
+        }
+      })
 
       webviewView.webview.onDidReceiveMessage(async (data) => {
         console.log('Received message from webview:', data)
@@ -193,12 +224,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             </div>
             <div id="compute" class="section-content active">
                 <div class="container">
-                    <label>Dataset</label>
-                    <button id="selectDatasetBtn">Select Dataset File</button>
-                    <div id="selectedDatasetPath" class="selectedFile"></div>
-                    
-                    <label>Algorithm</label>
-                    <button id="selectAlgorithmBtn">Select Algorithm File</button>
+                    <label>Current Algorithm</label>
                     <div id="selectedAlgorithmPath" class="selectedFile"></div>
                     
                     <button id="startComputeBtn">Start Compute Job</button>
@@ -221,6 +247,13 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     <label for="nodeUrlInput">Node URL (including port)</label>
                     <input id="nodeUrlInput" placeholder="Enter compute environment ID" />
 
+                    <label>Dataset</label>
+                    <button id="selectDatasetBtn">Select Dataset File</button>
+                    <div id="selectedDatasetPath" class="selectedFile"></div>
+
+                    <label>Algorithm</label>
+                    <button id="selectAlgorithmBtn">Select Algorithm File</button>
+
                     <label>Results Folder</label>
                     <button id="selectResultsFolderBtn">Select Results Folder</button>
                     <div id="selectedResultsFolderPath" class="selectedFile"></div>
@@ -237,6 +270,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             let selectedDatasetPath = '';
             let selectedAlgorithmPath = '';
             let selectedResultsFolderPath = '';
+            let isUsingDefaultAlgorithm = false;
 
             function getConfig() {
               const defaultAquariusUrl = 'http://127.0.0.1:8001';
@@ -335,7 +369,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                             document.getElementById('selectedDatasetPath').textContent = 'Selected dataset: ' + message.filePath;
                         } else if (message.elementId === 'selectedAlgorithmPath') {
                             selectedAlgorithmPath = message.filePath;
-                            document.getElementById('selectedAlgorithmPath').textContent = 'Selected algorithm: ' + message.filePath;
+                            isUsingDefaultAlgorithm = message.isDefault || false;
+                            const prefix = isUsingDefaultAlgorithm ? 'Current file: ' : 'Selected algorithm: ';
+                            document.getElementById('selectedAlgorithmPath').textContent = prefix + message.filePath;
                         } else {
                             selectedFilePath = message.filePath;
                             document.getElementById('selectedFilePath').textContent = 'Selected file: ' + message.filePath;
