@@ -180,7 +180,27 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           }
           .selectedFile {
             margin-top: 5px;
+          }
+          .filePath {
             font-style: italic;
+            display: block;
+            margin-top: 5px;
+            color: var(--vscode-foreground);
+          }
+          .filePrefix {
+            font-style: normal;
+            font-weight: bold;
+            font-size: 1.1em;
+            display: block;
+            color: var(--vscode-descriptionForeground);
+          }
+          #selectedAlgorithmPath {
+            margin: 15px 0;
+            padding: 5px 0;
+          }
+          .currentFile {
+            margin-top: 5px;
+            font-style: normal;
           }
           .section {
             margin-bottom: 10px;
@@ -224,8 +244,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             </div>
             <div id="compute" class="section-content active">
                 <div class="container">
-                    <label>Current Algorithm</label>
-                    <div id="selectedAlgorithmPath" class="selectedFile"></div>
+                    <div id="selectedAlgorithmPath" class="currentFile"></div>
                     
                     <button id="startComputeBtn">Start Compute Job</button>
                 </div>
@@ -366,12 +385,14 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     case 'fileSelected':
                         if (message.elementId === 'selectedDatasetPath') {
                             selectedDatasetPath = message.filePath;
-                            document.getElementById('selectedDatasetPath').textContent = 'Selected dataset: ' + message.filePath;
+                            const element = document.getElementById('selectedDatasetPath');
+                            element.innerHTML = '<span class="filePrefix">Selected dataset: </span><span class="filePath">' + message.filePath + '</span>';
                         } else if (message.elementId === 'selectedAlgorithmPath') {
                             selectedAlgorithmPath = message.filePath;
                             isUsingDefaultAlgorithm = message.isDefault || false;
-                            const prefix = isUsingDefaultAlgorithm ? 'Current file: ' : 'Selected algorithm: ';
-                            document.getElementById('selectedAlgorithmPath').textContent = prefix + message.filePath;
+                            const element = document.getElementById('selectedAlgorithmPath');
+                            const prefix = isUsingDefaultAlgorithm ? 'Current algorithm file: ' : 'Selected algorithm: ';
+                            element.innerHTML = '<span class="filePrefix">' + prefix + '</span><span class="filePath">' + message.filePath + '</span>';
                         } else {
                             selectedFilePath = message.filePath;
                             document.getElementById('selectedFilePath').textContent = 'Selected file: ' + message.filePath;
