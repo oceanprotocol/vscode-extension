@@ -74,7 +74,7 @@ export async function activate(context: vscode.ExtensionContext) {
         config: any,
         algorithmPath: string,
         resultsFolderPath: string,
-        privateKey: string,
+        privateKey: string | undefined,
         nodeUrl: string,
         datasetPath?: string
       ) => {
@@ -83,9 +83,8 @@ export async function activate(context: vscode.ExtensionContext) {
         console.log('Dataset path:', datasetPath)
         console.log('Algorithm path:', algorithmPath)
         console.log('Results folder path:', resultsFolderPath)
-        console.log('Private key:', privateKey)
         console.log('Node URL:', nodeUrl)
-        if (!config || !privateKey || !algorithmPath || !nodeUrl) {
+        if (!config || !algorithmPath || !nodeUrl) {
           vscode.window.showErrorMessage('Missing required parameters.')
           return
         }
@@ -101,9 +100,18 @@ export async function activate(context: vscode.ExtensionContext) {
           await vscode.window.withProgress(progressOptions, async (progress) => {
             // Initial setup
             progress.report({ message: 'Starting compute job...' })
-            const provider = new ethers.providers.JsonRpcProvider(config.rpcUrl)
-            console.log('Provider started')
-            const signer = new ethers.Wallet(privateKey, provider)
+
+            // Generate a random wallet if no private key provided
+            const signer = privateKey
+              ? new ethers.Wallet(privateKey)
+              : ethers.Wallet.createRandom()
+
+            if (!privateKey) {
+              console.log('Generated new wallet address:', signer.address)
+              vscode.window.showInformationMessage(
+                `Using generated wallet with address: ${signer.address}`
+              )
+            }
             console.log('Signer created')
 
             // Read files
@@ -144,7 +152,7 @@ export async function activate(context: vscode.ExtensionContext) {
             progress.report({ message: 'Generating signature for retrieval...' })
             computeLogsChannel.appendLine('Generating signature for retrieval...')
             const signatureResult = await generateOceanSignature({
-              privateKey,
+              signer,
               consumerAddress: signer.address,
               jobId,
               index,

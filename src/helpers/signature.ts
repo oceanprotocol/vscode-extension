@@ -1,7 +1,7 @@
-import { ethers } from 'ethers'
+import { ethers, Signer } from 'ethers'
 
 export interface SignatureParams {
-  privateKey: string
+  signer: Signer
   consumerAddress: string
   jobId: string
   index?: number
@@ -17,16 +17,13 @@ export interface SignatureResult {
 }
 
 export async function generateOceanSignature({
-  privateKey,
+  signer,
   consumerAddress,
   jobId,
   index = 0,
   nonce = 1
 }: SignatureParams): Promise<SignatureResult> {
   try {
-    // Create wallet instance from private key
-    const wallet = new ethers.Wallet(privateKey)
-
     // Create message string
     const message = consumerAddress + jobId + index.toString() + nonce
 
@@ -38,7 +35,10 @@ export async function generateOceanSignature({
 
     // Convert to bytes and sign
     const messageHashBytes = ethers.utils.arrayify(consumerMessage)
-    const signature = await wallet.signMessage(messageHashBytes)
+    const signature = await signer.signMessage(messageHashBytes)
+
+    // Get wallet address from signer
+    const walletAddress = await signer.getAddress()
 
     // Verify using both methods like Ocean Protocol does
     const addressFromHashSignature = ethers.utils.verifyMessage(
@@ -56,7 +56,7 @@ export async function generateOceanSignature({
 
     return {
       signature,
-      walletAddress: wallet.address,
+      walletAddress,
       hashedMessage: consumerMessage,
       recoveredAddress: addressFromHashSignature,
       isValid
