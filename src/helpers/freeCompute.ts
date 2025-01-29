@@ -33,35 +33,30 @@ interface ComputeResponse {
 }
 
 export async function computeStart(
-  dataset: any,
   algorithm: any,
   signer: Signer,
   nodeUrl: string,
+  dataset?: any,
   nonce: number = 1
 ): Promise<ComputeResponse> {
   console.log('Starting free compute job using provider: ', nodeUrl)
   const consumerAddress: string = await signer.getAddress()
 
   try {
-    console.log('Sending compute request with body:', {
-      command: 'freeStartCompute',
-      consumerAddress: consumerAddress,
-      nonce: nonce,
-      signature: '0x123',
-      datasets: [dataset],
-      algorithm: algorithm
-    })
-
-    const response = await axios.post(`${nodeUrl}/directCommand`, {
+    const requestBody = {
       command: 'freeStartCompute',
       consumerAddress: consumerAddress,
       environment:
         '0x7d187e4c751367be694497ead35e2937ece3c7f3b325dcb4f7571e5972d092bd-0x071ead74e903edeb2ad40d196f03db09f70811ede01f3e111fd5106f52b388ee',
       nonce: nonce,
       signature: '0x123',
-      datasets: [dataset],
+      datasets: dataset ? [dataset] : [],
       algorithm: algorithm
-    })
+    }
+
+    console.log('Sending compute request with body:', requestBody)
+
+    const response = await axios.post(`${nodeUrl}/directCommand`, requestBody)
 
     console.log('Free Start Compute response: ' + JSON.stringify(response.data))
 
@@ -72,7 +67,6 @@ export async function computeStart(
     return response.data[0]
   } catch (e) {
     console.error('Free start compute error: ', e)
-    // Log additional error details if available
     if (e.response) {
       console.error('Error response data:', e.response.data)
       console.error('Error response status:', e.response.status)

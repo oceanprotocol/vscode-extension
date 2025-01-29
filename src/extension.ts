@@ -72,11 +72,11 @@ export async function activate(context: vscode.ExtensionContext) {
       'ocean-protocol.startComputeJob',
       async (
         config: any,
-        datasetPath: string,
         algorithmPath: string,
         resultsFolderPath: string,
         privateKey: string,
-        nodeUrl: string
+        nodeUrl: string,
+        datasetPath?: string
       ) => {
         console.log('Starting compute job...')
         console.log('Config:', config)
@@ -85,7 +85,7 @@ export async function activate(context: vscode.ExtensionContext) {
         console.log('Results folder path:', resultsFolderPath)
         console.log('Private key:', privateKey)
         console.log('Node URL:', nodeUrl)
-        if (!config || !privateKey || !datasetPath || !algorithmPath || !nodeUrl) {
+        if (!config || !privateKey || !algorithmPath || !nodeUrl) {
           vscode.window.showErrorMessage('Missing required parameters.')
           return
         }
@@ -107,9 +107,14 @@ export async function activate(context: vscode.ExtensionContext) {
             console.log('Signer created')
 
             // Read files
-            const dataset = JSON.parse(fs.readFileSync(datasetPath, 'utf8'))
+            let dataset
+            if (datasetPath) {
+              const datasetContent = await fs.promises.readFile(datasetPath, 'utf8')
+              dataset = JSON.parse(datasetContent)
+            }
+            const algorithmContent = await fs.promises.readFile(algorithmPath, 'utf8')
+            const algorithm = JSON.parse(algorithmContent)
             console.log('Dataset read successfully')
-            const algorithm = JSON.parse(fs.readFileSync(algorithmPath, 'utf8'))
             console.log('Algorithm read successfully')
 
             // nonce equals date in milliseconds
@@ -118,10 +123,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
             // Start compute job
             const computeResponse = await computeStart(
-              dataset,
               algorithm,
               signer,
               nodeUrl,
+              dataset,
               nonce
             )
             console.log('Compute result received:', computeResponse)

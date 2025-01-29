@@ -87,11 +87,11 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               await vscode.commands.executeCommand(
                 'ocean-protocol.startComputeJob',
                 data.config,
-                data.datasetPath,
                 data.algorithmPath,
                 data.resultsFolderPath,
                 data.privateKey,
-                data.nodeUrl
+                data.nodeUrl,
+                data.datasetPath
               )
               break
           }
@@ -344,10 +344,11 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       const privateKey = document.getElementById('privateKeyInput').value;
                       const nodeUrl = document.getElementById('nodeUrlInput').value;
 
-                      if (!selectedDatasetPath || !selectedAlgorithmPath) {
+                      // Only require algorithm to be selected
+                      if (!selectedAlgorithmPath) {
                           vscode.postMessage({
                               type: 'error',
-                              message: 'Please select both dataset and algorithm files'
+                              message: 'Please select an algorithm file'
                           });
                           return;
                       }
@@ -356,10 +357,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           type: 'startComputeJob',
                           config: config,
                           privateKey: privateKey,
-                          datasetPath: selectedDatasetPath,
                           algorithmPath: selectedAlgorithmPath,
                           resultsFolderPath: selectedResultsFolderPath,
-                          nodeUrl: nodeUrl
+                          nodeUrl: nodeUrl,
+                          datasetPath: selectedDatasetPath || undefined // Make dataset optional
                       });
                   });
               }
