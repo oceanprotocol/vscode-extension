@@ -55,6 +55,8 @@ export async function computeStart(
     const response = await axios.post(`${nodeUrl}/directCommand`, {
       command: 'freeStartCompute',
       consumerAddress: consumerAddress,
+      environment:
+        '0x7d187e4c751367be694497ead35e2937ece3c7f3b325dcb4f7571e5972d092bd-0x071ead74e903edeb2ad40d196f03db09f70811ede01f3e111fd5106f52b388ee',
       nonce: nonce,
       signature: '0x123',
       datasets: [dataset],
@@ -127,18 +129,39 @@ export async function getComputeResult(
 
 export async function saveResults(
   results: any,
-  destinationFolder: string
+  destinationFolder?: string
 ): Promise<string> {
   try {
+    // Use provided destination folder or default to './results'
+    const resultsDir = destinationFolder || path.join(process.cwd(), 'results')
+
+    // Ensure results directory exists
+    if (!fs.existsSync(resultsDir)) {
+      console.log('Creating results directory at:', resultsDir)
+      await fs.promises.mkdir(resultsDir, { recursive: true })
+    }
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const fileName = `compute-results-${timestamp}.txt`
-    const filePath = path.join(destinationFolder, fileName)
+    const filePath = path.join(resultsDir, fileName)
 
+    console.log('Saving results to:', filePath)
+    console.log('Results content:', JSON.stringify(results, null, 2))
+
+    // Write the file
     await fs.promises.writeFile(filePath, JSON.stringify(results, null, 2), 'utf-8')
+
+    // Verify file was created
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Failed to create file at ${filePath}`)
+    }
+
     return filePath
   } catch (error) {
     console.error('Error saving results:', error)
-    throw error
+    console.error('Results directory:', destinationFolder || './results')
+    console.error('Results:', results)
+    throw new Error(`Failed to save results: ${error.message}`)
   }
 }
 
