@@ -263,7 +263,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8000" />
 
                       <label for="nodeUrlInput">Node URL (including port)</label>
-                      <input id="nodeUrlInput" placeholder="Enter compute environment ID" />
+                      <input id="nodeUrlInput" placeholder="Enter compute environment ID" value="http://34.159.64.236:8001" />
 
                       <label>Dataset</label>
                       <button id="selectDatasetBtn">Select Dataset File</button>
