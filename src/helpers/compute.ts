@@ -164,15 +164,13 @@ export async function saveResults(
   }
 }
 
-// Create output channel for compute logs
-export const computeLogsChannel = vscode.window.createOutputChannel('Ocean Compute Logs')
-
 export async function getComputeLogs(
   nodeUrl: string,
   jobId: string,
   consumerAddress: string,
   nonce: number,
-  signature: string
+  signature: string,
+  outputChannel: vscode.OutputChannel
 ): Promise<void> {
   try {
     // Make request to get compute logs
@@ -190,6 +188,12 @@ export async function getComputeLogs(
       })
     })
 
+    if (response.ok) {
+      outputChannel.show(true) // The 'true' parameter brings the channel to focus
+    } else {
+      console.log(`No algorithm logs available yet: ${response.statusText}`)
+    }
+
     const text = await response.text()
 
     try {
@@ -197,14 +201,14 @@ export async function getComputeLogs(
       const logs = JSON.parse(text)
       if (Array.isArray(logs)) {
         logs.forEach((log) => {
-          computeLogsChannel.appendLine(log)
+          outputChannel.appendLine(log)
         })
       } else {
-        computeLogsChannel.appendLine(JSON.stringify(logs, null, 2))
+        outputChannel.appendLine(JSON.stringify(logs, null, 2))
       }
     } catch (e) {
       // If JSON parsing fails, treat as plain text
-      computeLogsChannel.appendLine(text)
+      outputChannel.appendLine(text)
     }
   } catch (error) {
     console.error('Error fetching compute logs:', error)
