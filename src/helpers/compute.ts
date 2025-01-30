@@ -196,20 +196,7 @@ export async function getComputeLogs(
 
     const text = await response.text()
 
-    try {
-      // Try to parse as JSON first
-      const logs = JSON.parse(text)
-      if (Array.isArray(logs)) {
-        logs.forEach((log) => {
-          outputChannel.appendLine(log)
-        })
-      } else {
-        outputChannel.appendLine(JSON.stringify(logs, null, 2))
-      }
-    } catch (e) {
-      // If JSON parsing fails, treat as plain text
-      outputChannel.appendLine(text)
-    }
+    outputChannel.appendLine(text)
   } catch (error) {
     console.error('Error fetching compute logs:', error)
   }
