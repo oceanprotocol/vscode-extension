@@ -1,0 +1,14 @@
+{
+  "fileObject": {
+    "type": "url",
+    "url": "https://raw.githubusercontent.com/oceanprotocol/test-algorithm/master/javascript/algo.js",
+    "method": "GET"
+  },
+  "meta": {
+    "container": {
+      "entrypoint": "node $ALGO",
+      "image": "node",
+      "tag": "latest"
+    }
+  }
+}
