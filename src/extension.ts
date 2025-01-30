@@ -12,7 +12,7 @@ import {
   getComputeLogs,
   getComputeResult,
   saveResults
-} from './helpers/freeCompute'
+} from './helpers/compute'
 import { generateOceanSignature } from './helpers/signature'
 
 globalThis.fetch = fetch
