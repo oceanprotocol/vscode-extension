@@ -163,20 +163,7 @@ export async function activate(context: vscode.ExtensionContext) {
               nonce
             })
 
-            const logInterval = setInterval(async () => {
-              await getComputeLogs(
-                nodeUrl,
-                jobId,
-                signer.address,
-                nonce,
-                signatureResult.signature,
-                computeLogsChannel
-              )
-            }, 5000)
-
-            // Monitor job status
-            progress.report({ message: 'Monitoring compute job status...' })
-            outputChannel.appendLine('Monitoring compute job status...')
+            let logStreamStarted = false
 
             while (true) {
               console.log('Checking job status...')
@@ -186,11 +173,21 @@ export async function activate(context: vscode.ExtensionContext) {
               progress.report({ message: `${status.statusText}` })
               outputChannel.appendLine(`Job status: ${status.statusText}`)
 
-              if (status.statusText === 'Job finished') {
-                // Clear the logging interval
-                clearInterval(logInterval)
-                // Generate signature for result retrieval
+              // Start log streaming when job is running
+              if (status.statusText.includes('Running algorithm') && !logStreamStarted) {
+                logStreamStarted = true
+                // Start fetching logs once
+                getComputeLogs(
+                  nodeUrl,
+                  jobId,
+                  signer.address,
+                  nonce,
+                  signatureResult.signature,
+                  computeLogsChannel
+                )
+              }
 
+              if (status.statusText === 'Job finished') {
                 // Retrieve results
                 progress.report({ message: 'Retrieving compute results...' })
                 outputChannel.appendLine('Retrieving compute results...')
