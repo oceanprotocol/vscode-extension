@@ -140,10 +140,15 @@ export async function saveResults(
     const filePath = path.join(resultsDir, fileName)
 
     console.log('Saving results to:', filePath)
-    console.log('Results content:', JSON.stringify(results, null, 2))
+
+    // Format the results string to handle new lines properly
+    const formattedResults =
+      typeof results === 'string'
+        ? results.replace(/\\n/g, '\n')
+        : JSON.stringify(results, null, 2)
 
     // Write the file
-    await fs.promises.writeFile(filePath, JSON.stringify(results, null, 2), 'utf-8')
+    await fs.promises.writeFile(filePath, formattedResults, 'utf-8')
 
     // Verify file was created
     if (!fs.existsSync(filePath)) {
