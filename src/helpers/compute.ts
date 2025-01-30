@@ -190,15 +190,21 @@ export async function getComputeLogs(
       })
     })
 
-    if (!response.ok) {
-      throw new Error(`Failed to get compute logs: ${response.statusText}`)
-    }
+    const text = await response.text()
 
-    const logs = await response.json()
-    if (logs && Array.isArray(logs)) {
-      logs.forEach((log) => {
-        computeLogsChannel.appendLine(log)
-      })
+    try {
+      // Try to parse as JSON first
+      const logs = JSON.parse(text)
+      if (Array.isArray(logs)) {
+        logs.forEach((log) => {
+          computeLogsChannel.appendLine(log)
+        })
+      } else {
+        computeLogsChannel.appendLine(JSON.stringify(logs, null, 2))
+      }
+    } catch (e) {
+      // If JSON parsing fails, treat as plain text
+      computeLogsChannel.appendLine(text)
     }
   } catch (error) {
     console.error('Error fetching compute logs:', error)
