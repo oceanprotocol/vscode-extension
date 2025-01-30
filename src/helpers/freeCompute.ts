@@ -188,8 +188,6 @@ export async function saveResults(
     return filePath
   } catch (error) {
     console.error('Error saving results:', error)
-    console.error('Results directory:', destinationFolder || './results')
-    console.error('Results:', results)
     throw new Error(`Failed to save results: ${error.message}`)
   }
 }
