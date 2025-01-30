@@ -3,6 +3,7 @@ import { Signer } from 'ethers'
 import fs from 'fs'
 import axios from 'axios'
 import path from 'path'
+import { PassThrough } from 'stream'
 
 interface ComputeStatus {
   owner: string
@@ -173,7 +174,8 @@ export async function getComputeLogs(
   outputChannel: vscode.OutputChannel
 ): Promise<void> {
   try {
-    // Make request to get compute logs
+    outputChannel.show(true)
+
     const response = await fetch(`${nodeUrl}/directCommand`, {
       method: 'POST',
       headers: {
@@ -189,15 +191,30 @@ export async function getComputeLogs(
     })
 
     if (response.ok) {
-      outputChannel.show(true) // The 'true' parameter brings the channel to focus
+      console.log('Response: ', response)
+      console.log('Response body: ', response.body)
+      outputChannel.show(true)
     } else {
       console.log(`No algorithm logs available yet: ${response.statusText}`)
+      return
     }
 
-    const text = await response.text()
+    const stream = response.body as unknown as PassThrough
+    stream.on('data', (chunk) => {
+      const text = chunk.toString('utf8')
+      outputChannel.append(text)
+    })
 
-    outputChannel.appendLine(text)
+    stream.on('end', () => {
+      console.log('Stream complete')
+    })
+
+    stream.on('error', (error) => {
+      console.error('Stream error:', error)
+      throw error
+    })
   } catch (error) {
     console.error('Error fetching compute logs:', error)
+    throw error
   }
 }
