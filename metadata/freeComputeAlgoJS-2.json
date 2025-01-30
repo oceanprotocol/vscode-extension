@@ -1,0 +1,14 @@
+{
+  "fileObject": {
+    "type": "url",
+    "url": "https://raw.githubusercontent.com/oceanprotocol/vscode-extension/88ef13707143f7183aa4183a372004bb1d6dac5a/metadata/jsLogAlgo.js",
+    "method": "GET"
+  },
+  "meta": {
+    "container": {
+      "entrypoint": "node $ALGO",
+      "image": "node",
+      "tag": "latest"
+    }
+  }
+}
