@@ -3,6 +3,7 @@ import { Signer } from 'ethers'
 import fs from 'fs'
 import axios from 'axios'
 import path from 'path'
+import { PassThrough } from 'stream'
 
 interface ComputeStatus {
   owner: string
@@ -140,10 +141,15 @@ export async function saveResults(
     const filePath = path.join(resultsDir, fileName)
 
     console.log('Saving results to:', filePath)
-    console.log('Results content:', JSON.stringify(results, null, 2))
+
+    // Format the results string to handle new lines properly
+    const formattedResults =
+      typeof results === 'string'
+        ? results.replace(/\\n/g, '\n')
+        : JSON.stringify(results, null, 2)
 
     // Write the file
-    await fs.promises.writeFile(filePath, JSON.stringify(results, null, 2), 'utf-8')
+    await fs.promises.writeFile(filePath, formattedResults, 'utf-8')
 
     // Verify file was created
     if (!fs.existsSync(filePath)) {
@@ -159,18 +165,17 @@ export async function saveResults(
   }
 }
 
-// Create output channel for compute logs
-export const computeLogsChannel = vscode.window.createOutputChannel('Ocean Compute Logs')
-
 export async function getComputeLogs(
   nodeUrl: string,
   jobId: string,
   consumerAddress: string,
   nonce: number,
-  signature: string
+  signature: string,
+  outputChannel: vscode.OutputChannel
 ): Promise<void> {
   try {
-    // Make request to get compute logs
+    outputChannel.show(true)
+
     const response = await fetch(`${nodeUrl}/directCommand`, {
       method: 'POST',
       headers: {
@@ -185,17 +190,31 @@ export async function getComputeLogs(
       })
     })
 
-    if (!response.ok) {
-      throw new Error(`Failed to get compute logs: ${response.statusText}`)
+    if (response.ok) {
+      console.log('Response: ', response)
+      console.log('Response body: ', response.body)
+      outputChannel.show(true)
+    } else {
+      console.log(`No algorithm logs available yet: ${response.statusText}`)
+      return
     }
 
-    const logs = await response.json()
-    if (logs && Array.isArray(logs)) {
-      logs.forEach((log) => {
-        computeLogsChannel.appendLine(log)
-      })
-    }
+    const stream = response.body as unknown as PassThrough
+    stream.on('data', (chunk) => {
+      const text = chunk.toString('utf8')
+      outputChannel.append(text)
+    })
+
+    stream.on('end', () => {
+      console.log('Stream complete')
+    })
+
+    stream.on('error', (error) => {
+      console.error('Stream error:', error)
+      throw error
+    })
   } catch (error) {
     console.error('Error fetching compute logs:', error)
+    throw error
   }
 }
