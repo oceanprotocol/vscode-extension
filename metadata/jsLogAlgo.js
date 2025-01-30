@@ -1,10 +1,10 @@
 // Constants for timing (in milliseconds)
-const TOTAL_DURATION = 5 * 60 * 1000 // 5 minutes
+const TOTAL_DURATION = 10 * 1000 // 10 seconds
 const LOG_INTERVAL = 1000 // 1 second
 
 // Function to run the logging
 async function runLogging() {
-  console.log('Starting logging process...')
+  console.log('Starting logging process...\n')
 
   const startTime = Date.now()
   let currentIteration = 1
@@ -14,13 +14,13 @@ async function runLogging() {
       const elapsedTime = Date.now() - startTime
 
       console.log(
-        `Log iteration ${currentIteration}: ${elapsedTime / 1000} seconds elapsed`
+        `Log iteration ${currentIteration}: ${elapsedTime / 1000} seconds elapsed\n`
       )
       currentIteration++
 
       if (elapsedTime >= TOTAL_DURATION) {
         clearInterval(intervalId)
-        console.log('Completed')
+        console.log('Completed\n')
         resolve('completed')
       }
     }, LOG_INTERVAL)
