@@ -37,11 +37,27 @@ export async function computeStart(
   algorithmContent: string,
   signer: Signer,
   nodeUrl: string,
+  fileExtension: string,
   dataset?: any,
   nonce: number = 1
 ): Promise<ComputeResponse> {
   console.log('Starting free compute job using provider: ', nodeUrl)
   const consumerAddress: string = await signer.getAddress()
+
+  // Determine container config based on file extension
+  const containerConfig =
+    fileExtension === 'py'
+      ? {
+          image: 'oceanprotocol/algo_dockers',
+          tag: 'python-branin',
+          entrypoint: 'python $ALGO',
+          termsAndConditions: true
+        }
+      : {
+          entrypoint: 'node $ALGO',
+          image: 'node',
+          tag: 'latest'
+        }
 
   try {
     const requestBody = {
@@ -55,11 +71,7 @@ export async function computeStart(
       algorithm: {
         meta: {
           rawcode: algorithmContent,
-          container: {
-            entrypoint: 'node $ALGO',
-            image: 'node',
-            tag: 'latest'
-          }
+          container: containerConfig
         }
       }
     }

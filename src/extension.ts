@@ -131,10 +131,12 @@ export async function activate(context: vscode.ExtensionContext) {
             console.log('Nonce: ', nonce)
 
             // Start compute job
+            const fileExtension = algorithmPath.split('.').pop()?.toLowerCase()
             const computeResponse = await computeStart(
               algorithmContent,
               signer,
               nodeUrl,
+              fileExtension,
               dataset,
               nonce
             )
