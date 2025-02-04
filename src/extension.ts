@@ -125,9 +125,6 @@ export async function activate(context: vscode.ExtensionContext) {
               dataset = JSON.parse(datasetContent)
             }
             const algorithmContent = await fs.promises.readFile(algorithmPath, 'utf8')
-            const algorithm = JSON.parse(algorithmContent)
-            console.log('Dataset read successfully')
-            console.log('Algorithm read successfully')
 
             // nonce equals date in milliseconds
             const nonce = Date.now()
@@ -135,7 +132,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
             // Start compute job
             const computeResponse = await computeStart(
-              algorithm,
+              algorithmContent,
               signer,
               nodeUrl,
               dataset,

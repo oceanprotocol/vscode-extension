@@ -34,7 +34,7 @@ interface ComputeResponse {
 }
 
 export async function computeStart(
-  algorithm: any,
+  algorithmContent: string,
   signer: Signer,
   nodeUrl: string,
   dataset?: any,
@@ -48,45 +48,13 @@ export async function computeStart(
       command: 'freeStartCompute',
       consumerAddress: consumerAddress,
       environment:
-        '0x2208d1490d4e69c3237ac3258fcef6e4092971963ada7dcd96c112f8c0fea01a-0x3841ed3051c274d23bd735d46228ceb94cb67ca692a31d9c29e61b4e0a8b755a',
+        '0x7d187e4c751367be694497ead35e2937ece3c7f3b325dcb4f7571e5972d092bd-0x071ead74e903edeb2ad40d196f03db09f70811ede01f3e111fd5106f52b388ee',
       nonce: nonce,
       signature: '0x123',
       datasets: dataset ? [dataset] : [],
       algorithm: {
         meta: {
-          rawcode: `
-          // Constants for timing (in milliseconds)
-          const TOTAL_DURATION = 10 * 1000; // 10 seconds
-          const LOG_INTERVAL = 1000; // 1 second
-
-          // Function to run the logging
-          async function runLogging() {
-            console.log('RAW CODE: Starting logging process...');
-
-            const startTime = Date.now();
-            let currentIteration = 1;
-
-            return new Promise((resolve) => {
-              const intervalId = setInterval(() => {
-                const elapsedTime = Date.now() - startTime;
-
-                console.log(
-                  \`Log iteration \${currentIteration}: \${elapsedTime / 1000} seconds elapsed\`
-                );
-                currentIteration++;
-
-                if (elapsedTime >= TOTAL_DURATION) {
-                  clearInterval(intervalId);
-                  console.log('Completed');
-                  resolve('completed');
-                }
-              }, LOG_INTERVAL);
-            });
-          }
-
-          // Run the logging function
-          runLogging();
-          `,
+          rawcode: algorithmContent,
           container: {
             entrypoint: 'node $ALGO',
             image: 'node',
