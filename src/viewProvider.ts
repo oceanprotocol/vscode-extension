@@ -55,8 +55,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           } else {
             webviewView.webview.postMessage({
               type: 'fileSelected',
-              filePath:
-                'Not recognised. Please open either a .js or .py file in the editor.',
+              filePath: 'Please open either a .js or .py file in the editor.',
               elementId: 'selectedAlgorithmPath',
               isDefault: true,
               error: 'Please open either a .js or .py file in the editor.'
