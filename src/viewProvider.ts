@@ -29,7 +29,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
       webviewView.webview.html = this._getHtmlForWebview(webviewView.webview)
 
       // If there's an active file, use it as the algorithm
-      if (currentFilePath && currentFilePath.endsWith('.json')) {
+      if (currentFilePath && currentFilePath.endsWith('.js')) {
         console.log('Setting default algorithm:', currentFilePath)
         webviewView.webview.postMessage({
           type: 'fileSelected',
@@ -41,7 +41,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
       // Listen for active editor changes
       vscode.window.onDidChangeActiveTextEditor((editor) => {
-        if (editor && editor.document.uri.fsPath.endsWith('.json')) {
+        if (editor && editor.document.uri.fsPath.endsWith('.js')) {
           console.log(
             'Active editor changed, new algorithm file:',
             editor.document.uri.fsPath
