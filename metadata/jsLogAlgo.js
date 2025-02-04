@@ -4,7 +4,7 @@ const LOG_INTERVAL = 1000 // 1 second
 
 // Function to run the logging
 async function runLogging() {
-  console.log('Starting logging process...\n')
+  console.log('RAW CODE: Starting logging process...\n')
 
   const startTime = Date.now()
   let currentIteration = 1
