@@ -41,17 +41,27 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
       // Listen for active editor changes
       vscode.window.onDidChangeActiveTextEditor((editor) => {
-        if (editor && editor.document.uri.fsPath.endsWith('.js')) {
-          console.log(
-            'Active editor changed, new algorithm file:',
-            editor.document.uri.fsPath
-          )
-          webviewView.webview.postMessage({
-            type: 'fileSelected',
-            filePath: editor.document.uri.fsPath,
-            elementId: 'selectedAlgorithmPath',
-            isDefault: true
-          })
+        if (editor) {
+          const filePath = editor.document.uri.fsPath
+          const fileExtension = filePath.split('.').pop()?.toLowerCase()
+
+          if (fileExtension === 'js' || fileExtension === 'py') {
+            webviewView.webview.postMessage({
+              type: 'fileSelected',
+              filePath: filePath,
+              elementId: 'selectedAlgorithmPath',
+              isDefault: true
+            })
+          } else {
+            webviewView.webview.postMessage({
+              type: 'fileSelected',
+              filePath:
+                'Not recognised. Please open either a .js or .py file in the editor.',
+              elementId: 'selectedAlgorithmPath',
+              isDefault: true,
+              error: 'Please open either a .js or .py file in the editor.'
+            })
+          }
         }
       })
 
@@ -61,8 +71,22 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
         try {
           switch (data.type) {
             case 'openFilePicker':
-              console.log('Opening file picker for:', data.elementId)
-              await this.openFilePicker(data.elementId)
+              const options: vscode.OpenDialogOptions = {
+                canSelectMany: false,
+                openLabel: 'Select',
+                filters: {
+                  'Algorithm Files': ['js', 'py']
+                }
+              }
+
+              const fileUri = await vscode.window.showOpenDialog(options)
+              if (fileUri && fileUri[0]) {
+                webviewView.webview.postMessage({
+                  type: 'fileSelected',
+                  filePath: fileUri[0].fsPath,
+                  elementId: data.elementId
+                })
+              }
               break
             case 'selectResultsFolder': {
               console.log('Opening folder picker')
@@ -103,34 +127,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
     } catch (error) {
       console.error('Error in resolveWebviewView:', error)
       vscode.window.showErrorMessage(`Failed to resolve webview: ${error}`)
-    }
-  }
-
-  private async openFilePicker(elementId: string) {
-    console.log('openFilePicker called with elementId:', elementId)
-
-    const options: vscode.OpenDialogOptions = {
-      canSelectMany: false,
-      openLabel: 'Select',
-      filters: {
-        'JSON files': ['json']
-      }
-    }
-
-    try {
-      const fileUri = await vscode.window.showOpenDialog(options)
-      console.log('File picker result:', fileUri)
-
-      if (fileUri && fileUri[0]) {
-        console.log('Posting message back to webview')
-        this._view?.webview.postMessage({
-          type: 'fileSelected',
-          filePath: fileUri[0].fsPath,
-          elementId: elementId
-        })
-      }
-    } catch (error) {
-      console.error('Error in openFilePicker:', error)
     }
   }
 
