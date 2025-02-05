@@ -49,12 +49,12 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "lint": "eslint src",
     "test-vs": "vscode-test",
-    "test": "npm run mocha 'test/publish.test.ts'",
+    "test": "node ./out/test/runTest.js",
     "mocha": "TS_NODE_PROJECT='./test/tsconfig.json' mocha --extensions ts --config=test/.mocharc.json --node-env=test --exit"
   },
   "devDependencies": {
     "@types/chai": "^5.0.0",
-    "@types/mocha": "^10.0.1",
+    "@types/mocha": "^10.0.6",
     "@types/node": "20.x",
     "@types/vscode": "^1.93.0",
     "@typescript-eslint/eslint-plugin": "^8.3.0",
@@ -65,13 +65,15 @@
     "eslint": "^9.9.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
-    "mocha": "^10.2.0",
+    "mocha": "^10.3.0",
     "prettier": "^3.3.3",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.1",
     "typescript": "^5.6.2",
     "webpack": "^5.94.0",
-    "webpack-cli": "^5.1.4"
+    "webpack-cli": "^5.1.4",
+    "@types/sinon": "^17.0.3",
+    "sinon": "^17.0.1"
   },
   "dependencies": {
     "@chainsafe/libp2p-noise": "^16.0.0",

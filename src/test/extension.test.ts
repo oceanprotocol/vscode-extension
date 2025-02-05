@@ -1,7 +1,7 @@
 import * as assert from 'assert'
 import * as vscode from 'vscode'
 import * as sinon from 'sinon'
-import { computeStart, checkComputeStatus, getComputeLogs } from '../helpers/compute'
+import { computeStart, checkComputeStatus } from '../helpers/compute'
 import { Wallet } from 'ethers'
 import axios from 'axios'
 
@@ -76,13 +76,13 @@ suite('Ocean Protocol Extension Test Suite', () => {
     }
 
     sandbox.stub(axios, 'get').resolves(mockEnvResponse)
-    sandbox.stub(axios, 'post').resolves(mockComputeResponse)
+    const postStub = sandbox.stub(axios, 'post').resolves(mockComputeResponse)
 
     const result = await computeStart(mockAlgorithm, mockSigner, mockNodeUrl, 'py')
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.ok(
-      axios.post.calledWith(
+      postStub.calledWith(
         `${mockNodeUrl}/directCommand`,
         sinon.match({
           algorithm: {
