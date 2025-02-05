@@ -4,24 +4,24 @@ import * as sinon from 'sinon'
 import { computeStart, checkComputeStatus } from '../helpers/compute'
 import { Wallet } from 'ethers'
 import axios from 'axios'
-import { describe, it, beforeEach, afterEach } from 'mocha'
 
-describe('Ocean Protocol Extension Test Suite', () => {
+// Use VS Code test runner syntax
+suite('Ocean Protocol Extension Test Suite', () => {
   let sandbox: sinon.SinonSandbox
 
-  beforeEach(() => {
+  setup(() => {
     sandbox = sinon.createSandbox()
   })
 
-  afterEach(() => {
+  teardown(() => {
     sandbox.restore()
   })
 
-  it('Extension should be present', () => {
+  test('Extension should be present', () => {
     assert.ok(vscode.extensions.getExtension('ocean-protocol'))
   })
 
-  it('computeStart should handle JavaScript algorithm correctly', async () => {
+  test('computeStart should handle JavaScript algorithm correctly', async () => {
     const mockSigner = new Wallet('0x' + '1'.repeat(64))
     const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'console.log("test")'
@@ -53,7 +53,7 @@ describe('Ocean Protocol Extension Test Suite', () => {
     assert.strictEqual(result.statusText, 'Created')
   })
 
-  it('computeStart should handle Python algorithm correctly', async () => {
+  test('computeStart should handle Python algorithm correctly', async () => {
     const mockSigner = new Wallet('0x' + '1'.repeat(64))
     const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'print("test")'
@@ -99,7 +99,7 @@ describe('Ocean Protocol Extension Test Suite', () => {
     )
   })
 
-  it('checkComputeStatus should return correct status', async () => {
+  test('checkComputeStatus should return correct status', async () => {
     const mockNodeUrl = 'http://test-node:8001'
     const mockJobId = 'test-job-id'
 
