@@ -1,81 +1,152 @@
-# ocean-protocol README
+# Ocean Protocol VSCode Extension
 
-This is the README for your extension "ocean-protocol". After writing up a brief description, we recommend including the following sections.
-
-## Running the extension locally
-
-`npm i`
-
-`npm run compile`
-
-To start the extension in a local vscode window, press F5 or run the command Debug: Start Debugging from the Command Palette (Ctrl+Shift+P).
-
-COnsult the [vscode extension documentation](https://code.visualstudio.com/api/get-started/your-first-extension) for more information.
+This VSCode extension enables you to interact with Ocean Protocol directly from your development environment. You can publish assets, run compute jobs, and manage Ocean Protocol operations without leaving VSCode.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- 🌊 **Ocean Protocol Integration**: Direct integration with Ocean Protocol's core functionality
+- 📝 **Asset Publishing**: Publish datasets and algorithms with a simple interface
+- 🔍 **Asset Discovery**: View details of published assets
+- 💻 **Compute-to-Data**: Start and monitor compute jobs
+- 🔄 **P2P Network**: View and interact with Ocean Protocol's P2P network
+- ⬇️ **Asset Downloads**: Download assets directly through the extension
 
-For example if there is an image subfolder under your extension project workspace:
+## Prerequisites
 
-\!\[feature X\]\(images/feature-x.png\)
+- Node.js (version specified in `.nvmrc`)
+- VSCode version 1.93.0 or higher
+- Git
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+## Running the extension locally
 
-## Requirements
+1. Clone the repository:
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+```bash
+git clone https://github.com/your-username/ocean-protocol-vscode
+cd ocean-protocol-vscode
+```
 
-## Extension Settings
+2. Install dependencies:
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+```bash
+npm install
+```
 
-For example:
+3. Build the extension:
 
-This extension contributes the following settings:
+```bash
+npm run compile
+```
 
-- `myExtension.enable`: Enable/disable this extension.
-- `myExtension.thing`: Set to `blah` to do something.
+4. Open in VSCode:
 
-## Known Issues
+- Press F5 to start debugging
+- This will open a new VSCode window with the extension loaded
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+## Usage
 
-## Release Notes
+### Extension Layout
 
-Users appreciate release notes as you update your extension.
+The extension adds a new Ocean Protocol icon to the activity bar. Clicking it reveals several sections:
 
-### 1.0.0
+1. **Setup**
 
-Initial release of ...
+   - Configure RPC URL
+   - Set Ocean Node URL
+   - Enter private key for transactions
 
-### 1.0.1
+2. **Get Asset Details**
 
-Fixed issue #.
+   - Enter an asset's DID to view its details
+   - View metadata and other asset information
 
-### 1.1.0
+3. **Publish Asset**
 
-Added features X, Y, and Z.
+   - Select a JSON file containing asset metadata
+   - Publish new datasets or algorithms to Ocean Protocol
 
----
+4. **Start Compute Job**
 
-## Following extension guidelines
+   - Select dataset and algorithm files
+   - Configure compute environment
+   - Start and monitor compute-to-data jobs
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+5. **P2P**
 
-- [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+   - View your node's ID
+   - See connected Ocean peers
+   - Monitor P2P network status
 
-## Working with Markdown
+6. **Download Asset**
+   - Enter asset DID
+   - Specify download location
+   - Download assets directly through VSCode
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+### Basic Operations
 
-- Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-- Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-- Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+#### Publishing an Asset
 
-## For more information
+1. Click the Ocean Protocol icon in the activity bar
+2. Open the "Publish Asset" section
+3. Click "Select Asset File" to choose your metadata JSON file
+4. Enter your private key in the setup section
+5. Click "Publish Asset"
 
-- [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-- [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+#### Starting a Compute Job
 
-**Enjoy!**
+1. Navigate to the "Start Compute Job" section
+2. Select both dataset and algorithm files
+3. Enter the compute environment URL
+4. Click "Start Compute Job"
+
+#### Downloading Assets
+
+1. Open the "Download Asset" section
+2. Enter the asset's DID
+3. Specify the download path
+4. Click "Download Asset"
+
+## Development
+
+### Project Structure
+
+```
+ocean-protocol-vscode/
+├── src/
+│   ├── extension.ts        # Main extension entry point
+│   ├── viewProvider.ts     # WebView UI provider
+│   ├── helpers/           # Helper functions
+│   │   ├── download.ts
+│   │   ├── freeCompute.ts
+│   │   ├── oceanNode.ts
+│   │   └── publish.ts
+│   └── @types/           # TypeScript type definitions
+├── test/                 # Test files
+└── package.json          # Project configuration
+```
+
+### Available Scripts
+
+- `npm run compile`: Compile the TypeScript code
+- `npm run watch`: Compile in watch mode
+- `npm run lint`: Run ESLint
+- `npm run test`: Run tests
+- `npm run package`: Create VSIX package for distribution
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## Contact
+
+For bug reports and feature requests, please open an issue in the GitHub repository.
+
+For general questions about Ocean Protocol, join the [Ocean Protocol Discord](https://discord.gg/TnXjkR5).
