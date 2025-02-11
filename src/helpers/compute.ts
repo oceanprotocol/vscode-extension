@@ -34,25 +34,53 @@ interface ComputeResponse {
 }
 
 export async function computeStart(
-  algorithm: any,
+  algorithmContent: string,
   signer: Signer,
   nodeUrl: string,
+  fileExtension: string,
   dataset?: any,
   nonce: number = 1
 ): Promise<ComputeResponse> {
   console.log('Starting free compute job using provider: ', nodeUrl)
   const consumerAddress: string = await signer.getAddress()
 
+  // Fetch compute environments first
   try {
+    const envResponse = await axios.get(`${nodeUrl}/api/services/computeEnvironments`)
+    if (!envResponse.data || !envResponse.data.length) {
+      throw new Error('No compute environments available')
+    }
+    const environmentId = envResponse.data[0].id
+    console.log('Using compute environment:', environmentId)
+
+    // Determine container config based on file extension
+    const containerConfig =
+      fileExtension === 'py'
+        ? {
+            image: 'oceanprotocol/algo_dockers',
+            tag: 'python-branin',
+            entrypoint: 'python $ALGO',
+            termsAndConditions: true
+          }
+        : {
+            entrypoint: 'node $ALGO',
+            image: 'node',
+            tag: 'latest'
+          }
+
     const requestBody = {
       command: 'freeStartCompute',
       consumerAddress: consumerAddress,
-      environment:
-        '0x7d187e4c751367be694497ead35e2937ece3c7f3b325dcb4f7571e5972d092bd-0x071ead74e903edeb2ad40d196f03db09f70811ede01f3e111fd5106f52b388ee',
+      environment: environmentId,
       nonce: nonce,
       signature: '0x123',
       datasets: dataset ? [dataset] : [],
-      algorithm: algorithm
+      algorithm: {
+        meta: {
+          rawcode: algorithmContent,
+          container: containerConfig
+        }
+      }
     }
 
     console.log('Sending compute request with body:', requestBody)
