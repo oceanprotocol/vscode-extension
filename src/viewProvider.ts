@@ -5,102 +5,138 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView
 
-  constructor(
-    private readonly _extensionUri: vscode.Uri,
-    private nodeId: string
-  ) {}
+  constructor(private readonly _extensionUri: vscode.Uri) {}
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
     context: vscode.WebviewViewResolveContext,
     _token: vscode.CancellationToken
   ) {
-    this._view = webviewView
+    console.log('resolveWebviewView called')
 
-    webviewView.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [this._extensionUri]
-    }
+    try {
+      this._view = webviewView
 
-    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview)
-
-    webviewView.webview.onDidReceiveMessage((data) => {
-      switch (data.type) {
-        case 'getAssetDetails':
-          vscode.commands.executeCommand(
-            'ocean-protocol.getAssetDetails',
-            data.config,
-            data.did
-          )
-          break
-        case 'publishAsset':
-          vscode.commands.executeCommand(
-            'ocean-protocol.publishAsset',
-            data.config,
-            data.filePath,
-            data.privateKey
-          )
-          break
-        case 'downloadAsset':
-          vscode.commands.executeCommand(
-            'ocean-protocol.downloadAsset',
-            data.config,
-            data.filePath,
-            data.privateKey,
-            data.assetDid
-          )
-          break
-        case 'openFilePicker':
-          this.openFilePicker(data.elementId)
-          break
-        case 'getOceanPeers':
-          vscode.commands.executeCommand('ocean-protocol.getOceanPeers')
-          break
-        case 'startComputeJob':
-          vscode.commands.executeCommand(
-            'ocean-protocol.startComputeJob',
-            data.config,
-            data.datasetPath,
-            data.algorithmPath,
-            data.privateKey,
-            data.nodeUrl
-          )
-          break
+      webviewView.webview.options = {
+        enableScripts: true,
+        localResourceRoots: [this._extensionUri]
       }
-    })
-  }
 
-  private async openFilePicker(elementId: string) {
-    const options: vscode.OpenDialogOptions = {
-      canSelectMany: false,
-      openLabel: 'Select',
-      filters: {
-        'JSON files': ['json']
+      // Get the currently active file for algorithm
+      const activeEditor = vscode.window.activeTextEditor
+      const currentFilePath = activeEditor?.document.uri.fsPath
+
+      webviewView.webview.html = this._getHtmlForWebview(webviewView.webview)
+
+      // If there's an active file, use it as the algorithm
+      if (currentFilePath && currentFilePath.endsWith('.js')) {
+        console.log('Setting default algorithm:', currentFilePath)
+        webviewView.webview.postMessage({
+          type: 'fileSelected',
+          filePath: currentFilePath,
+          elementId: 'selectedAlgorithmPath',
+          isDefault: true
+        })
       }
-    }
 
-    const fileUri = await vscode.window.showOpenDialog(options)
-    if (fileUri && fileUri[0]) {
-      this._view?.webview.postMessage({
-        type: 'fileSelected',
-        filePath: fileUri[0].fsPath,
-        elementId: elementId
+      // Listen for active editor changes
+      vscode.window.onDidChangeActiveTextEditor((editor) => {
+        if (editor) {
+          const filePath = editor.document.uri.fsPath
+          const fileExtension = filePath.split('.').pop()?.toLowerCase()
+
+          if (fileExtension === 'js' || fileExtension === 'py') {
+            webviewView.webview.postMessage({
+              type: 'fileSelected',
+              filePath: filePath,
+              elementId: 'selectedAlgorithmPath',
+              isDefault: true
+            })
+          } else {
+            webviewView.webview.postMessage({
+              type: 'fileSelected',
+              filePath: 'Please open either a .js or .py file in the editor.',
+              elementId: 'selectedAlgorithmPath',
+              isDefault: true,
+              error: 'Please open either a .js or .py file in the editor.'
+            })
+          }
+        }
       })
+
+      webviewView.webview.onDidReceiveMessage(async (data) => {
+        console.log('Received message from webview:', data)
+
+        try {
+          switch (data.type) {
+            case 'openFilePicker':
+              const options: vscode.OpenDialogOptions = {
+                canSelectMany: false,
+                openLabel: 'Select',
+                filters: {
+                  'Algorithm Files': ['js', 'py']
+                }
+              }
+
+              const fileUri = await vscode.window.showOpenDialog(options)
+              if (fileUri && fileUri[0]) {
+                webviewView.webview.postMessage({
+                  type: 'fileSelected',
+                  filePath: fileUri[0].fsPath,
+                  elementId: data.elementId
+                })
+              }
+              break
+            case 'selectResultsFolder': {
+              console.log('Opening folder picker')
+              const folderUri = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: 'Select Results Folder'
+              })
+
+              if (folderUri && folderUri[0]) {
+                console.log('Selected folder:', folderUri[0].fsPath)
+                webviewView.webview.postMessage({
+                  type: 'resultsFolder',
+                  path: folderUri[0].fsPath
+                })
+              }
+              break
+            }
+            case 'startComputeJob':
+              console.log('Starting compute job with data:', data)
+              await vscode.commands.executeCommand(
+                'ocean-protocol.startComputeJob',
+                data.config,
+                data.algorithmPath,
+                data.resultsFolderPath,
+                data.privateKey,
+                data.nodeUrl,
+                data.datasetPath
+              )
+              break
+          }
+        } catch (error) {
+          console.error('Error handling message:', error)
+          vscode.window.showErrorMessage(`Error handling message: ${error}`)
+        }
+      })
+    } catch (error) {
+      console.error('Error in resolveWebviewView:', error)
+      vscode.window.showErrorMessage(`Failed to resolve webview: ${error}`)
     }
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
-    // Escape the nodeId to prevent XSS
-    const nodeId = this.nodeId
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
     return `
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'unsafe-inline';">
         <title>Ocean Protocol Extension</title>
         <style>
           body { 
@@ -139,7 +175,27 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           }
           .selectedFile {
             margin-top: 5px;
+          }
+          .filePath {
             font-style: italic;
+            display: block;
+            margin-top: 5px;
+            color: var(--vscode-foreground);
+          }
+          .filePrefix {
+            font-style: normal;
+            font-weight: bold;
+            font-size: 1.1em;
+            display: block;
+            color: var(--vscode-descriptionForeground);
+          }
+          #selectedAlgorithmPath {
+            margin: 15px 0;
+            padding: 5px 0;
+          }
+          .currentFile {
+            margin-top: 5px;
+            font-style: normal;
           }
           .section {
             margin-bottom: 10px;
@@ -173,238 +229,168 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           .section-header.active .chevron {
             transform: rotate(90deg);
           }
+          .compute-container {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border);
+          }
+          #startComputeBtn {
+            margin: 15px 0;
+          }
         </style>
     </head>
     <body>
-        <div class="section">
-            <div id="setupHeader" class="section-header active">
-                <span class="chevron">&#9658;</span>Setup
-            </div>
-            <div id="setup" class="section-content active">
-                <div class="container">
-                    <label for="rpcUrl">RPC URL</label>
-                    <input id="rpcUrl" placeholder="RPC URL" value="http://127.0.0.1:8545" />
+          <div class="container">
+              <div id="selectedAlgorithmPath" class="selectedFile"></div>
+              
+              <button id="startComputeBtn">Start Compute Job</button>
+          </div>
 
-                    <label for="nodeUrl">Ocean Node URL</label>
-                    <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8000" />
+          <div class="section">
+              <div id="setupHeader" class="section-header">
+                  <span class="chevron">&#9658;</span>Setup
+              </div>
+              <div id="setup" class="section-content">
+                  <div class="container">
+                      <label for="rpcUrl">RPC URL</label>
+                      <input id="rpcUrl" placeholder="RPC URL" value="http://127.0.0.1:8545" />
 
-                    <label for="privateKeyInput">Private Key</label>
-                    <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
-                </div>
-            </div>
-        </div>
+                      <label for="nodeUrl">Ocean Node URL</label>
+                      <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8000" />
 
-        <div class="section">
-            <div id="getAssetHeader" class="section-header">
-                <span class="chevron">&#9658;</span>Get Asset Details
-            </div>
-            <div id="getAsset" class="section-content">
-                <div class="container">
-                    <label for="didInput">Ocean Asset DID</label>
-                    <input id="didInput" placeholder="Enter the DID for the asset" />
-                    <button id="getAssetDetailsBtn">Get Asset DDO</button>
-                </div>
-            </div>
-        </div>
+                      <label for="nodeUrlInput">Node URL (including port)</label>
+                      <input id="nodeUrlInput" placeholder="Enter compute environment ID" value="http://34.159.64.236:8001" />
 
-        <div class="section">
-            <div id="publishHeader" class="section-header">
-                <span class="chevron">&#9658;</span>Publish Asset
-            </div>
-            <div id="publish" class="section-content">
-                <div class="container">
-                    <button id="selectFileBtn">Select Asset File</button>
-                    <div id="selectedFilePath"></div>
+                      <label>Dataset</label>
+                      <button id="selectDatasetBtn">Select Dataset File</button>
+                      <div id="selectedDatasetPath" class="selectedFile"></div>
 
-                    <button id="publishAssetBtn">Publish Asset</button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="section">
-            <div id="computeHeader" class="section-header">
-                <span class="chevron">&#9658;</span>Start Compute Job
-            </div>
-            <div id="compute" class="section-content">
-                <div class="container">
-                    <label>Dataset</label>
-                    <button id="selectDatasetBtn">Select Dataset File</button>
-                    <div id="selectedDatasetPath" class="selectedFile"></div>
-                    
-                    <label>Algorithm</label>
-                    <button id="selectAlgorithmBtn">Select Algorithm File</button>
-                    <div id="selectedAlgorithmPath" class="selectedFile"></div>
-                    
-                    <label for="nodeUrlInput">Node URL (including port)</label>
-                    <input id="nodeUrlInput" placeholder="Enter compute environment ID" />
-                    
-                    <button id="startComputeBtn">Start Compute Job</button>
-                </div>
-            </div>
-        </div>
+                      <label>Algorithm</label>
+                      <button id="selectAlgorithmBtn">Select Algorithm File</button>
 
-            <div class="section">
-            <div id="p2pHeader" class="section-header">
-                <span class="chevron">&#9658;</span>P2P
-            </div>
-            <div id="p2p" class="section-content">
-                <div class="container">
-                    <label>Node ID:</label>
-                    <div id="nodeIdDisplay">${nodeId || 'Connecting...'}</div>
-                    <br />
-                    <button id="getOceanPeersBtn">Get Ocean Peers</button>
-                </div>
-            </div>
-        </div>
-            <div id="downloadHeader" class="section-header">
-                <span class="chevron">&#9658;</span>Download Asset
-            </div>
-            <div id="download" class="section-content">
-                <div class="container">
-                      <label for="assetDidInput">Asset DID</label>
-                      <input id="assetDidInput" placeholder="Enter your asset DID" />
-                      <label for="pathInput">File Path</label>
-                      <input id="pathInput" placeholder="Enter your file path" /> 
-                    <button id="downloadAssetBtn">Download Asset</button>
-                </div>
-            </div>
-        </div>
+                      <label>Results Folder</label>
+                      <button id="selectResultsFolderBtn">Select Results Folder</button>
+                      <div id="selectedResultsFolderPath" class="selectedFile"></div>
 
-        <script>
-            const vscode = acquireVsCodeApi();
-            let selectedFilePath = '';
-            let selectedDatasetPath = '';
-            let selectedAlgorithmPath = '';
+                      <label for="privateKeyInput">Private Key</label>
+                      <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
+                  </div>
+              </div>
+          </div>
 
-            function getConfig() {
-              const defaultAquariusUrl = 'http://127.0.0.1:8001';
-              return {
-                rpcUrl: document.getElementById('rpcUrl').value || 'http://127.0.0.1:8545',
-                aquariusUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl,
-                providerUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl
-              };
-            }
+          <script>
+              const vscode = acquireVsCodeApi();
+              let selectedFilePath = '';
+              let selectedDatasetPath = '';
+              let selectedAlgorithmPath = '';
+              let selectedResultsFolderPath = '';
+              let isUsingDefaultAlgorithm = false;
 
-            function toggleSection(sectionId) {
-                const header = document.getElementById(sectionId + 'Header');
-                const content = document.getElementById(sectionId);
-                header.classList.toggle('active');
-                content.classList.toggle('active');
-            }
+              function getConfig() {
+                const defaultAquariusUrl = 'http://127.0.0.1:8001';
+                return {
+                  rpcUrl: document.getElementById('rpcUrl').value || 'http://127.0.0.1:8545',
+                  aquariusUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl,
+                  providerUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl
+                };
+              }
 
-            document.addEventListener('DOMContentLoaded', (event) => {
-                document.getElementById('setupHeader').addEventListener('click', () => toggleSection('setup'));
-                document.getElementById('getAssetHeader').addEventListener('click', () => toggleSection('getAsset'));
-                document.getElementById('publishHeader').addEventListener('click', () => toggleSection('publish'));
-                document.getElementById('p2pHeader').addEventListener('click', () => toggleSection('p2p'));
-                document.getElementById('downloadHeader').addEventListener('click', () => toggleSection('download'));
-                document.getElementById('computeHeader').addEventListener('click', () => toggleSection('compute'));
+              function toggleSection(sectionId) {
+                  const header = document.getElementById(sectionId + 'Header');
+                  const content = document.getElementById(sectionId);
+                  header.classList.toggle('active');
+                  content.classList.toggle('active');
+              }
 
-                document.getElementById('getOceanPeersBtn').addEventListener('click', () => {
-                    vscode.postMessage({ type: 'getOceanPeers' });
-                });
+              // Initialize only the setup section toggle
+              document.getElementById('setupHeader').addEventListener('click', () => toggleSection('setup'));
 
-                document.getElementById('selectFileBtn').addEventListener('click', () => {
-                    vscode.postMessage({ 
-                        type: 'openFilePicker',
-                        elementId: 'selectedFilePath'
-                    });
-                });
+              if (document.getElementById('selectDatasetBtn')) {
+                  document.getElementById('selectDatasetBtn').addEventListener('click', () => {
+                      console.log('Dataset button clicked');
+                      vscode.postMessage({ 
+                          type: 'openFilePicker',
+                          elementId: 'selectedDatasetPath'
+                      });
+                  });
+              }
 
-                document.getElementById('selectDatasetBtn').addEventListener('click', () => {
-                    vscode.postMessage({ 
-                        type: 'openFilePicker',
-                        elementId: 'selectedDatasetPath'
-                    });
-                });
+              if (document.getElementById('selectAlgorithmBtn')) {
+                  document.getElementById('selectAlgorithmBtn').addEventListener('click', () => {
+                      console.log('Algorithm button clicked');
+                      vscode.postMessage({ 
+                          type: 'openFilePicker',
+                          elementId: 'selectedAlgorithmPath'
+                      });
+                  });
+              }
 
-                document.getElementById('selectAlgorithmBtn').addEventListener('click', () => {
-                    vscode.postMessage({ 
-                        type: 'openFilePicker',
-                        elementId: 'selectedAlgorithmPath'
-                    });
-                });
+              if (document.getElementById('selectResultsFolderBtn')) {
+                  document.getElementById('selectResultsFolderBtn').addEventListener('click', () => {
+                      console.log('Results folder button clicked');
+                      vscode.postMessage({
+                          type: 'selectResultsFolder'
+                      });
+                  });
+              }
 
-                document.getElementById('getAssetDetailsBtn').addEventListener('click', () => {
-                    const config = getConfig();
-                    const did = document.getElementById('didInput').value;
-                    vscode.postMessage({ 
-                        type: 'getAssetDetails', 
-                        config: config, 
-                        did: did 
-                    });
-                });
+              if (document.getElementById('startComputeBtn')) {
+                  document.getElementById('startComputeBtn').addEventListener('click', () => {
+                      const config = getConfig();
+                      const privateKey = document.getElementById('privateKeyInput').value;
+                      const nodeUrl = document.getElementById('nodeUrlInput').value;
 
-                document.getElementById('publishAssetBtn').addEventListener('click', () => {
-                    const config = getConfig();
-                    const privateKey = document.getElementById('privateKeyInput').value;
-                    vscode.postMessage({ 
-                        type: 'publishAsset', 
-                        config: config, 
-                        filePath: selectedFilePath,
-                        privateKey: privateKey
-                    });
-                });
+                      // Only require algorithm to be selected
+                      if (!selectedAlgorithmPath) {
+                          vscode.postMessage({
+                              type: 'error',
+                              message: 'Please select an algorithm file'
+                          });
+                          return;
+                      }
 
-                document.getElementById('downloadAssetBtn').addEventListener('click', () => {
-                    const config = getConfig();
-                    const privateKey = document.getElementById('privateKeyInput').value;
-                    const assetDidSelected = document.getElementById('assetDidInput').value;
-                    const pathSelected = document.getElementById('pathInput').value;
-                    vscode.postMessage({ 
-                        type: 'downloadAsset',
-                        config: config,
-                        filePath: pathSelected,
-                        privateKey: privateKey, 
-                        assetDid: assetDidSelected
-                    });
-                });
+                      vscode.postMessage({ 
+                          type: 'startComputeJob',
+                          config: config,
+                          privateKey: privateKey,
+                          algorithmPath: selectedAlgorithmPath,
+                          resultsFolderPath: selectedResultsFolderPath,
+                          nodeUrl: nodeUrl,
+                          datasetPath: selectedDatasetPath || undefined // Make dataset optional
+                      });
+                  });
+              }
 
-                document.getElementById('startComputeBtn').addEventListener('click', () => {
-                    const config = getConfig();
-                    const privateKey = document.getElementById('privateKeyInput').value;
-                    const nodeUrl = document.getElementById('nodeUrlInput').value;
-
-                    if (!selectedDatasetPath || !selectedAlgorithmPath) {
-                        vscode.postMessage({
-                            type: 'error',
-                            message: 'Please select both dataset and algorithm files'
-                        });
-                        return;
-                    }
-
-                    vscode.postMessage({ 
-                        type: 'startComputeJob',
-                        config: config,
-                        privateKey: privateKey,
-                        datasetPath: selectedDatasetPath,
-                        algorithmPath: selectedAlgorithmPath,
-                        nodeUrl: nodeUrl
-                    });
-                });
-            });
-
-            window.addEventListener('message', event => {
-                const message = event.data;
-                switch (message.type) {
-                    case 'fileSelected':
-                        if (message.elementId === 'selectedDatasetPath') {
-                            selectedDatasetPath = message.filePath;
-                            document.getElementById('selectedDatasetPath').textContent = 'Selected dataset: ' + message.filePath;
-                        } else if (message.elementId === 'selectedAlgorithmPath') {
-                            selectedAlgorithmPath = message.filePath;
-                            document.getElementById('selectedAlgorithmPath').textContent = 'Selected algorithm: ' + message.filePath;
-                        } else {
-                            selectedFilePath = message.filePath;
-                            document.getElementById('selectedFilePath').textContent = 'Selected file: ' + message.filePath;
-                        }
-                        break;
-                    case 'nodeId':
-                        document.getElementById('nodeIdDisplay').textContent = message.nodeId;
-                        break;
-                }
-            });
-        </script>
+              window.addEventListener('message', event => {
+                  const message = event.data;
+                  console.log('Received message:', message);
+                  
+                  switch (message.type) {
+                      case 'fileSelected':
+                          if (message.elementId === 'selectedDatasetPath') {
+                              selectedDatasetPath = message.filePath;
+                              const element = document.getElementById('selectedDatasetPath');
+                              element.innerHTML = '<span class="filePrefix">Selected dataset: </span><span class="filePath">' + message.filePath + '</span>';
+                          } else if (message.elementId === 'selectedAlgorithmPath') {
+                              selectedAlgorithmPath = message.filePath;
+                              isUsingDefaultAlgorithm = message.isDefault || false;
+                              const element = document.getElementById('selectedAlgorithmPath');
+                              const prefix = isUsingDefaultAlgorithm ? 'Current algorithm file: ' : 'Selected algorithm: ';
+                              element.innerHTML = '<span class="filePrefix">' + prefix + '</span><span class="filePath">' + message.filePath + '</span>';
+                          } else {
+                              selectedFilePath = message.filePath;
+                              document.getElementById('selectedFilePath').textContent = 'Selected file: ' + message.filePath;
+                          }
+                          break;
+                      case 'nodeId':
+                          document.getElementById('nodeIdDisplay').textContent = message.nodeId;
+                          break;
+                      case 'resultsFolder':
+                          selectedResultsFolderPath = message.path;
+                          document.getElementById('selectedResultsFolderPath').textContent = message.path;
+                          break;
+                  }
+              });
+          </script>
     </body>
     </html>
     `

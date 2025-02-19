@@ -14,7 +14,8 @@
     "outDir": "./dist/node/",
     "rootDir": "./src/",
     "sourceMap": true,
-    "typeRoots": ["node_modules/@types"]
+    "typeRoots": ["node_modules/@types"],
+    "types": ["vscode", "mocha", "node"]
   },
   "include": ["src/**/*", "src/tests/**/*"],
   "exclude": ["node_modules"]
