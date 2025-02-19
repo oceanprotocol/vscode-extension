@@ -1,15 +1,13 @@
 # Ocean Protocol VSCode Extension
 
-This VSCode extension enables you to interact with Ocean Protocol directly from your development environment. You can publish assets, run compute jobs, and manage Ocean Protocol operations without leaving VSCode.
+This VSCode extension enables you to interact with Ocean Protocol directly from your development environment. You can run compute jobs and test algorithms without leaving VSCode.
 
 ## Features
 
 - 🌊 **Ocean Protocol Integration**: Direct integration with Ocean Protocol's core functionality
-- 📝 **Asset Publishing**: Publish datasets and algorithms with a simple interface
-- 🔍 **Asset Discovery**: View details of published assets
-- 💻 **Compute-to-Data**: Start and monitor compute jobs
-- 🔄 **P2P Network**: View and interact with Ocean Protocol's P2P network
-- ⬇️ **Asset Downloads**: Download assets directly through the extension
+- 💻 **Compute-to-Data**: Start and monitor compute jobs using JavaScript or Python algorithms
+- 🔄 **Active File Integration**: Automatically detects and uses currently open .js or .py files as algorithms
+- 📁 **Results Management**: Specify output locations and view computation results directly in VSCode
 
 ## Prerequisites
 
@@ -51,60 +49,25 @@ The extension adds a new Ocean Protocol icon to the activity bar. Clicking it re
 
 1. **Setup**
 
-   - Configure RPC URL
-   - Set Ocean Node URL
-   - Enter private key for transactions
+   - Optional: Configure RPC URL, or use the default.
+   - Optional: Set Ocean Node URL, or use the default.
+   - Optional: Enter private key for transactions, or use the default.
 
-2. **Get Asset Details**
-
-   - Enter an asset's DID to view its details
-   - View metadata and other asset information
-
-3. **Publish Asset**
-
-   - Select a JSON file containing asset metadata
-   - Publish new datasets or algorithms to Ocean Protocol
-
-4. **Start Compute Job**
-
-   - Select dataset and algorithm files
+2. **Start Compute Job**
+   - Select algorithm file (automatically detects open .js or .py files)
    - Configure compute environment
+   - Select results folder location
    - Start and monitor compute-to-data jobs
 
-5. **P2P**
-
-   - View your node's ID
-   - See connected Ocean peers
-   - Monitor P2P network status
-
-6. **Download Asset**
-   - Enter asset DID
-   - Specify download location
-   - Download assets directly through VSCode
-
 ### Basic Operations
-
-#### Publishing an Asset
-
-1. Click the Ocean Protocol icon in the activity bar
-2. Open the "Publish Asset" section
-3. Click "Select Asset File" to choose your metadata JSON file
-4. Enter your private key in the setup section
-5. Click "Publish Asset"
 
 #### Starting a Compute Job
 
 1. Navigate to the "Start Compute Job" section
-2. Select both dataset and algorithm files
-3. Enter the compute environment URL
-4. Click "Start Compute Job"
-
-#### Downloading Assets
-
-1. Open the "Download Asset" section
-2. Enter the asset's DID
-3. Specify the download path
-4. Click "Download Asset"
+2. Your currently open JavaScript or Python file will be automatically selected as the algorithm
+3. Select a results folder for computation output
+4. Enter the compute environment URL
+5. Click "Start Compute Job"
 
 ## Development
 
@@ -115,13 +78,9 @@ ocean-protocol-vscode/
 ├── src/
 │   ├── extension.ts        # Main extension entry point
 │   ├── viewProvider.ts     # WebView UI provider
-│   ├── helpers/           # Helper functions
-│   │   ├── download.ts
-│   │   ├── freeCompute.ts
-│   │   ├── oceanNode.ts
-│   │   └── publish.ts
-│   └── @types/           # TypeScript type definitions
-├── test/                 # Test files
+│   └── helpers/           # Helper functions
+│       └── compute.ts     # Compute job functionality
+├── test/                  # Test files
 └── package.json          # Project configuration
 ```
 
