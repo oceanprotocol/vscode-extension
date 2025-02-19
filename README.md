@@ -1,81 +1,111 @@
-# ocean-protocol README
+# Ocean Protocol VSCode Extension
 
-This is the README for your extension "ocean-protocol". After writing up a brief description, we recommend including the following sections.
-
-## Running the extension locally
-
-`npm i`
-
-`npm run compile`
-
-To start the extension in a local vscode window, press F5 or run the command Debug: Start Debugging from the Command Palette (Ctrl+Shift+P).
-
-COnsult the [vscode extension documentation](https://code.visualstudio.com/api/get-started/your-first-extension) for more information.
+This VSCode extension enables you to interact with Ocean Protocol directly from your development environment. You can run compute jobs and test algorithms without leaving VSCode.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- 🌊 **Ocean Protocol Integration**: Direct integration with Ocean Protocol's core functionality
+- 💻 **Compute-to-Data**: Start and monitor compute jobs using JavaScript or Python algorithms
+- 🔄 **Active File Integration**: Automatically detects and uses currently open .js or .py files as algorithms
+- 📁 **Results Management**: Specify output locations and view computation results directly in VSCode
 
-For example if there is an image subfolder under your extension project workspace:
+## Prerequisites
 
-\!\[feature X\]\(images/feature-x.png\)
+- Node.js (version specified in `.nvmrc`)
+- VSCode version 1.93.0 or higher
+- Git
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+## Running the extension locally
 
-## Requirements
+1. Clone the repository:
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+```bash
+git clone https://github.com/your-username/ocean-protocol-vscode
+cd ocean-protocol-vscode
+```
 
-## Extension Settings
+2. Install dependencies:
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+```bash
+npm install
+```
 
-For example:
+3. Build the extension:
 
-This extension contributes the following settings:
+```bash
+npm run compile
+```
 
-- `myExtension.enable`: Enable/disable this extension.
-- `myExtension.thing`: Set to `blah` to do something.
+4. Open in VSCode:
 
-## Known Issues
+- Press F5 to start debugging
+- This will open a new VSCode window with the extension loaded
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+## Usage
 
-## Release Notes
+### Extension Layout
 
-Users appreciate release notes as you update your extension.
+The extension adds a new Ocean Protocol icon to the activity bar. Clicking it reveals several sections:
 
-### 1.0.0
+1. **Setup**
 
-Initial release of ...
+   - Optional: Configure RPC URL, or use the default.
+   - Optional: Set Ocean Node URL, or use the default.
+   - Optional: Enter private key for transactions, or use the default.
 
-### 1.0.1
+2. **Start Compute Job**
+   - Select algorithm file (automatically detects open .js or .py files)
+   - Configure compute environment
+   - Select results folder location
+   - Start and monitor compute-to-data jobs
 
-Fixed issue #.
+### Basic Operations
 
-### 1.1.0
+#### Starting a Compute Job
 
-Added features X, Y, and Z.
+1. Navigate to the "Start Compute Job" section
+2. Your currently open JavaScript or Python file will be automatically selected as the algorithm
+3. Select a results folder for computation output
+4. Enter the compute environment URL
+5. Click "Start Compute Job"
 
----
+## Development
 
-## Following extension guidelines
+### Project Structure
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+```
+ocean-protocol-vscode/
+├── src/
+│   ├── extension.ts        # Main extension entry point
+│   ├── viewProvider.ts     # WebView UI provider
+│   └── helpers/           # Helper functions
+│       └── compute.ts     # Compute job functionality
+├── test/                  # Test files
+└── package.json          # Project configuration
+```
 
-- [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+### Available Scripts
 
-## Working with Markdown
+- `npm run compile`: Compile the TypeScript code
+- `npm run watch`: Compile in watch mode
+- `npm run lint`: Run ESLint
+- `npm run test`: Run tests
+- `npm run package`: Create VSIX package for distribution
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+## Contributing
 
-- Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-- Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-- Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## For more information
+## License
 
-- [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-- [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
-**Enjoy!**
+## Contact
+
+For bug reports and feature requests, please open an issue in the GitHub repository.
+
+For general questions about Ocean Protocol, join the [Ocean Protocol Discord](https://discord.gg/TnXjkR5).
