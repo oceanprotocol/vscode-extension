@@ -152,7 +152,8 @@ export async function getComputeResult(
 
 export async function saveResults(
   results: any,
-  destinationFolder?: string
+  destinationFolder?: string,
+  prefix: string = 'result'
 ): Promise<string> {
   try {
     // Use provided destination folder or default to './results'
@@ -165,7 +166,7 @@ export async function saveResults(
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const fileName = `compute-results-${timestamp}.txt`
+    const fileName = `${prefix}-${timestamp}.txt`
     const filePath = path.join(resultsDir, fileName)
 
     console.log('Saving results to:', filePath)

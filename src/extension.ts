@@ -173,41 +173,64 @@ export async function activate(context: vscode.ExtensionContext) {
               }
 
               if (status.statusText === 'Job finished') {
-                // Retrieve results
-                progress.report({ message: 'Retrieving compute results...' })
-                outputChannel.appendLine('Retrieving compute results...')
-                const results = await getComputeResult(
+                // Retrieve first result (index 0)
+                progress.report({ message: 'Retrieving compute results (1/2)...' })
+                outputChannel.appendLine('Retrieving first result...')
+                const results1 = await getComputeResult(
                   nodeUrl,
                   jobId,
                   signer.address,
                   signatureResult.signature,
-                  index,
+                  0,
                   nonce
                 )
 
-                // Save results
-                progress.report({ message: 'Saving results...' })
-                outputChannel.appendLine('Saving results...')
-                const filePath = await saveResults(results, resultsFolderPath)
+                // Save first result
+                progress.report({ message: 'Saving first result...' })
+                outputChannel.appendLine('Saving first result...')
+                const filePath1 = await saveResults(
+                  results1,
+                  resultsFolderPath,
+                  'result1'
+                )
+
+                // Retrieve second result (index 1)
+                progress.report({ message: 'Retrieving compute results (2/2)...' })
+                outputChannel.appendLine('Retrieving second result...')
+                const results2 = await getComputeResult(
+                  nodeUrl,
+                  jobId,
+                  signer.address,
+                  signatureResult.signature,
+                  1,
+                  nonce
+                )
+
+                // Save second result
+                progress.report({ message: 'Saving second result...' })
+                outputChannel.appendLine('Saving second result...')
+                const filePath2 = await saveResults(
+                  results2,
+                  resultsFolderPath,
+                  'result2'
+                )
 
                 vscode.window.showInformationMessage(
-                  `Compute job completed successfully! Results saved to: ${filePath}`
+                  `Compute job completed successfully! Results saved to:\n${filePath1}\n${filePath2}`
                 )
                 outputChannel.appendLine(
-                  `Compute job completed successfully! Results saved to: ${filePath}`
+                  `Compute job completed successfully!\nResults saved to:\n${filePath1}\n${filePath2}`
                 )
 
-                // Open the saved file in a new editor window
-                const uri = vscode.Uri.file(filePath)
-                const document = await vscode.workspace.openTextDocument(uri)
-                await vscode.window.showTextDocument(document, { preview: false })
-
-                vscode.window.showInformationMessage(
-                  `Compute job completed successfully! Results opened in editor.`
-                )
-                outputChannel.appendLine(
-                  `Compute job completed successfully! Results opened in editor.`
-                )
+                // Open both files in editor
+                const uri1 = vscode.Uri.file(filePath1)
+                const uri2 = vscode.Uri.file(filePath2)
+                const document1 = await vscode.workspace.openTextDocument(uri1)
+                const document2 = await vscode.workspace.openTextDocument(uri2)
+                await vscode.window.showTextDocument(document1, { preview: false })
+                await vscode.window.showTextDocument(document2, {
+                  viewColumn: vscode.ViewColumn.Beside
+                })
 
                 break
               }
