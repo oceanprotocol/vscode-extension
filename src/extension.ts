@@ -173,66 +173,106 @@ export async function activate(context: vscode.ExtensionContext) {
               }
 
               if (status.statusText === 'Job finished') {
-                // Retrieve first result (index 0)
-                progress.report({ message: 'Retrieving compute results (1/2)...' })
-                outputChannel.appendLine('Retrieving first result...')
-                const results1 = await getComputeResult(
-                  nodeUrl,
-                  jobId,
-                  signer.address,
-                  signatureResult.signature,
-                  0,
-                  nonce
-                )
+                try {
+                  // First request (index 0)
+                  const nonce1 = Date.now()
+                  console.log('Generating signature for first result...')
+                  progress.report({ message: 'Generating signature for first result...' })
+                  outputChannel.appendLine('Generating signature for first result...')
+                  const signatureResult1 = await generateOceanSignature({
+                    signer,
+                    consumerAddress: signer.address,
+                    jobId,
+                    index: 0,
+                    nonce: nonce1
+                  })
 
-                // Save first result
-                progress.report({ message: 'Saving first result...' })
-                outputChannel.appendLine('Saving first result...')
-                const filePath1 = await saveResults(
-                  results1,
-                  resultsFolderPath,
-                  'result1'
-                )
+                  // Retrieve first result (index 0)
+                  progress.report({ message: 'Retrieving compute results (1/2)...' })
+                  outputChannel.appendLine('Retrieving first result...')
+                  const results1 = await getComputeResult(
+                    nodeUrl,
+                    jobId,
+                    signer.address,
+                    signatureResult1.signature,
+                    0,
+                    nonce1
+                  )
 
-                // Retrieve second result (index 1)
-                progress.report({ message: 'Retrieving compute results (2/2)...' })
-                outputChannel.appendLine('Retrieving second result...')
-                const results2 = await getComputeResult(
-                  nodeUrl,
-                  jobId,
-                  signer.address,
-                  signatureResult.signature,
-                  1,
-                  nonce
-                )
+                  // Save first result
+                  progress.report({ message: 'Saving first result...' })
+                  outputChannel.appendLine('Saving first result...')
+                  const filePath1 = await saveResults(
+                    results1,
+                    resultsFolderPath,
+                    'result1'
+                  )
 
-                // Save second result
-                progress.report({ message: 'Saving second result...' })
-                outputChannel.appendLine('Saving second result...')
-                const filePath2 = await saveResults(
-                  results2,
-                  resultsFolderPath,
-                  'result2'
-                )
+                  let filePath2: string | undefined
 
-                vscode.window.showInformationMessage(
-                  `Compute job completed successfully! Results saved to:\n${filePath1}\n${filePath2}`
-                )
-                outputChannel.appendLine(
-                  `Compute job completed successfully!\nResults saved to:\n${filePath1}\n${filePath2}`
-                )
+                  try {
+                    // Second request (index 1) with new nonce and signature
+                    const nonce2 = Date.now()
+                    console.log('Generating signature for second result...')
+                    progress.report({
+                      message: 'Generating signature for second result...'
+                    })
+                    outputChannel.appendLine('Generating signature for second result...')
+                    const signatureResult2 = await generateOceanSignature({
+                      signer,
+                      consumerAddress: signer.address,
+                      jobId,
+                      index: 1,
+                      nonce: nonce2
+                    })
 
-                // Open both files in editor
-                const uri1 = vscode.Uri.file(filePath1)
-                const uri2 = vscode.Uri.file(filePath2)
-                const document1 = await vscode.workspace.openTextDocument(uri1)
-                const document2 = await vscode.workspace.openTextDocument(uri2)
-                await vscode.window.showTextDocument(document1, { preview: false })
-                await vscode.window.showTextDocument(document2, {
-                  viewColumn: vscode.ViewColumn.Beside
-                })
+                    // Try to retrieve second result (index 1)
+                    progress.report({ message: 'Retrieving compute results (2/2)...' })
+                    outputChannel.appendLine('Retrieving second result...')
+                    const results2 = await getComputeResult(
+                      nodeUrl,
+                      jobId,
+                      signer.address,
+                      signatureResult2.signature,
+                      1,
+                      nonce2
+                    )
 
-                break
+                    // Save second result if it exists
+                    progress.report({ message: 'Saving second result...' })
+                    outputChannel.appendLine('Saving second result...')
+                    filePath2 = await saveResults(results2, resultsFolderPath, 'result2')
+                  } catch (error) {
+                    console.log('No second result available:', error)
+                    outputChannel.appendLine('No second result available')
+                  }
+
+                  // Show success message with available results
+                  const successMessage = filePath2
+                    ? `Compute job completed successfully! Results saved to:\n${filePath1}\n${filePath2}`
+                    : `Compute job completed successfully! Result saved to:\n${filePath1}`
+
+                  vscode.window.showInformationMessage(successMessage)
+                  outputChannel.appendLine(successMessage)
+
+                  // Open files in editor
+                  const uri1 = vscode.Uri.file(filePath1)
+                  const document1 = await vscode.workspace.openTextDocument(uri1)
+                  await vscode.window.showTextDocument(document1, { preview: false })
+
+                  if (filePath2) {
+                    const uri2 = vscode.Uri.file(filePath2)
+                    const document2 = await vscode.workspace.openTextDocument(uri2)
+                    await vscode.window.showTextDocument(document2, {
+                      viewColumn: vscode.ViewColumn.Beside
+                    })
+                  }
+
+                  break
+                } catch (error) {
+                  console.error('Error retrieving results:', error)
+                  throw error
+                }
               }
 
               if (
