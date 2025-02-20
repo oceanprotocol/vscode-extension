@@ -143,6 +143,8 @@ export async function getComputeResult(
       index,
       nonce
     })
+    console.log('Compute result response:', response)
+    console.log('Compute result data:', response.data)
     return response.data
   } catch (error) {
     console.error('Error getting compute result:', error)

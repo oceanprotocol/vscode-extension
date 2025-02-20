@@ -12,6 +12,7 @@ import {
   saveResults
 } from './helpers/compute'
 import { generateOceanSignature } from './helpers/signature'
+import * as path from 'path'
 
 globalThis.fetch = fetch
 
@@ -242,6 +243,15 @@ export async function activate(context: vscode.ExtensionContext) {
                     progress.report({ message: 'Saving second result...' })
                     outputChannel.appendLine('Saving second result...')
                     filePath2 = await saveResults(results2, resultsFolderPath, 'result2')
+
+                    // After getting the second result
+                    console.log('Second result content type:', typeof results2)
+                    console.log('Second result keys:', Object.keys(results2))
+                    console.log('File extension:', path.extname(filePath2))
+
+                    // Check file contents
+                    const fileStats = await fs.promises.stat(filePath2)
+                    console.log('File size:', fileStats.size)
                   } catch (error) {
                     console.log('No second result available:', error)
                     outputChannel.appendLine('No second result available')
@@ -261,11 +271,38 @@ export async function activate(context: vscode.ExtensionContext) {
                   await vscode.window.showTextDocument(document1, { preview: false })
 
                   if (filePath2) {
-                    const uri2 = vscode.Uri.file(filePath2)
-                    const document2 = await vscode.workspace.openTextDocument(uri2)
-                    await vscode.window.showTextDocument(document2, {
-                      viewColumn: vscode.ViewColumn.Beside
-                    })
+                    try {
+                      // Check if file is text-based before opening
+                      const fileExtension = path.extname(filePath2).toLowerCase()
+                      const textFileExtensions = [
+                        '.txt',
+                        '.json',
+                        '.js',
+                        '.py',
+                        '.md',
+                        '.csv'
+                      ]
+
+                      if (textFileExtensions.includes(fileExtension)) {
+                        const uri2 = vscode.Uri.file(filePath2)
+                        const document2 = await vscode.workspace.openTextDocument(uri2)
+                        await vscode.window.showTextDocument(document2, {
+                          viewColumn: vscode.ViewColumn.Beside
+                        })
+                      } else {
+                        // Show information message for binary files
+                        vscode.window.showInformationMessage(
+                          `Binary file saved: ${path.basename(filePath2)}\n` +
+                            `Path: ${filePath2}\n` +
+                            'Use appropriate software to open this file.'
+                        )
+                      }
+                    } catch (error) {
+                      console.error('Error opening second result:', error)
+                      vscode.window.showErrorMessage(
+                        `Failed to open result file: ${error.message}`
+                      )
+                    }
                   }
 
                   break

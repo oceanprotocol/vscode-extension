@@ -1,8 +1,6 @@
 import time
 import asyncio
 import os
-import json
-import tarfile
 
 # Constants for timing (in seconds)
 TOTAL_DURATION = 10  # 10 seconds
@@ -30,23 +28,17 @@ async def run_logging():
             output_dir = '/data/outputs'
             os.makedirs(output_dir, exist_ok=True)
             
-            # Save results to a JSON file first
-            json_file = f'{output_dir}/results.json'
-            output_data = {
-                'results': results,
-                'total_time': elapsed_time,
-                'iterations': current_iteration - 1
-            }
+            # Save results to a text file
+            txt_file = f'{output_dir}/results.txt'
             
-            with open(json_file, 'w') as f:
-                json.dump(output_data, f, indent=2)
+            with open(txt_file, 'w') as f:
+                f.write(f'Total time: {elapsed_time:.3f} seconds\n')
+                f.write(f'Total iterations: {current_iteration - 1}\n')
+                f.write('\nLog entries:\n')
+                for entry in results:
+                    f.write(f'{entry}\n')
             
-            # Create tar archive
-            tar_file = f'{output_dir}/outputs.tar'
-            with tarfile.open(tar_file, 'w') as tar:
-                tar.add(json_file, arcname='results.json')
-            
-            print(f"Results saved and archived as {tar_file}")
+            print(f"Results saved as {txt_file}")
             return 'completed'
             
         await asyncio.sleep(LOG_INTERVAL)

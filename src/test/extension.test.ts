@@ -216,7 +216,14 @@ suite('Ocean Protocol Extension Test Suite', () => {
   })
 
   test('saveResults should correctly save to file', async () => {
-    const mockResults = { output: 'Test results' }
+    const mockResults = {
+      filename: 'test.json',
+      filesize: 123,
+      type: 'json',
+      index: 0,
+      content: 'Test results',
+      output: 'Test output'
+    }
     const mockFolderPath = path.join(process.cwd(), 'test-results')
 
     // Create a temporary directory for testing
