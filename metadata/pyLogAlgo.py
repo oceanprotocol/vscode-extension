@@ -32,7 +32,7 @@ async def run_logging():
             txt_file = f'{output_dir}/results.txt'
             
             with open(txt_file, 'w') as f:
-                f.write(f'Algorithm Results\n')
+                f.write(f'PY Algorithm Results\n')
                 f.write(f'Total time: {elapsed_time:.3f} seconds\n')
                 f.write(f'Total iterations: {current_iteration - 1}\n')
             
