@@ -261,26 +261,22 @@ export async function getComputeLogs(
  */
 export async function saveOutput(
   content: Buffer | string,
-  folderPath: string | undefined,
+  destinationFolder: string,
   prefix: string = 'output'
 ): Promise<string> {
   try {
-    console.log('Saving output to:', folderPath)
     console.log('Content:', content)
-    // Validate folder path - use temp directory if none provided
-    if (!folderPath || folderPath.trim() === '') {
-      console.log('No folder path provided, using temp directory')
-      folderPath = path.join(os.tmpdir(), 'ocean-protocol-results')
-    }
+    // Use provided destination folder or default to './results'
+    const resultsDir = destinationFolder || path.join(process.cwd(), 'results')
 
     // Create timestamp for unique filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const fileName = `${prefix}_${timestamp}.tar`
     console.log('File name:', fileName)
-    const filePath = path.join(folderPath, fileName)
+    const filePath = path.join(resultsDir, fileName)
     console.log('File path:', filePath)
     // Ensure the folder exists
-    await fs.promises.mkdir(folderPath, { recursive: true })
+    await fs.promises.mkdir(resultsDir, { recursive: true })
 
     // Convert string to Buffer if needed
     const tarContent =
@@ -291,7 +287,7 @@ export async function saveOutput(
     console.log(`Tar file saved to: ${filePath}`)
 
     // Create extraction directory
-    const extractDir = path.join(folderPath, `${prefix}_${timestamp}_extracted`)
+    const extractDir = path.join(destinationFolder, `${prefix}_${timestamp}_extracted`)
     await fs.promises.mkdir(extractDir, { recursive: true })
 
     // Extract the tar contents

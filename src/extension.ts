@@ -204,6 +204,7 @@ export async function activate(context: vscode.ExtensionContext) {
                   // Save first result
                   progress.report({ message: 'Saving first result...' })
                   outputChannel.appendLine('Saving first result...')
+                  console.log('Saving first result to folder path:', resultsFolderPath)
                   const filePath1 = await saveResults(
                     results1,
                     resultsFolderPath,
@@ -243,6 +244,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     // Save second result if it exists
                     progress.report({ message: 'Saving second result...' })
                     outputChannel.appendLine('Saving second result...')
+                    console.log('Saving second result to folder path:', resultsFolderPath)
                     filePath2 = await saveOutput(results2, resultsFolderPath, 'result2')
 
                     // After getting the second result
