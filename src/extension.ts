@@ -67,7 +67,9 @@ export async function activate(context: vscode.ExtensionContext) {
         resultsFolderPath: string,
         privateKey: string | undefined,
         nodeUrl: string,
-        datasetPath?: string
+        datasetPath?: string,
+        dockerImage?: string,
+        dockerTag?: string
       ) => {
         console.log('1. Starting compute job...')
         console.log('Dataset path:', datasetPath)
@@ -75,8 +77,16 @@ export async function activate(context: vscode.ExtensionContext) {
         console.log('Results folder path:', resultsFolderPath)
         console.log('Node URL:', nodeUrl)
         console.log('Private key:', privateKey)
-        if (!algorithmPath || !nodeUrl) {
-          vscode.window.showErrorMessage('Missing required parameters.')
+        console.log('Docker image:', dockerImage)
+        console.log('Docker tag:', dockerTag)
+        const missingParams = []
+        !algorithmPath && missingParams.push('algorithm path')
+        !nodeUrl && missingParams.push('node URL')
+
+        if (missingParams.length > 0) {
+          vscode.window.showErrorMessage(
+            `Missing required parameters: ${missingParams.join(', ')}`
+          )
           return
         }
 
@@ -125,7 +135,9 @@ export async function activate(context: vscode.ExtensionContext) {
               nodeUrl,
               fileExtension,
               dataset,
-              nonce
+              nonce,
+              dockerImage,
+              dockerTag
             )
             console.log('Compute result received:', computeResponse)
             const jobId = computeResponse.jobId

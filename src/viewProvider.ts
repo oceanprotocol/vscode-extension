@@ -113,7 +113,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 data.resultsFolderPath,
                 data.privateKey,
                 data.nodeUrl,
-                data.datasetPath
+                data.datasetPath,
+                data.dockerImage,
+                data.dockerTag
               )
               break
           }
@@ -267,6 +269,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
                       <label for="privateKeyInput">Private Key</label>
                       <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
+                      
+                      <label for="dockerImageInput">Docker Image (optional)</label>
+                      <input id="dockerImageInput" placeholder="Enter custom Docker image name" />
+
+                      <label for="dockerTagInput">Docker Tag (optional)</label>
+                      <input id="dockerTagInput" placeholder="Enter custom Docker tag" />
                   </div>
               </div>
           </div>
@@ -322,7 +330,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   document.getElementById('startComputeBtn').addEventListener('click', () => {
                       const privateKey = document.getElementById('privateKeyInput').value;
                       const nodeUrl = document.getElementById('nodeUrlInput').value || 'http://34.159.64.236:8001';
-
+                      const dockerImage = document.getElementById('dockerImageInput').value;
+                      const dockerTag = document.getElementById('dockerTagInput').value;
                       // Only require algorithm to be selected
                       if (!selectedAlgorithmPath) {
                           vscode.postMessage({
@@ -334,11 +343,13 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
                       vscode.postMessage({ 
                           type: 'startComputeJob',
-                            privateKey: privateKey,
-                            algorithmPath: selectedAlgorithmPath,
-                            resultsFolderPath: selectedResultsFolderPath,
-                            nodeUrl: nodeUrl,
-                            datasetPath: selectedDatasetPath || undefined
+                              privateKey: privateKey,
+                              algorithmPath: selectedAlgorithmPath,
+                              resultsFolderPath: selectedResultsFolderPath,
+                              nodeUrl: nodeUrl,
+                              datasetPath: selectedDatasetPath || undefined,
+                              dockerImage: dockerImage || undefined,
+                              dockerTag: dockerTag || undefined
                       });
                   });
               }

@@ -41,9 +41,13 @@ export async function computeStart(
   nodeUrl: string,
   fileExtension: string,
   dataset?: any,
-  nonce: number = 1
+  nonce: number = 1,
+  dockerImage?: string,
+  dockerTag?: string
 ): Promise<ComputeResponse> {
   console.log('Starting free compute job using provider: ', nodeUrl)
+  console.log('Docker image:', dockerImage)
+  console.log('Docker tag:', dockerTag)
   const consumerAddress: string = await signer.getAddress()
 
   // Fetch compute environments first
@@ -59,15 +63,15 @@ export async function computeStart(
     const containerConfig =
       fileExtension === 'py'
         ? {
-            image: 'oceanprotocol/algo_dockers',
-            tag: 'python-branin',
+            image: dockerImage || 'oceanprotocol/algo_dockers',
+            tag: dockerTag || 'python-branin',
             entrypoint: 'python $ALGO',
             termsAndConditions: true
           }
         : {
             entrypoint: 'node $ALGO',
-            image: 'node',
-            tag: 'latest'
+            image: dockerImage || 'node',
+            tag: dockerTag || 'latest'
           }
 
     const requestBody = {
