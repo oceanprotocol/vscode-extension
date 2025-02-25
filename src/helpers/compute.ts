@@ -4,6 +4,8 @@ import fs from 'fs'
 import axios from 'axios'
 import path from 'path'
 import { PassThrough } from 'stream'
+import * as tar from 'tar'
+import * as os from 'os'
 
 interface ComputeStatus {
   owner: string
@@ -247,5 +249,68 @@ export async function getComputeLogs(
   } catch (error) {
     console.error('Error fetching compute logs:', error)
     throw error
+  }
+}
+
+/**
+ * Saves the output from the second request (index=1) as a tar file and extracts its contents
+ * @param content The tar file content (Buffer or string)
+ * @param folderPath The folder to save the tar file and extracted contents
+ * @param prefix Prefix for the filename
+ * @returns The path to the saved tar file and extraction directory
+ */
+export async function saveOutput(
+  content: Buffer | string,
+  folderPath: string | undefined,
+  prefix: string = 'output'
+): Promise<string> {
+  try {
+    console.log('Saving output to:', folderPath)
+    console.log('Content:', content)
+    // Validate folder path - use temp directory if none provided
+    if (!folderPath || folderPath.trim() === '') {
+      console.log('No folder path provided, using temp directory')
+      folderPath = path.join(os.tmpdir(), 'ocean-protocol-results')
+    }
+
+    // Create timestamp for unique filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const fileName = `${prefix}_${timestamp}.tar`
+    console.log('File name:', fileName)
+    const filePath = path.join(folderPath, fileName)
+    console.log('File path:', filePath)
+    // Ensure the folder exists
+    await fs.promises.mkdir(folderPath, { recursive: true })
+
+    // Convert string to Buffer if needed
+    const tarContent =
+      typeof content === 'string' ? Buffer.from(content, 'binary') : content
+
+    // Save the tar file
+    await fs.promises.writeFile(filePath, new Uint8Array(tarContent))
+    console.log(`Tar file saved to: ${filePath}`)
+
+    // Create extraction directory
+    const extractDir = path.join(folderPath, `${prefix}_${timestamp}_extracted`)
+    await fs.promises.mkdir(extractDir, { recursive: true })
+
+    // Extract the tar contents
+    try {
+      await tar.x({
+        file: filePath,
+        cwd: extractDir,
+        preservePaths: true
+      })
+      console.log(`Extracted contents to: ${extractDir}`)
+
+      // Return both paths
+      return filePath
+    } catch (extractError) {
+      console.error('Error extracting tar contents:', extractError)
+      return filePath // Return just the tar path if extraction fails
+    }
+  } catch (error) {
+    console.error('Error saving tar output:', error)
+    throw new Error(`Failed to save tar output: ${error.message}`)
   }
 }
