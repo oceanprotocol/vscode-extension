@@ -245,7 +245,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     progress.report({ message: 'Saving second result...' })
                     outputChannel.appendLine('Saving second result...')
                     console.log('Saving second result to folder path:', resultsFolderPath)
-                    filePath2 = await saveOutput(results2, resultsFolderPath, 'result2')
+                    filePath2 = await saveOutput(results2, resultsFolderPath, 'output')
 
                     // After getting the second result
                     console.log('Second result content type:', typeof results2)

@@ -1,0 +1,14 @@
+RAW CODE: Starting logging process...
+Log iteration 1: 0.000 seconds elapsed
+Log iteration 2: 1.001 seconds elapsed
+Log iteration 3: 2.003 seconds elapsed
+Log iteration 4: 3.005 seconds elapsed
+Log iteration 5: 4.006 seconds elapsed
+Log iteration 6: 5.007 seconds elapsed
+Log iteration 7: 6.009 seconds elapsed
+Log iteration 8: 7.010 seconds elapsed
+Log iteration 9: 8.012 seconds elapsed
+Log iteration 10: 9.014 seconds elapsed
+Log iteration 11: 10.015 seconds elapsed
+Completed
+Results saved as /data/outputs/results.txt
