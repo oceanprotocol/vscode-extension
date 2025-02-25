@@ -63,20 +63,19 @@ export async function activate(context: vscode.ExtensionContext) {
     let startComputeJob = vscode.commands.registerCommand(
       'ocean-protocol.startComputeJob',
       async (
-        config: any,
         algorithmPath: string,
         resultsFolderPath: string,
         privateKey: string | undefined,
         nodeUrl: string,
         datasetPath?: string
       ) => {
-        console.log('Starting compute job...')
-        console.log('Config:', config)
+        console.log('1. Starting compute job...')
         console.log('Dataset path:', datasetPath)
         console.log('Algorithm path:', algorithmPath)
         console.log('Results folder path:', resultsFolderPath)
         console.log('Node URL:', nodeUrl)
-        if (!config || !algorithmPath || !nodeUrl) {
+        console.log('Private key:', privateKey)
+        if (!algorithmPath || !nodeUrl) {
           vscode.window.showErrorMessage('Missing required parameters.')
           return
         }

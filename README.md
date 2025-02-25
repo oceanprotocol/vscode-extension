@@ -38,7 +38,8 @@ This VSCode extension enables you to execute compute-to-data jobs using Ocean Pr
 ### Extension Layout
 
 The extension adds a dedicated Ocean Protocol section to the activity bar. Here you can:
-- Configure compute settings (RPC URL, Ocean Node URL, Compute Environment URL, Private Key).
+
+- Configure compute settings (Ocean Node URL, Private Key).
 - Optionally select a dataset file.
 - Choose a folder to store compute results.
 - Start a compute job with the current algorithm file automatically detected.

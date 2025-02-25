@@ -109,7 +109,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               console.log('Starting compute job with data:', data)
               await vscode.commands.executeCommand(
                 'ocean-protocol.startComputeJob',
-                data.config,
                 data.algorithmPath,
                 data.resultsFolderPath,
                 data.privateKey,
@@ -251,11 +250,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               </div>
               <div id="setup" class="section-content">
                   <div class="container">
-                      <label for="rpcUrl">RPC URL</label>
-                      <input id="rpcUrl" placeholder="RPC URL" value="http://127.0.0.1:8545" />
-
-                      <label for="nodeUrl">Ocean Node URL</label>
-                      <input id="nodeUrl" placeholder="Ocean Node URL" value="http://127.0.0.1:8000" />
 
                       <label for="nodeUrlInput">Node URL (including port)</label>
                       <input id="nodeUrlInput" placeholder="Enter compute environment ID" value="http://34.159.64.236:8001" />
@@ -284,15 +278,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let selectedAlgorithmPath = '';
               let selectedResultsFolderPath = '';
               let isUsingDefaultAlgorithm = false;
-
-              function getConfig() {
-                const defaultAquariusUrl = 'http://127.0.0.1:8001';
-                return {
-                  rpcUrl: document.getElementById('rpcUrl').value || 'http://127.0.0.1:8545',
-                  aquariusUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl,
-                  providerUrl: document.getElementById('nodeUrl').value || defaultAquariusUrl
-                };
-              }
 
               function toggleSection(sectionId) {
                   const header = document.getElementById(sectionId + 'Header');
@@ -335,9 +320,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
               if (document.getElementById('startComputeBtn')) {
                   document.getElementById('startComputeBtn').addEventListener('click', () => {
-                      const config = getConfig();
                       const privateKey = document.getElementById('privateKeyInput').value;
-                      const nodeUrl = document.getElementById('nodeUrlInput').value;
+                      const nodeUrl = document.getElementById('nodeUrlInput').value || 'http://34.159.64.236:8001';
 
                       // Only require algorithm to be selected
                       if (!selectedAlgorithmPath) {
@@ -350,12 +334,11 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
                       vscode.postMessage({ 
                           type: 'startComputeJob',
-                          config: config,
-                          privateKey: privateKey,
-                          algorithmPath: selectedAlgorithmPath,
-                          resultsFolderPath: selectedResultsFolderPath,
-                          nodeUrl: nodeUrl,
-                          datasetPath: selectedDatasetPath || undefined // Make dataset optional
+                            privateKey: privateKey,
+                            algorithmPath: selectedAlgorithmPath,
+                            resultsFolderPath: selectedResultsFolderPath,
+                            nodeUrl: nodeUrl,
+                            datasetPath: selectedDatasetPath || undefined
                       });
                   });
               }
