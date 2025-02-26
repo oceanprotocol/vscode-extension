@@ -194,7 +194,6 @@ suite('Ocean Protocol Extension Test Suite', () => {
     const mockNodeUrl = 'http://test-node:8001'
     const mockJobId = 'test-job-id'
     const mockConsumerAddress = '0x123'
-    const mockSignature = '0xabc'
     const mockSigner = new Wallet('0x' + '1'.repeat(64))
 
     const mockResponse = {
