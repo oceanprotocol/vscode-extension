@@ -5,7 +5,11 @@
   "description": "Easily publish assets and test your algorithms with the Ocean Protocol vscode extension.",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.93.0"
+    "vscode": "^1.96.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oceanprotocol/vscode-extension"
   },
   "categories": [
     "Other"
@@ -52,7 +56,8 @@
     "test-vs": "vscode-test",
     "test": "vscode-test --extensionDevelopmentPath=. --extensionTestsPath=out/test/extension.test.js",
     "pretest": "npm run compile-tests",
-    "posttest": "npm run lint"
+    "posttest": "npm run lint",
+    "build": "npx vsce package"
   },
   "devDependencies": {
     "@types/chai": "^5.0.0",
