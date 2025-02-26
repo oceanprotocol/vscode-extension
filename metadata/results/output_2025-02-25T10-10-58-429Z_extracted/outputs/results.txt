@@ -1,3 +1,0 @@
-Algorithm Results
-Total time: 10.015 seconds
-Total iterations: 11
