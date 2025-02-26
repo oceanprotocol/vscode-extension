@@ -123,10 +123,6 @@ export async function activate(context: vscode.ExtensionContext) {
             }
             const algorithmContent = await fs.promises.readFile(algorithmPath, 'utf8')
 
-            // nonce equals date in milliseconds
-            const nonce = Date.now()
-            console.log('Nonce: ', nonce)
-
             // Start compute job
             const fileExtension = algorithmPath.split('.').pop()?.toLowerCase()
             const computeResponse = await computeStart(
@@ -135,7 +131,7 @@ export async function activate(context: vscode.ExtensionContext) {
               nodeUrl,
               fileExtension,
               dataset,
-              nonce,
+              Date.now(), // nonce equals date in milliseconds
               dockerImage,
               dockerTag
             )
@@ -158,7 +154,7 @@ export async function activate(context: vscode.ExtensionContext) {
               consumerAddress: signer.address,
               jobId,
               index,
-              nonce
+              nonce: Date.now() // nonce equals date in milliseconds
             })
 
             let logStreamStarted = false
@@ -179,7 +175,7 @@ export async function activate(context: vscode.ExtensionContext) {
                   nodeUrl,
                   jobId,
                   signer.address,
-                  nonce,
+                  Date.now(), // nonce equals date in milliseconds
                   signatureResult.signature,
                   computeLogsChannel
                 )
@@ -188,7 +184,6 @@ export async function activate(context: vscode.ExtensionContext) {
               if (status.statusText === 'Job finished') {
                 try {
                   // First request (index 0)
-                  const nonce1 = Date.now()
                   console.log('Generating signature for first result...')
                   progress.report({ message: 'Generating signature for first result...' })
                   outputChannel.appendLine('Generating signature for first result...')
@@ -197,7 +192,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     consumerAddress: signer.address,
                     jobId,
                     index: 0,
-                    nonce: nonce1
+                    nonce: Date.now() // nonce equals date in milliseconds
                   })
 
                   // Retrieve first result (index 0)
@@ -209,7 +204,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     signer.address,
                     signatureResult1.signature,
                     0,
-                    nonce1
+                    Date.now() // nonce equals date in milliseconds
                   )
 
                   // Save first result
@@ -226,7 +221,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
                   try {
                     // Second request (index 1) with new nonce and signature
-                    const nonce2 = Date.now()
                     console.log('Generating signature for second result...')
                     progress.report({
                       message: 'Generating signature for second result...'
@@ -237,7 +231,7 @@ export async function activate(context: vscode.ExtensionContext) {
                       consumerAddress: signer.address,
                       jobId,
                       index: 1,
-                      nonce: nonce2
+                      nonce: Date.now() // nonce equals date in milliseconds
                     })
 
                     // Try to retrieve second result (index 1)
@@ -249,7 +243,7 @@ export async function activate(context: vscode.ExtensionContext) {
                       signer.address,
                       signatureResult2.signature,
                       1,
-                      nonce2
+                      Date.now() // nonce equals date in milliseconds
                     )
 
                     // Save second result if it exists

@@ -5,7 +5,7 @@ import axios from 'axios'
 import path from 'path'
 import { PassThrough } from 'stream'
 import * as tar from 'tar'
-import * as os from 'os'
+import { generateNonceSignature } from '../helpers/signature'
 
 interface ComputeStatus {
   owner: string
@@ -74,12 +74,19 @@ export async function computeStart(
             tag: dockerTag || 'latest'
           }
 
+    // Generate a proper signature using our existing function
+    // We use a different jobId for starting compute (empty string)
+    const signatureResult = await generateNonceSignature(nonce, signer)
+
+    console.log('Generated signature:', signatureResult.signature)
+    console.log('Signature valid:', signatureResult.isValid)
+
     const requestBody = {
       command: 'freeStartCompute',
       consumerAddress: consumerAddress,
       environment: environmentId,
       nonce: nonce,
-      signature: '0x123',
+      signature: signatureResult.signature, // Use the generated signature
       datasets: dataset ? [dataset] : [],
       algorithm: {
         meta: {
