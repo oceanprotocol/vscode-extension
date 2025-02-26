@@ -195,6 +195,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     const mockJobId = 'test-job-id'
     const mockConsumerAddress = '0x123'
     const mockSignature = '0xabc'
+    const mockSigner = new Wallet('0x' + '1'.repeat(64))
 
     const mockResponse = {
       data: {
@@ -206,10 +207,10 @@ suite('Ocean Protocol Extension Test Suite', () => {
     sandbox.stub(axios, 'post').resolves(mockResponse)
 
     const result = await getComputeResult(
+      mockSigner,
       mockNodeUrl,
       mockJobId,
-      mockConsumerAddress,
-      mockSignature
+      mockConsumerAddress
     )
 
     assert.deepStrictEqual(result, mockResponse.data)
