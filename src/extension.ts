@@ -199,12 +199,11 @@ export async function activate(context: vscode.ExtensionContext) {
                   progress.report({ message: 'Retrieving compute results (1/2)...' })
                   outputChannel.appendLine('Retrieving first result...')
                   const results1 = await getComputeResult(
+                    signer,
                     nodeUrl,
                     jobId,
                     signer.address,
-                    signatureResult1.signature,
-                    0,
-                    Date.now() // nonce equals date in milliseconds
+                    0
                   )
 
                   // Save first result
@@ -226,40 +225,40 @@ export async function activate(context: vscode.ExtensionContext) {
                       message: 'Generating signature for second result...'
                     })
                     outputChannel.appendLine('Generating signature for second result...')
-                    const signatureResult2 = await generateOceanSignature({
-                      signer,
-                      consumerAddress: signer.address,
-                      jobId,
-                      index: 1,
-                      nonce: Date.now() // nonce equals date in milliseconds
-                    })
+                    // const signatureResult2 = await generateOceanSignature({
+                    //   signer,
+                    //   consumerAddress: signer.address,
+                    //   jobId,
+                    //   index: 1,
+                    //   nonce: Date.now() // nonce equals date in milliseconds
+                    // })
 
                     // Try to retrieve second result (index 1)
-                    progress.report({ message: 'Retrieving compute results (2/2)...' })
-                    outputChannel.appendLine('Retrieving second result...')
-                    const results2 = await getComputeResult(
-                      nodeUrl,
-                      jobId,
-                      signer.address,
-                      signatureResult2.signature,
-                      1,
-                      Date.now() // nonce equals date in milliseconds
-                    )
+                    // progress.report({ message: 'Retrieving compute results (2/2)...' })
+                    // outputChannel.appendLine('Retrieving second result...')
+                    // const results2 = await getComputeResult(
+                    //   nodeUrl,
+                    //   jobId,
+                    //   signer.address,
+                    //   signatureResult2.signature,
+                    //   1,
+                    //   Date.now() // nonce equals date in milliseconds
+                    // )
 
-                    // Save second result if it exists
-                    progress.report({ message: 'Saving second result...' })
-                    outputChannel.appendLine('Saving second result...')
-                    console.log('Saving second result to folder path:', resultsFolderPath)
-                    filePath2 = await saveOutput(results2, resultsFolderPath, 'output')
+                    // // Save second result if it exists
+                    // progress.report({ message: 'Saving second result...' })
+                    // outputChannel.appendLine('Saving second result...')
+                    // console.log('Saving second result to folder path:', resultsFolderPath)
+                    // filePath2 = await saveOutput(results2, resultsFolderPath, 'output')
 
-                    // After getting the second result
-                    console.log('Second result content type:', typeof results2)
-                    console.log('Second result keys:', Object.keys(results2))
-                    console.log('File extension:', path.extname(filePath2))
+                    // // After getting the second result
+                    // console.log('Second result content type:', typeof results2)
+                    // console.log('Second result keys:', Object.keys(results2))
+                    // console.log('File extension:', path.extname(filePath2))
 
-                    // Check file contents
-                    const fileStats = await fs.promises.stat(filePath2)
-                    console.log('File size:', fileStats.size)
+                    // // Check file contents
+                    // const fileStats = await fs.promises.stat(filePath2)
+                    // console.log('File size:', fileStats.size)
                   } catch (error) {
                     console.log('No second result available:', error)
                     outputChannel.appendLine('No second result available')

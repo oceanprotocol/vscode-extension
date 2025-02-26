@@ -6,6 +6,7 @@ import path from 'path'
 import { PassThrough } from 'stream'
 import * as tar from 'tar'
 import { generateNonceSignature } from '../helpers/signature'
+import { generateOceanSignature } from '../helpers/signature'
 
 interface ComputeStatus {
   owner: string
@@ -134,28 +135,42 @@ export async function checkComputeStatus(
 }
 
 export async function getComputeResult(
+  signer: Signer,
   nodeUrl: string,
   jobId: string,
   consumerAddress: string,
-  signature: string,
-  index: number = 0,
-  nonce: number = 0
-) {
+  index: number = 0
+): Promise<any> {
   try {
     console.log('Getting compute result for jobId:', jobId)
     console.log('Using consumerAddress:', consumerAddress)
-    console.log('Using signature:', signature)
     console.log('Using index:', index)
+
+    // Generate a unique nonce for this request
+    const nonce = Date.now()
     console.log('Using nonce:', nonce)
+
+    // Generate the signature using the Ocean Protocol format
+    const signatureResult = await generateOceanSignature({
+      signer,
+      consumerAddress,
+      jobId,
+      index,
+      nonce
+    })
+
+    console.log('Generated result signature:', signatureResult.signature)
+    console.log('Result signature valid:', signatureResult.isValid)
 
     const response = await axios.post(`${nodeUrl}/directCommand`, {
       command: 'getComputeResult',
       jobId,
       consumerAddress,
-      signature,
+      signature: signatureResult.signature,
       index,
       nonce
     })
+
     console.log('Compute result response:', response)
     console.log('Compute result data:', response.data)
     return response.data
