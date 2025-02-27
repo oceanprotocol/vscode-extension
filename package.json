@@ -1,6 +1,6 @@
 {
   "name": "ocean-protocol",
-  "publisher": "ocean-protocol",
+  "publisher": "OceanProtocol",
   "displayName": "ocean-protocol",
   "description": "Easily publish assets and test your algorithms with the Ocean Protocol vscode extension.",
   "version": "0.0.1",
