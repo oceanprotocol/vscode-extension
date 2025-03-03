@@ -74,8 +74,21 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 canSelectMany: false,
                 openLabel: 'Select',
                 filters: {
+                  'Algorithm Files': ['js', 'py'],
+                  'Dataset Files': ['json']
+                }
+              }
+
+              if (data.elementId === 'selectedDatasetPath') {
+                options.filters = {
+                  'Dataset Files': ['json']
+                }
+                options.openLabel = 'Select Dataset'
+              } else if (data.elementId === 'selectedAlgorithmPath') {
+                options.filters = {
                   'Algorithm Files': ['js', 'py']
                 }
+                options.openLabel = 'Select Algorithm'
               }
 
               const fileUri = await vscode.window.showOpenDialog(options)
@@ -254,7 +267,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   <div class="container">
 
                       <label for="nodeUrlInput">Node URL (including port)</label>
-                      <input id="nodeUrlInput" placeholder="Enter compute environment ID" value="http://34.159.64.236:8001" />
+                      <input id="nodeUrlInput" placeholder="Enter compute environment ID" value="https://1.c2d.nodes.oceanprotocol.com:8000" />
 
                       <label>Dataset</label>
                       <button id="selectDatasetBtn">Select Dataset File</button>
@@ -321,7 +334,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   document.getElementById('selectResultsFolderBtn').addEventListener('click', () => {
                       console.log('Results folder button clicked');
                       vscode.postMessage({
-                          type: 'selectResultsFolder'
+                          type: 'selectResultsFolder' 
                       });
                   });
               }
@@ -329,7 +342,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               if (document.getElementById('startComputeBtn')) {
                   document.getElementById('startComputeBtn').addEventListener('click', () => {
                       const privateKey = document.getElementById('privateKeyInput').value;
-                      const nodeUrl = document.getElementById('nodeUrlInput').value || 'http://34.159.64.236:8001';
+                      const nodeUrl = document.getElementById('nodeUrlInput').value || 'https://1.c2d.nodes.oceanprotocol.com:8000';
                       const dockerImage = document.getElementById('dockerImageInput').value;
                       const dockerTag = document.getElementById('dockerTagInput').value;
                       // Only require algorithm to be selected
