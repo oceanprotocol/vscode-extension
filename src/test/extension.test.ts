@@ -30,7 +30,9 @@ suite('Ocean Protocol Extension Test Suite', () => {
   })
 
   test('Extension should be present', () => {
-    assert.ok(vscode.extensions.getExtension('ocean-protocol.ocean-protocol'))
+    assert.ok(
+      vscode.extensions.getExtension('OceanProtocol.ocean-protocol-vscode-extension')
+    )
   })
 
   test('computeStart should handle JavaScript algorithm correctly', async () => {
