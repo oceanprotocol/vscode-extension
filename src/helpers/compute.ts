@@ -53,7 +53,10 @@ export async function computeStart(
 
   // Fetch compute environments first
   try {
-    const envResponse = await axios.get(`${nodeUrl}/api/services/computeEnvironments`)
+    const envResponse = await axios.get(`${nodeUrl}/api/services/computeEnvironments`, {
+      timeout: 60000
+    })
+    console.log('Environment response:', envResponse)
     if (!envResponse.data || !envResponse.data.length) {
       throw new Error('No compute environments available')
     }
@@ -99,7 +102,9 @@ export async function computeStart(
 
     console.log('Sending compute request with body:', requestBody)
 
-    const response = await axios.post(`${nodeUrl}/directCommand`, requestBody)
+    const response = await axios.post(`${nodeUrl}/directCommand`, requestBody, {
+      timeout: 60000
+    })
 
     console.log('Free Start Compute response: ' + JSON.stringify(response.data))
 
@@ -127,10 +132,16 @@ export async function checkComputeStatus(
   nodeUrl: string,
   jobId: string
 ): Promise<ComputeStatus> {
-  const response = await axios.post(`${nodeUrl}/directCommand`, {
-    command: 'getComputeStatus',
-    jobId
-  })
+  const response = await axios.post(
+    `${nodeUrl}/directCommand`,
+    {
+      command: 'getComputeStatus',
+      jobId
+    },
+    {
+      timeout: 60000
+    }
+  )
   return response.data[0]
 }
 
@@ -162,14 +173,20 @@ export async function getComputeResult(
     console.log('Generated result signature:', signatureResult.signature)
     console.log('Result signature valid:', signatureResult.isValid)
 
-    const response = await axios.post(`${nodeUrl}/directCommand`, {
-      command: 'getComputeResult',
-      jobId,
-      consumerAddress,
-      signature: signatureResult.signature,
-      index,
-      nonce
-    })
+    const response = await axios.post(
+      `${nodeUrl}/directCommand`,
+      {
+        command: 'getComputeResult',
+        jobId,
+        consumerAddress,
+        signature: signatureResult.signature,
+        index,
+        nonce
+      },
+      {
+        timeout: 60000
+      }
+    )
 
     console.log('Compute result response:', response)
     console.log('Compute result data:', response.data)
