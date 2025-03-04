@@ -1,39 +1,39 @@
 # Ocean Protocol VSCode Extension
 
-This VSCode extension enables you to execute compute-to-data jobs using Ocean Protocol directly from your development environment. The extension automatically detects your active algorithm file and streamlines job submission, monitoring, and results retrieval.
+Run compute jobs on Ocean Protocol directly from VS Code. The extension automatically detects your active algorithm file and streamlines job submission, monitoring, and results retrieval. Simply open a python or javascript file and click **Start Compute Job**.
 
 ## Features
 
-- **Compute-to-Data**: Run secure compute jobs without downloading raw data.
-- **Active File Detection**: Automatically uses your open JavaScript (.js) or Python (.py) file as the compute algorithm.
-- **Dataset & Results Integration**: Optionally select a dataset file and specify a results folder.
-- **Job Monitoring**: View job status and algorithm logs in the output panel while results are automatically opened upon job completion.
+### 🚀 One-Click Compute Jobs
 
-## Prerequisites
+Select your algorithm, choose a dataset, and run compute jobs with a single click.
 
-- Node.js (version specified in `.nvmrc`)
-- VSCode version 1.93.0 or higher
-- Git
+### 📊 Real-Time Monitoring
 
-## Running the Extension Locally
+Track job progress and view algorithm logs directly in VS Code.
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/ocean-protocol-vscode
-   cd ocean-protocol-vscode
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Build the extension:
-   ```bash
-   npm run compile
-   ```
-4. Open in VSCode:
-   - Press F5 to start debugging. This will open a new VSCode window with the extension loaded.
+### 📁 Automatic Results Handling
 
-## Usage
+Results are automatically saved and opened when your job completes.
+
+## Getting Started
+
+1. Install the extension from the VS Code Marketplace
+2. Open the Ocean Protocol panel from the activity bar
+3. Configure your compute settings:
+   - Node URL (pre-filled with default Ocean compute node)
+   - Optional private key for your wallet
+4. Select your files:
+   - Algorithm file (JS or Python)
+   - Optional dataset file (JSON)
+   - Results folder location
+5. Click **Start Compute Job**
+6. Monitor the job status and logs in the output panel
+7. Once completed, the results file will automatically open in VSCode
+
+### Requirements
+
+VS Code 1.96.0 or higher
 
 ### Extension Layout
 
@@ -57,6 +57,36 @@ The extension adds a dedicated Ocean Protocol section to the activity bar. Here 
 ## Development & Contributing
 
 Refer to the project structure and available scripts for local development. Contributions are always welcome—please check our guidelines in the repository.
+
+### Prerequisites
+
+- Node.js (version specified in `.nvmrc`)
+- VSCode version 1.93.0 or higher
+- Git
+
+### Running the Extension Locally
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/your-username/ocean-protocol-vscode
+   cd ocean-protocol-vscode
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. Build the extension:
+
+   ```bash
+   npm run compile
+   ```
+
+4. Open in VSCode:
+   - Press F5 to start debugging. This will open a new VSCode window with the extension loaded.
 
 ## License
 
