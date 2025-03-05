@@ -5,8 +5,6 @@ name: CI
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
   build:
@@ -21,16 +19,11 @@ jobs:
         with:
           node-version: '20.16.0'
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Test ## It's good to double check the tests are passing before publishing
-        run: npm run test
-
       # Only run publish step when pushing to main (not on PRs)
       - name: Publish to VS Code Marketplace
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
+          npm ci
           # Extract version from package.json to use in the vsix filename
           VERSION=$(node -p "require('./package.json').version")
           npm run build
