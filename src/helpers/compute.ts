@@ -4,6 +4,9 @@ import fs from 'fs'
 import axios from 'axios'
 import path from 'path'
 import { PassThrough } from 'stream'
+import * as tar from 'tar'
+import { generateNonceSignature } from '../helpers/signature'
+import { generateOceanSignature } from '../helpers/signature'
 
 interface ComputeStatus {
   owner: string
@@ -39,14 +42,21 @@ export async function computeStart(
   nodeUrl: string,
   fileExtension: string,
   dataset?: any,
-  nonce: number = 1
+  nonce: number = 1,
+  dockerImage?: string,
+  dockerTag?: string
 ): Promise<ComputeResponse> {
   console.log('Starting free compute job using provider: ', nodeUrl)
+  console.log('Docker image:', dockerImage)
+  console.log('Docker tag:', dockerTag)
   const consumerAddress: string = await signer.getAddress()
 
   // Fetch compute environments first
   try {
-    const envResponse = await axios.get(`${nodeUrl}/api/services/computeEnvironments`)
+    const envResponse = await axios.get(`${nodeUrl}/api/services/computeEnvironments`, {
+      timeout: 60000
+    })
+    console.log('Environment response:', envResponse)
     if (!envResponse.data || !envResponse.data.length) {
       throw new Error('No compute environments available')
     }
@@ -57,23 +67,30 @@ export async function computeStart(
     const containerConfig =
       fileExtension === 'py'
         ? {
-            image: 'oceanprotocol/algo_dockers',
-            tag: 'python-branin',
+            image: dockerImage || 'oceanprotocol/algo_dockers',
+            tag: dockerTag || 'python-branin',
             entrypoint: 'python $ALGO',
             termsAndConditions: true
           }
         : {
             entrypoint: 'node $ALGO',
-            image: 'node',
-            tag: 'latest'
+            image: dockerImage || 'node',
+            tag: dockerTag || 'latest'
           }
+
+    // Generate a proper signature using our existing function
+    // We use a different jobId for starting compute (empty string)
+    const signatureResult = await generateNonceSignature(nonce, signer)
+
+    console.log('Generated signature:', signatureResult.signature)
+    console.log('Signature valid:', signatureResult.isValid)
 
     const requestBody = {
       command: 'freeStartCompute',
       consumerAddress: consumerAddress,
       environment: environmentId,
       nonce: nonce,
-      signature: '0x123',
+      signature: signatureResult.signature, // Use the generated signature
       datasets: dataset ? [dataset] : [],
       algorithm: {
         meta: {
@@ -85,7 +102,9 @@ export async function computeStart(
 
     console.log('Sending compute request with body:', requestBody)
 
-    const response = await axios.post(`${nodeUrl}/directCommand`, requestBody)
+    const response = await axios.post(`${nodeUrl}/directCommand`, requestBody, {
+      timeout: 60000
+    })
 
     console.log('Free Start Compute response: ' + JSON.stringify(response.data))
 
@@ -113,36 +132,64 @@ export async function checkComputeStatus(
   nodeUrl: string,
   jobId: string
 ): Promise<ComputeStatus> {
-  const response = await axios.post(`${nodeUrl}/directCommand`, {
-    command: 'getComputeStatus',
-    jobId
-  })
+  const response = await axios.post(
+    `${nodeUrl}/directCommand`,
+    {
+      command: 'getComputeStatus',
+      jobId
+    },
+    {
+      timeout: 60000
+    }
+  )
   return response.data[0]
 }
 
 export async function getComputeResult(
+  signer: Signer,
   nodeUrl: string,
   jobId: string,
   consumerAddress: string,
-  signature: string,
-  index: number = 0,
-  nonce: number = 0
-) {
+  index: number = 0
+): Promise<any> {
   try {
     console.log('Getting compute result for jobId:', jobId)
     console.log('Using consumerAddress:', consumerAddress)
-    console.log('Using signature:', signature)
     console.log('Using index:', index)
+
+    // Generate a unique nonce for this request
+    const nonce = Date.now()
     console.log('Using nonce:', nonce)
 
-    const response = await axios.post(`${nodeUrl}/directCommand`, {
-      command: 'getComputeResult',
-      jobId,
+    // Generate the signature using the Ocean Protocol format
+    const signatureResult = await generateOceanSignature({
+      signer,
       consumerAddress,
-      signature,
+      jobId,
       index,
       nonce
     })
+
+    console.log('Generated result signature:', signatureResult.signature)
+    console.log('Result signature valid:', signatureResult.isValid)
+
+    const response = await axios.post(
+      `${nodeUrl}/directCommand`,
+      {
+        command: 'getComputeResult',
+        jobId,
+        consumerAddress,
+        signature: signatureResult.signature,
+        index,
+        nonce
+      },
+      {
+        timeout: 60000
+      }
+    )
+
+    console.log('Compute result response:', response)
+    console.log('Compute result data:', response.data)
     return response.data
   } catch (error) {
     console.error('Error getting compute result:', error)
@@ -152,7 +199,8 @@ export async function getComputeResult(
 
 export async function saveResults(
   results: any,
-  destinationFolder?: string
+  destinationFolder?: string,
+  prefix: string = 'result'
 ): Promise<string> {
   try {
     // Use provided destination folder or default to './results'
@@ -165,7 +213,7 @@ export async function saveResults(
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const fileName = `compute-results-${timestamp}.txt`
+    const fileName = `${prefix}-${timestamp}.txt`
     const filePath = path.join(resultsDir, fileName)
 
     console.log('Saving results to:', filePath)
@@ -244,5 +292,64 @@ export async function getComputeLogs(
   } catch (error) {
     console.error('Error fetching compute logs:', error)
     throw error
+  }
+}
+
+/**
+ * Saves the output from the second request (index=1) as a tar file and extracts its contents
+ * @param content The tar file content (Buffer or string)
+ * @param folderPath The folder to save the tar file and extracted contents
+ * @param prefix Prefix for the filename
+ * @returns The path to the saved tar file and extraction directory
+ */
+export async function saveOutput(
+  content: Buffer | string,
+  destinationFolder: string,
+  prefix: string = 'output'
+): Promise<string> {
+  try {
+    console.log('Content:', content)
+    // Use provided destination folder or default to './results'
+    const resultsDir = destinationFolder || path.join(process.cwd(), 'results')
+
+    // Create timestamp for unique filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const fileName = `${prefix}_${timestamp}.tar`
+    console.log('File name:', fileName)
+    const filePath = path.join(resultsDir, fileName)
+    console.log('File path:', filePath)
+    // Ensure the folder exists
+    await fs.promises.mkdir(resultsDir, { recursive: true })
+
+    // Convert string to Buffer if needed
+    const tarContent =
+      typeof content === 'string' ? Buffer.from(content, 'binary') : content
+
+    // Save the tar file
+    await fs.promises.writeFile(filePath, new Uint8Array(tarContent))
+    console.log(`Tar file saved to: ${filePath}`)
+
+    // Create extraction directory
+    const extractDir = path.join(destinationFolder, `${prefix}_${timestamp}_extracted`)
+    await fs.promises.mkdir(extractDir, { recursive: true })
+
+    // Extract the tar contents
+    try {
+      await tar.x({
+        file: filePath,
+        cwd: extractDir,
+        preservePaths: true
+      })
+      console.log(`Extracted contents to: ${extractDir}`)
+
+      // Return both paths
+      return filePath
+    } catch (extractError) {
+      console.error('Error extracting tar contents:', extractError)
+      return filePath // Return just the tar path if extraction fails
+    }
+  } catch (error) {
+    console.error('Error saving tar output:', error)
+    throw new Error(`Failed to save tar output: ${error.message}`)
   }
 }

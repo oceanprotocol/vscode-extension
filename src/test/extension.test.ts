@@ -30,7 +30,9 @@ suite('Ocean Protocol Extension Test Suite', () => {
   })
 
   test('Extension should be present', () => {
-    assert.ok(vscode.extensions.getExtension('ocean-protocol.ocean-protocol'))
+    assert.ok(
+      vscode.extensions.getExtension('OceanProtocol.ocean-protocol-vscode-extension')
+    )
   })
 
   test('computeStart should handle JavaScript algorithm correctly', async () => {
@@ -194,7 +196,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     const mockNodeUrl = 'http://test-node:8001'
     const mockJobId = 'test-job-id'
     const mockConsumerAddress = '0x123'
-    const mockSignature = '0xabc'
+    const mockSigner = new Wallet('0x' + '1'.repeat(64))
 
     const mockResponse = {
       data: {
@@ -206,17 +208,24 @@ suite('Ocean Protocol Extension Test Suite', () => {
     sandbox.stub(axios, 'post').resolves(mockResponse)
 
     const result = await getComputeResult(
+      mockSigner,
       mockNodeUrl,
       mockJobId,
-      mockConsumerAddress,
-      mockSignature
+      mockConsumerAddress
     )
 
     assert.deepStrictEqual(result, mockResponse.data)
   })
 
   test('saveResults should correctly save to file', async () => {
-    const mockResults = { output: 'Test results' }
+    const mockResults = {
+      filename: 'test.json',
+      filesize: 123,
+      type: 'json',
+      index: 0,
+      content: 'Test results',
+      output: 'Test output'
+    }
     const mockFolderPath = path.join(process.cwd(), 'test-results')
 
     // Create a temporary directory for testing

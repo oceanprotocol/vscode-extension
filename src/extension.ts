@@ -9,9 +9,11 @@ import {
   delay,
   getComputeLogs,
   getComputeResult,
+  saveOutput,
   saveResults
 } from './helpers/compute'
 import { generateOceanSignature } from './helpers/signature'
+import * as path from 'path'
 
 globalThis.fetch = fetch
 
@@ -61,21 +63,30 @@ export async function activate(context: vscode.ExtensionContext) {
     let startComputeJob = vscode.commands.registerCommand(
       'ocean-protocol.startComputeJob',
       async (
-        config: any,
         algorithmPath: string,
         resultsFolderPath: string,
         privateKey: string | undefined,
         nodeUrl: string,
-        datasetPath?: string
+        datasetPath?: string,
+        dockerImage?: string,
+        dockerTag?: string
       ) => {
-        console.log('Starting compute job...')
-        console.log('Config:', config)
+        console.log('1. Starting compute job...')
         console.log('Dataset path:', datasetPath)
         console.log('Algorithm path:', algorithmPath)
         console.log('Results folder path:', resultsFolderPath)
         console.log('Node URL:', nodeUrl)
-        if (!config || !algorithmPath || !nodeUrl) {
-          vscode.window.showErrorMessage('Missing required parameters.')
+        console.log('Private key:', privateKey)
+        console.log('Docker image:', dockerImage)
+        console.log('Docker tag:', dockerTag)
+        const missingParams = []
+        !algorithmPath && missingParams.push('algorithm path')
+        !nodeUrl && missingParams.push('node URL')
+
+        if (missingParams.length > 0) {
+          vscode.window.showErrorMessage(
+            `Missing required parameters: ${missingParams.join(', ')}`
+          )
           return
         }
 
@@ -112,10 +123,6 @@ export async function activate(context: vscode.ExtensionContext) {
             }
             const algorithmContent = await fs.promises.readFile(algorithmPath, 'utf8')
 
-            // nonce equals date in milliseconds
-            const nonce = Date.now()
-            console.log('Nonce: ', nonce)
-
             // Start compute job
             const fileExtension = algorithmPath.split('.').pop()?.toLowerCase()
             const computeResponse = await computeStart(
@@ -124,7 +131,9 @@ export async function activate(context: vscode.ExtensionContext) {
               nodeUrl,
               fileExtension,
               dataset,
-              nonce
+              Date.now(), // nonce equals date in milliseconds
+              dockerImage,
+              dockerTag
             )
             console.log('Compute result received:', computeResponse)
             const jobId = computeResponse.jobId
@@ -145,7 +154,7 @@ export async function activate(context: vscode.ExtensionContext) {
               consumerAddress: signer.address,
               jobId,
               index,
-              nonce
+              nonce: Date.now() // nonce equals date in milliseconds
             })
 
             let logStreamStarted = false
@@ -166,50 +175,79 @@ export async function activate(context: vscode.ExtensionContext) {
                   nodeUrl,
                   jobId,
                   signer.address,
-                  nonce,
+                  Date.now(), // nonce equals date in milliseconds
                   signatureResult.signature,
                   computeLogsChannel
                 )
               }
 
               if (status.statusText === 'Job finished') {
-                // Retrieve results
-                progress.report({ message: 'Retrieving compute results...' })
-                outputChannel.appendLine('Retrieving compute results...')
-                const results = await getComputeResult(
-                  nodeUrl,
-                  jobId,
-                  signer.address,
-                  signatureResult.signature,
-                  index,
-                  nonce
-                )
+                try {
+                  // First request (index 0)
+                  console.log('Generating signature for first result...')
+                  progress.report({ message: 'Generating signature for first result...' })
+                  outputChannel.appendLine('Generating signature for first result...')
+                  const signatureResult1 = await generateOceanSignature({
+                    signer,
+                    consumerAddress: signer.address,
+                    jobId,
+                    index: 0,
+                    nonce: Date.now() // nonce equals date in milliseconds
+                  })
 
-                // Save results
-                progress.report({ message: 'Saving results...' })
-                outputChannel.appendLine('Saving results...')
-                const filePath = await saveResults(results, resultsFolderPath)
+                  // Retrieve first result (index 0)
+                  progress.report({ message: 'Retrieving compute results (1/2)...' })
+                  outputChannel.appendLine('Retrieving first result...')
+                  const results1 = await getComputeResult(
+                    signer,
+                    nodeUrl,
+                    jobId,
+                    signer.address,
+                    0
+                  )
 
-                vscode.window.showInformationMessage(
-                  `Compute job completed successfully! Results saved to: ${filePath}`
-                )
-                outputChannel.appendLine(
-                  `Compute job completed successfully! Results saved to: ${filePath}`
-                )
+                  // Save first result
+                  progress.report({ message: 'Saving first result...' })
+                  outputChannel.appendLine('Saving first result...')
+                  console.log('Saving first result to folder path:', resultsFolderPath)
+                  const filePath1 = await saveResults(
+                    results1,
+                    resultsFolderPath,
+                    'result1'
+                  )
 
-                // Open the saved file in a new editor window
-                const uri = vscode.Uri.file(filePath)
-                const document = await vscode.workspace.openTextDocument(uri)
-                await vscode.window.showTextDocument(document, { preview: false })
+                  let filePath2: string | undefined
 
-                vscode.window.showInformationMessage(
-                  `Compute job completed successfully! Results opened in editor.`
-                )
-                outputChannel.appendLine(
-                  `Compute job completed successfully! Results opened in editor.`
-                )
+                  try {
+                    // Second request (index 1) with new nonce and signature
+                    console.log('Generating signature for second result...')
+                    progress.report({
+                      message: 'Generating signature for second result...'
+                    })
+                    outputChannel.appendLine('Generating signature for second result...')
+                  } catch (error) {
+                    console.log('No second result available:', error)
+                    outputChannel.appendLine('No second result available')
+                  }
 
-                break
+                  // Show success message with available results
+                  const successMessage = filePath2
+                    ? `Compute job completed successfully! Results saved to:\n${filePath1}\n${filePath2}`
+                    : `Compute job completed successfully! Result saved to:\n${filePath1}`
+
+                  vscode.window.showInformationMessage(successMessage)
+                  outputChannel.appendLine(successMessage)
+
+                  // Open files in editor
+                  const uri1 = vscode.Uri.file(filePath1)
+                  const document1 = await vscode.workspace.openTextDocument(uri1)
+                  await vscode.window.showTextDocument(document1, { preview: false })
+
+                  break
+                } catch (error) {
+                  console.error('Error retrieving results:', error)
+                  throw error
+                }
               }
 
               if (
