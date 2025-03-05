@@ -2,6 +2,8 @@
 
 Run compute jobs on Ocean Protocol directly from VS Code. The extension automatically detects your active algorithm file and streamlines job submission, monitoring, and results retrieval. Simply open a python or javascript file and click **Start Compute Job**.
 
+![Ocean Protocol VSCode Extension](./screenshots/main-screenshot.png)
+
 ## Features
 
 ### 🚀 One-Click Compute Jobs
@@ -53,6 +55,18 @@ The extension adds a dedicated Ocean Protocol section to the activity bar. Here 
 5. Click **Start Compute Job**.
 6. Monitor the job status and logs in the output panel.
 7. Once completed, the results file will automatically open in VSCode.
+
+## Optional Setup
+
+- Custom Compute Node: Enter your own node URL or use the default Ocean Protocol node
+- Wallet Integration: Use auto-generated wallet or enter private key for your own wallet
+- Custom Docker Images. If you need a custom environment with your own dependencies installed, you can use a custom docker image. Default is oceanprotocol/algo_dockers (Python) or node (JavaScript)
+- Docker Tags: Specify version tags for your docker image (like python-branin or latest)
+- Algorithm: The vscode extension automatically detects open JavaScript or Python files. Or alternatively you can specify the algorithm file manually here.
+- Dataset: Optional JSON file for input data
+- Results Folder: Where computation results will be saved
+
+![Ocean Protocol VSCode Extension](./screenshots/setup-screenshot.png)
 
 ## Development & Contributing
 
