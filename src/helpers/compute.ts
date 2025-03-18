@@ -102,9 +102,9 @@ export async function computeStart(
 
     console.log('Sending compute request with body:', requestBody)
 
-    const response = await axios.post(`${nodeUrl}/directCommand`, requestBody, {
-      timeout: 60000
-    })
+    const response = await axios.post(`${nodeUrl}/directCommand`, requestBody)
+
+    console.log('Free Start Compute response: ' + response)
 
     console.log('Free Start Compute response: ' + JSON.stringify(response.data))
 
@@ -166,7 +166,6 @@ export async function getComputeResult(
       signer,
       consumerAddress,
       jobId,
-      index,
       nonce
     })
 
@@ -245,12 +244,26 @@ export async function getComputeLogs(
   nodeUrl: string,
   jobId: string,
   consumerAddress: string,
-  nonce: number,
-  signature: string,
-  outputChannel: vscode.OutputChannel
+  outputChannel: vscode.OutputChannel,
+  signer: Signer
 ): Promise<void> {
   try {
     outputChannel.show(true)
+
+    // Generate a unique nonce for this request
+    const nonce = Date.now()
+    console.log('Using nonce:', nonce)
+
+    // Generate the signature using the Ocean Protocol format
+    const signatureResult = await generateOceanSignature({
+      signer,
+      consumerAddress,
+      jobId,
+      nonce
+    })
+
+    console.log('Generated result signature:', signatureResult.signature)
+    console.log('Result signature valid:', signatureResult.isValid)
 
     const response = await fetch(`${nodeUrl}/directCommand`, {
       method: 'POST',
@@ -262,7 +275,7 @@ export async function getComputeLogs(
         jobId,
         consumerAddress,
         nonce,
-        signature
+        signature: signatureResult.signature
       })
     })
 

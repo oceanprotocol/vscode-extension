@@ -61,12 +61,11 @@ export async function generateOceanSignature({
   signer,
   consumerAddress,
   jobId,
-  index = 0,
   nonce = 1
 }: SignatureParams): Promise<SignatureResult> {
   try {
     // Create message string
-    const message = consumerAddress + jobId + index.toString() + nonce
+    const message = consumerAddress + jobId + nonce
 
     // Hash the message exactly as done in Ocean Protocol
     const consumerMessage = ethers.utils.solidityKeccak256(

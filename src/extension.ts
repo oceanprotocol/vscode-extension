@@ -171,14 +171,7 @@ export async function activate(context: vscode.ExtensionContext) {
               if (status.statusText.includes('Running algorithm') && !logStreamStarted) {
                 logStreamStarted = true
                 // Start fetching logs once
-                getComputeLogs(
-                  nodeUrl,
-                  jobId,
-                  signer.address,
-                  Date.now(), // nonce equals date in milliseconds
-                  signatureResult.signature,
-                  computeLogsChannel
-                )
+                getComputeLogs(nodeUrl, jobId, signer.address, computeLogsChannel, signer)
               }
 
               if (status.statusText === 'Job finished') {
@@ -187,13 +180,6 @@ export async function activate(context: vscode.ExtensionContext) {
                   console.log('Generating signature for first result...')
                   progress.report({ message: 'Generating signature for first result...' })
                   outputChannel.appendLine('Generating signature for first result...')
-                  const signatureResult1 = await generateOceanSignature({
-                    signer,
-                    consumerAddress: signer.address,
-                    jobId,
-                    index: 0,
-                    nonce: Date.now() // nonce equals date in milliseconds
-                  })
 
                   // Retrieve first result (index 0)
                   progress.report({ message: 'Retrieving compute results (1/2)...' })

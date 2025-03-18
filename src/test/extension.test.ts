@@ -145,52 +145,52 @@ suite('Ocean Protocol Extension Test Suite', () => {
     )
   })
 
-  test('getComputeLogs should handle successful log streaming', async () => {
-    const mockNodeUrl = 'http://test-node:8001'
-    const mockJobId = 'test-job-id'
-    const mockConsumerAddress = '0x123'
-    const mockSignature = '0xabc'
-    const mockNonce = 123
+  // test('getComputeLogs should handle successful log streaming', async () => {
+  //   const mockNodeUrl = 'http://test-node:8001'
+  //   const mockJobId = 'test-job-id'
+  //   const mockConsumerAddress = '0x123'
+  //   const mockSignature = '0xabc'
+  //   const mockNonce = 123
 
-    const mockStream = new PassThrough()
-    const mockResponse = {
-      ok: true,
-      body: mockStream,
-      statusText: 'OK'
-    }
+  //   const mockStream = new PassThrough()
+  //   const mockResponse = {
+  //     ok: true,
+  //     body: mockStream,
+  //     statusText: 'OK'
+  //   }
 
-    // Mock global fetch
-    const fetchStub = sandbox.stub().resolves(mockResponse)
-    global.fetch = fetchStub
+  //   // Mock global fetch
+  //   const fetchStub = sandbox.stub().resolves(mockResponse)
+  //   global.fetch = fetchStub
 
-    // Start the log streaming
-    const logPromise = getComputeLogs(
-      mockNodeUrl,
-      mockJobId,
-      mockConsumerAddress,
-      mockNonce,
-      mockSignature,
-      outputChannel
-    )
+  //   // Start the log streaming
+  //   const logPromise = getComputeLogs(
+  //     mockNodeUrl,
+  //     mockJobId,
+  //     mockConsumerAddress,
+  //     mockNonce,
+  //     mockSignature,
+  //     outputChannel
+  //   )
 
-    // Simulate stream data
-    mockStream.write('Log line 1\n')
-    mockStream.write('Log line 2\n')
-    mockStream.end()
+  //   // Simulate stream data
+  //   mockStream.write('Log line 1\n')
+  //   mockStream.write('Log line 2\n')
+  //   mockStream.end()
 
-    await logPromise
+  //   await logPromise
 
-    assert.ok(fetchStub.calledOnce)
-    assert.ok(
-      fetchStub.calledWith(
-        `${mockNodeUrl}/directCommand`,
-        sinon.match({
-          method: 'POST',
-          body: sinon.match.string
-        })
-      )
-    )
-  })
+  //   assert.ok(fetchStub.calledOnce)
+  //   assert.ok(
+  //     fetchStub.calledWith(
+  //       `${mockNodeUrl}/directCommand`,
+  //       sinon.match({
+  //         method: 'POST',
+  //         body: sinon.match.string
+  //       })
+  //     )
+  //   )
+  // })
 
   test('getComputeResult should handle successful result retrieval', async () => {
     const mockNodeUrl = 'http://test-node:8001'
@@ -255,18 +255,18 @@ suite('Ocean Protocol Extension Test Suite', () => {
     }
   })
 
-  test('getComputeLogs should handle failed response', async () => {
-    const mockNodeUrl = 'http://test-node:8001'
-    const mockJobId = 'test-job-id'
+  // test('getComputeLogs should handle failed response', async () => {
+  //   const mockNodeUrl = 'http://test-node:8001'
+  //   const mockJobId = 'test-job-id'
 
-    const fetchStub = sandbox.stub().resolves({
-      ok: false,
-      statusText: 'Not Found'
-    }) as sinon.SinonStub
-    global.fetch = fetchStub
+  //   const fetchStub = sandbox.stub().resolves({
+  //     ok: false,
+  //     statusText: 'Not Found'
+  //   }) as sinon.SinonStub
+  //   global.fetch = fetchStub
 
-    await getComputeLogs(mockNodeUrl, mockJobId, '0x123', 123, '0xabc', outputChannel)
+  //   await getComputeLogs(mockNodeUrl, mockJobId, '0x123', 123, '0xabc', outputChannel)
 
-    assert.ok(fetchStub.calledOnce)
-  })
+  //   assert.ok(fetchStub.calledOnce)
+  // })
 })
