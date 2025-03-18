@@ -9,10 +9,9 @@ import {
   delay,
   getComputeLogs,
   getComputeResult,
-  saveOutput,
   saveResults
 } from './helpers/compute'
-import { generateOceanSignature } from './helpers/signature'
+import { generateSignature } from './helpers/signature'
 import * as path from 'path'
 
 globalThis.fetch = fetch
@@ -143,20 +142,6 @@ export async function activate(context: vscode.ExtensionContext) {
             outputChannel.appendLine(`Starting compute job with ID: ${jobId}`)
 
             // Start fetching logs periodically
-
-            const index = 0
-
-            console.log('Generating signature for retrieval...')
-            progress.report({ message: 'Generating signature for retrieval...' })
-            outputChannel.appendLine('Generating signature for retrieval...')
-            const signatureResult = await generateOceanSignature({
-              signer,
-              consumerAddress: signer.address,
-              jobId,
-              index,
-              nonce: Date.now() // nonce equals date in milliseconds
-            })
-
             let logStreamStarted = false
 
             while (true) {

@@ -5,8 +5,7 @@ import axios from 'axios'
 import path from 'path'
 import { PassThrough } from 'stream'
 import * as tar from 'tar'
-import { generateNonceSignature } from '../helpers/signature'
-import { generateOceanSignature } from '../helpers/signature'
+import { generateSignature } from '../helpers/signature'
 
 interface ComputeStatus {
   owner: string
@@ -80,7 +79,7 @@ export async function computeStart(
 
     // Generate a proper signature using our existing function
     // We use a different jobId for starting compute (empty string)
-    const signatureResult = await generateNonceSignature(nonce, signer)
+    const signatureResult = await generateSignature(String(nonce), signer)
 
     console.log('Generated signature:', signatureResult.signature)
     console.log('Signature valid:', signatureResult.isValid)
@@ -162,12 +161,8 @@ export async function getComputeResult(
     console.log('Using nonce:', nonce)
 
     // Generate the signature using the Ocean Protocol format
-    const signatureResult = await generateOceanSignature({
-      signer,
-      consumerAddress,
-      jobId,
-      nonce
-    })
+    const message = consumerAddress + jobId + index.toString() + nonce
+    const signatureResult = await generateSignature(message, signer)
 
     console.log('Generated result signature:', signatureResult.signature)
     console.log('Result signature valid:', signatureResult.isValid)
@@ -255,12 +250,8 @@ export async function getComputeLogs(
     console.log('Using nonce:', nonce)
 
     // Generate the signature using the Ocean Protocol format
-    const signatureResult = await generateOceanSignature({
-      signer,
-      consumerAddress,
-      jobId,
-      nonce
-    })
+    const message = consumerAddress + jobId + nonce
+    const signatureResult = await generateSignature(message, signer)
 
     console.log('Generated result signature:', signatureResult.signature)
     console.log('Result signature valid:', signatureResult.isValid)
