@@ -9,10 +9,9 @@ import {
   delay,
   getComputeLogs,
   getComputeResult,
-  saveOutput,
   saveResults
 } from './helpers/compute'
-import { generateOceanSignature } from './helpers/signature'
+import { generateSignature } from './helpers/signature'
 import * as path from 'path'
 
 globalThis.fetch = fetch
@@ -143,20 +142,6 @@ export async function activate(context: vscode.ExtensionContext) {
             outputChannel.appendLine(`Starting compute job with ID: ${jobId}`)
 
             // Start fetching logs periodically
-
-            const index = 0
-
-            console.log('Generating signature for retrieval...')
-            progress.report({ message: 'Generating signature for retrieval...' })
-            outputChannel.appendLine('Generating signature for retrieval...')
-            const signatureResult = await generateOceanSignature({
-              signer,
-              consumerAddress: signer.address,
-              jobId,
-              index,
-              nonce: Date.now() // nonce equals date in milliseconds
-            })
-
             let logStreamStarted = false
 
             while (true) {
@@ -171,14 +156,7 @@ export async function activate(context: vscode.ExtensionContext) {
               if (status.statusText.includes('Running algorithm') && !logStreamStarted) {
                 logStreamStarted = true
                 // Start fetching logs once
-                getComputeLogs(
-                  nodeUrl,
-                  jobId,
-                  signer.address,
-                  Date.now(), // nonce equals date in milliseconds
-                  signatureResult.signature,
-                  computeLogsChannel
-                )
+                getComputeLogs(nodeUrl, jobId, signer.address, computeLogsChannel, signer)
               }
 
               if (status.statusText === 'Job finished') {
@@ -187,13 +165,6 @@ export async function activate(context: vscode.ExtensionContext) {
                   console.log('Generating signature for first result...')
                   progress.report({ message: 'Generating signature for first result...' })
                   outputChannel.appendLine('Generating signature for first result...')
-                  const signatureResult1 = await generateOceanSignature({
-                    signer,
-                    consumerAddress: signer.address,
-                    jobId,
-                    index: 0,
-                    nonce: Date.now() // nonce equals date in milliseconds
-                  })
 
                   // Retrieve first result (index 0)
                   progress.report({ message: 'Retrieving compute results (1/2)...' })
