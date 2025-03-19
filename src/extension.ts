@@ -11,8 +11,6 @@ import {
   getComputeResult,
   saveResults
 } from './helpers/compute'
-import { generateSignature } from './helpers/signature'
-import * as path from 'path'
 
 globalThis.fetch = fetch
 

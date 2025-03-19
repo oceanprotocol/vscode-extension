@@ -2,6 +2,9 @@ import * as vscode from 'vscode'
 
 export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'oceanProtocolExplorer'
+  private nodeUrls = require('./node-urls.json')
+  // Get a random node URL from the list
+  private randomNodeUrl = this.nodeUrls[Math.floor(Math.random() * this.nodeUrls.length)]
 
   private _view?: vscode.WebviewView
 
@@ -267,7 +270,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   <div class="container">
 
                       <label for="nodeUrlInput">Node URL (including port)</label>
-                      <input id="nodeUrlInput" placeholder="Enter compute environment ID" value="https://1.c2d.nodes.oceanprotocol.com:8000" />
+                      <input id="nodeUrlInput" placeholder="Enter compute environment ID" value="${this.randomNodeUrl}" />
 
                       <label>Dataset</label>
                       <button id="selectDatasetBtn">Select Dataset File</button>
@@ -342,7 +345,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               if (document.getElementById('startComputeBtn')) {
                   document.getElementById('startComputeBtn').addEventListener('click', () => {
                       const privateKey = document.getElementById('privateKeyInput').value;
-                      const nodeUrl = document.getElementById('nodeUrlInput').value || 'https://1.c2d.nodes.oceanprotocol.com:8000';
+                      const nodeUrl = document.getElementById('nodeUrlInput').value || "${this.randomNodeUrl}";
                       const dockerImage = document.getElementById('dockerImageInput').value;
                       const dockerTag = document.getElementById('dockerTagInput').value;
                       // Only require algorithm to be selected
