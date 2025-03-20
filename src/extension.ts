@@ -9,7 +9,8 @@ import {
   delay,
   getComputeLogs,
   getComputeResult,
-  saveResults
+  saveResults,
+  startComputeSDK
 } from './helpers/compute'
 
 globalThis.fetch = fetch
@@ -122,13 +123,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
             // Start compute job
             const fileExtension = algorithmPath.split('.').pop()?.toLowerCase()
-            const computeResponse = await computeStart(
+            const computeResponse = await startComputeSDK(
               algorithmContent,
               signer,
               nodeUrl,
               fileExtension,
               dataset,
-              Date.now(), // nonce equals date in milliseconds
               dockerImage,
               dockerTag
             )

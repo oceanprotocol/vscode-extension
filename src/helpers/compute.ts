@@ -42,10 +42,9 @@ export async function startComputeSDK(
   nodeUrl: string,
   fileExtension: string,
   dataset?: any,
-  nonce: number = 1,
   dockerImage?: string,
   dockerTag?: string
-): Promise<ComputeJob | ComputeJob[]> {
+): Promise<ComputeJob> {
   console.log('Starting compute job using SDK')
   console.log('Algorithm content:', algorithmContent)
   console.log('Signer:', signer)
@@ -89,8 +88,7 @@ export async function startComputeSDK(
     dataset,
     algorithm
   )
-
-  return computeJobs
+  return Array.isArray(computeJobs) ? computeJobs[0] : computeJobs
 }
 
 export async function computeStart(
