@@ -42,5 +42,9 @@ module.exports = {
         }
       }
     ]
-  }
+  },
+  ignoreWarnings: [
+    /Can't resolve 'rdf-canonize-native'/,
+    /Can't resolve 'web-streams-polyfill\/ponyfill\/es2018'/
+  ]
 }

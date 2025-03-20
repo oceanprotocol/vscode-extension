@@ -54,6 +54,8 @@ export async function startComputeSDK(
   // Get compute environments from a provider
   const computeEnvironments = await ProviderInstance.getComputeEnvironments(nodeUrl)
 
+  console.log('Compute environments:', computeEnvironments)
+
   // Determine container config based on file extension
   const containerConfig =
     fileExtension === 'py'
@@ -81,13 +83,22 @@ export async function startComputeSDK(
   }
 
   // Start a compute job
-  const computeJobs = await ProviderInstance.computeStart(
+  const computeJobs = await ProviderInstance.freeComputeStart(
     nodeUrl,
     signer,
     computeEnvironments[0].id,
     dataset,
     algorithm
   )
+
+  console.log('Compute jobs result:', computeJobs)
+
+  // Check if we got a valid response
+  if (!computeJobs) {
+    throw new Error('Compute job failed to start. Provider returned no data.')
+  }
+
+  // Return the job or first job from array
   return Array.isArray(computeJobs) ? computeJobs[0] : computeJobs
 }
 
