@@ -231,12 +231,10 @@ export async function activate(context: vscode.ExtensionContext) {
           })
         } catch (error) {
           console.error('Error details:', error)
-          if (error instanceof Error) {
+          if (error instanceof Error && error.message) {
             vscode.window.showErrorMessage(`Error with compute job: ${error.message}`)
           } else {
-            vscode.window.showErrorMessage(
-              'An unknown error occurred with the compute job.'
-            )
+            vscode.window.showErrorMessage('Something went wrong. Please try again.')
           }
         }
       }
