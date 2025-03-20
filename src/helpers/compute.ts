@@ -6,6 +6,7 @@ import path from 'path'
 import { PassThrough } from 'stream'
 import * as tar from 'tar'
 import { generateSignature } from '../helpers/signature'
+import { ComputeAlgorithm, ComputeJob, ProviderInstance } from '@oceanprotocol/lib'
 
 interface ComputeStatus {
   owner: string
@@ -33,6 +34,63 @@ interface ComputeResponse {
   agreementId: string
   expireTimestamp: number
   environment: string
+}
+
+export async function startComputeSDK(
+  algorithmContent: string,
+  signer: Signer,
+  nodeUrl: string,
+  fileExtension: string,
+  dataset?: any,
+  nonce: number = 1,
+  dockerImage?: string,
+  dockerTag?: string
+): Promise<ComputeJob | ComputeJob[]> {
+  console.log('Starting compute job using SDK')
+  console.log('Algorithm content:', algorithmContent)
+  console.log('Signer:', signer)
+  console.log('Node URL:', nodeUrl)
+  console.log('File extension:', fileExtension)
+
+  // Get compute environments from a provider
+  const computeEnvironments = await ProviderInstance.getComputeEnvironments(nodeUrl)
+
+  // Determine container config based on file extension
+  const containerConfig =
+    fileExtension === 'py'
+      ? {
+          image: dockerImage || 'oceanprotocol/algo_dockers',
+          tag: dockerTag || 'python-branin',
+          entrypoint: 'python $ALGO',
+          checksum:
+            'sha256:23e78b156d89b183e7d06caabc808e3ddf4a4224160444a7c004df270d4b0e22'
+        }
+      : {
+          image: dockerImage || 'node',
+          tag: dockerTag || 'latest',
+          entrypoint: 'node $ALGO',
+          checksum:
+            'sha256:3118bdbd853a25cab2ee27b4bd5eee60ba9235e35f7e519c4e05da6d5696f48e'
+        }
+
+  // Create a ComputeAlgorithm object with the algorithm content
+  const algorithm: ComputeAlgorithm = {
+    meta: {
+      rawcode: algorithmContent,
+      container: containerConfig
+    }
+  }
+
+  // Start a compute job
+  const computeJobs = await ProviderInstance.computeStart(
+    nodeUrl,
+    signer,
+    computeEnvironments[0].id,
+    dataset,
+    algorithm
+  )
+
+  return computeJobs
 }
 
 export async function computeStart(
