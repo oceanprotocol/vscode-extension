@@ -87,7 +87,7 @@ export async function startComputeSDK(
     nodeUrl,
     signer,
     computeEnvironments[0].id,
-    dataset,
+    dataset ? [dataset] : [],
     algorithm
   )
 
