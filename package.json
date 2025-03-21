@@ -100,7 +100,7 @@
     "@libp2p/websockets": "^9.0.6",
     "@multiformats/multiaddr": "^12.3.1",
     "@oceanprotocol/lib": "^3.4.6",
-    "axios": "^1.7.7",
+    "axios": "^1.8.2",
     "chai": "^4.3.10",
     "cross-fetch": "^4.0.0",
     "crypto": "^1.0.1",
