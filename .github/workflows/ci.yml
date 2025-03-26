@@ -28,6 +28,6 @@ jobs:
           tar -xf vscode.tar.gz
 
       - name: Run tests
-        run: xvfb-run -a npm test
+        run: xvfb-run -a NODE_OPTIONS='--experimental-vm-modules' npm test
         env:
           DISPLAY: ':99.0'
