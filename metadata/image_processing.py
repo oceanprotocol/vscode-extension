@@ -46,15 +46,15 @@ def get_algorithm_consumer_params():
 if __name__ == "__main__":
     # Get consumer parameters
     consumer_params = get_algorithm_consumer_params()
-    print(f"data for consumer parameters: {consumer_params}")
+    # print(f"data for consumer parameters: {consumer_params}")
 
-    for cp in consumer_params:
-        if cp['name'] == "image_url":
-            image_url = cp['default']
-        if cp['name'] == "image_filter":
-            filter = cp['default']
+    # for cp in consumer_params:
+    #     if cp['name'] == "image_url":
+    #         image_url = cp['default']
+    #     if cp['name'] == "image_filter":
+    #         filter = cp['default']
 
-    filtered_img = apply_filters(image_url=image_url, filter=filter)
+    filtered_img = apply_filters(image_url='https://en.wikipedia.org/wiki/Lenna#/media/File:Lenna_(test_image).png', filter='blur')
     filename = "/data/outputs/filtered_image.png"
     filtered_img.save(filename)
     print(f"Filters applied and images saved successfully as {filename}")
