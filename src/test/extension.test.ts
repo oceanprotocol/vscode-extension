@@ -1,13 +1,6 @@
 import * as assert from 'assert'
 import * as vscode from 'vscode'
 import * as sinon from 'sinon'
-import {
-  computeStart,
-  checkComputeStatus,
-  getComputeLogs,
-  getComputeResult,
-  saveResults
-} from '../helpers/compute'
 import { Wallet } from 'ethers'
 import axios from 'axios'
 import { PassThrough } from 'stream'
@@ -36,6 +29,9 @@ suite('Ocean Protocol Extension Test Suite', () => {
   })
 
   test('computeStart should handle JavaScript algorithm correctly', async () => {
+    // Dynamically import the helpers module
+    const { computeStart } = await import('../helpers/compute')
+
     const mockSigner = new Wallet('0x' + '1'.repeat(64))
     const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'console.log("test")'
@@ -68,6 +64,9 @@ suite('Ocean Protocol Extension Test Suite', () => {
   })
 
   test('computeStart should handle Python algorithm correctly', async () => {
+    // Dynamically import the helpers module
+    const { computeStart } = await import('../helpers/compute')
+
     const mockSigner = new Wallet('0x' + '1'.repeat(64))
     const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'print("test")'
@@ -114,6 +113,9 @@ suite('Ocean Protocol Extension Test Suite', () => {
   })
 
   test('checkComputeStatus should return correct status', async () => {
+    // Dynamically import the helpers module
+    const { checkComputeStatus } = await import('../helpers/compute')
+
     const mockNodeUrl = 'http://test-node:8001'
     const mockJobId = 'test-job-id'
 
@@ -133,6 +135,9 @@ suite('Ocean Protocol Extension Test Suite', () => {
   })
 
   test('computeStart should handle missing compute environments', async () => {
+    // Dynamically import the helpers module
+    const { computeStart } = await import('../helpers/compute')
+
     const mockSigner = new Wallet('0x' + '1'.repeat(64))
     const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'console.log("test")'
@@ -145,128 +150,66 @@ suite('Ocean Protocol Extension Test Suite', () => {
     )
   })
 
-  // test('getComputeLogs should handle successful log streaming', async () => {
-  //   const mockNodeUrl = 'http://test-node:8001'
-  //   const mockJobId = 'test-job-id'
-  //   const mockConsumerAddress = '0x123'
-  //   const mockSignature = '0xabc'
-  //   const mockNonce = 123
-
-  //   const mockStream = new PassThrough()
-  //   const mockResponse = {
-  //     ok: true,
-  //     body: mockStream,
-  //     statusText: 'OK'
-  //   }
-
-  //   // Mock global fetch
-  //   const fetchStub = sandbox.stub().resolves(mockResponse)
-  //   global.fetch = fetchStub
-
-  //   // Start the log streaming
-  //   const logPromise = getComputeLogs(
-  //     mockNodeUrl,
-  //     mockJobId,
-  //     mockConsumerAddress,
-  //     mockNonce,
-  //     mockSignature,
-  //     outputChannel
-  //   )
-
-  //   // Simulate stream data
-  //   mockStream.write('Log line 1\n')
-  //   mockStream.write('Log line 2\n')
-  //   mockStream.end()
-
-  //   await logPromise
-
-  //   assert.ok(fetchStub.calledOnce)
-  //   assert.ok(
-  //     fetchStub.calledWith(
-  //       `${mockNodeUrl}/directCommand`,
-  //       sinon.match({
-  //         method: 'POST',
-  //         body: sinon.match.string
-  //       })
-  //     )
-  //   )
-  // })
-
   test('getComputeResult should handle successful result retrieval', async () => {
+    // Dynamically import the helpers module
+    const { getComputeResult } = await import('../helpers/compute')
+
     const mockNodeUrl = 'http://test-node:8001'
     const mockJobId = 'test-job-id'
-    const mockConsumerAddress = '0x123'
-    const mockSigner = new Wallet('0x' + '1'.repeat(64))
 
     const mockResponse = {
       data: {
-        result: 'Success',
-        output: 'Test output'
+        algorithm: {
+          results: [
+            {
+              filename: 'results.txt',
+              fileContent: 'Test results content'
+            }
+          ]
+        }
       }
     }
+
+    const mockSigner = new Wallet('0x' + '1'.repeat(64))
 
     sandbox.stub(axios, 'post').resolves(mockResponse)
 
-    const result = await getComputeResult(
+    const results = await getComputeResult(
       mockSigner,
       mockNodeUrl,
       mockJobId,
-      mockConsumerAddress
+      mockNodeUrl
     )
-
-    assert.deepStrictEqual(result, mockResponse.data)
+    assert.strictEqual(results.length, 1)
+    assert.strictEqual(results[0].filename, 'results.txt')
+    assert.strictEqual(results[0].fileContent, 'Test results content')
   })
 
-  test('saveResults should correctly save to file', async () => {
-    const mockResults = {
-      filename: 'test.json',
-      filesize: 123,
-      type: 'json',
-      index: 0,
-      content: 'Test results',
-      output: 'Test output'
-    }
-    const mockFolderPath = path.join(process.cwd(), 'test-results')
+  test('saveResults should save files to the specified directory', async () => {
+    // Dynamically import the helpers module
+    const { saveResults } = await import('../helpers/compute')
 
-    // Create a temporary directory for testing
-    if (!fs.existsSync(mockFolderPath)) {
-      await fs.promises.mkdir(mockFolderPath, { recursive: true })
-    }
-
-    try {
-      const filePath = await saveResults(mockResults, mockFolderPath)
-
-      // Verify file exists and content
-      const fileExists = fs.existsSync(filePath)
-      assert.ok(fileExists, 'Result file should exist')
-
-      const content = await fs.promises.readFile(filePath, 'utf8')
-      assert.strictEqual(content, JSON.stringify(mockResults, null, 2))
-
-      // Clean up
-      await fs.promises.unlink(filePath)
-      await fs.promises.rmdir(mockFolderPath)
-    } catch (error) {
-      // Clean up in case of failure
-      if (fs.existsSync(mockFolderPath)) {
-        await fs.promises.rmdir(mockFolderPath, { recursive: true })
+    const tempDir = await fs.promises.mkdtemp(path.join(__dirname, 'test-results-'))
+    const results = [
+      {
+        filename: 'test1.txt',
+        fileContent: 'Content 1'
+      },
+      {
+        filename: 'test2.txt',
+        fileContent: 'Content 2'
       }
-      throw error
-    }
+    ]
+
+    const writeFileStub = sandbox.stub(fs.promises, 'writeFile').resolves()
+    const savedPaths = await saveResults(results, tempDir)
+
+    assert.strictEqual(savedPaths.length, 2)
+    assert.ok(writeFileStub.calledTwice)
+    assert.ok(savedPaths[0].endsWith('test1.txt'))
+    assert.ok(savedPaths[1].endsWith('test2.txt'))
+
+    // Clean up
+    await fs.promises.rm(tempDir, { recursive: true, force: true })
   })
-
-  // test('getComputeLogs should handle failed response', async () => {
-  //   const mockNodeUrl = 'http://test-node:8001'
-  //   const mockJobId = 'test-job-id'
-
-  //   const fetchStub = sandbox.stub().resolves({
-  //     ok: false,
-  //     statusText: 'Not Found'
-  //   }) as sinon.SinonStub
-  //   global.fetch = fetchStub
-
-  //   await getComputeLogs(mockNodeUrl, mockJobId, '0x123', 123, '0xabc', outputChannel)
-
-  //   assert.ok(fetchStub.calledOnce)
-  // })
 })
