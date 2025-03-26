@@ -4,6 +4,7 @@
   "displayName": "Ocean Nodes VS Code Extension",
   "description": "Easily publish assets and test your algorithms with the official Ocean Protocol vscode extension.",
   "version": "0.0.3",
+  "type": "module",
   "engines": {
     "vscode": "^1.96.0"
   },
