@@ -29,32 +29,8 @@ def apply_filters(image_url, filter):
 
     return filtered_img
 
-def get_algorithm_consumer_params():
-    algorithm_did = os.getenv("TRANSFORMATION_DID", None)
-
-    if not algorithm_did:
-        print("No algorithm DID found in environment. Aborting.")
-        return
-
-    with open(f"/data/ddos/{algorithm_did}", "r") as algo_struc:
-        algo_data = json.load(algo_struc)
-
-        return algo_data['metadata']['algorithm']['consumerParameters']
-
-
-
 if __name__ == "__main__":
-    # Get consumer parameters
-    consumer_params = get_algorithm_consumer_params()
-    # print(f"data for consumer parameters: {consumer_params}")
-
-    # for cp in consumer_params:
-    #     if cp['name'] == "image_url":
-    #         image_url = cp['default']
-    #     if cp['name'] == "image_filter":
-    #         filter = cp['default']
-
-    filtered_img = apply_filters(image_url='https://en.wikipedia.org/wiki/Lenna#/media/File:Lenna_(test_image).png', filter='blur')
+    filtered_img = apply_filters(image_url='https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png', filter='blur')
     filename = "/data/outputs/filtered_image.png"
     filtered_img.save(filename)
     print(f"Filters applied and images saved successfully as {filename}")

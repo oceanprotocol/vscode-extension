@@ -14,9 +14,12 @@ async function getFilename() {
   const contentDisposition = response.headers.get('Content-Disposition')
 
   if (contentDisposition && contentDisposition.includes('filename=')) {
+    console.log(
+      `file name: ${contentDisposition.split('filename=')[1].replace(/['"]/g, '')}`
+    )
     return contentDisposition.split('filename=')[1].replace(/['"]/g, '')
   }
-
+  console.log(`file name: ${url.split('/').pop().split('?')[0]}`)
   // Fallback: Extract from URL if Content-Disposition header is missing
   return url.split('/').pop().split('?')[0]
 }

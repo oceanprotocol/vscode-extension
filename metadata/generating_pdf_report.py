@@ -16,7 +16,7 @@ LIST_TABLE_STYLE = TableStyle([
 
 def extract_results():
     # For reference, check https://github.com/oceanprotocol/stock-api
-    stock_data = requests.get('https://stock-api.oceanprotocol.com/stock/stock.json')
+    stock_data = requests.get('https://stock-api.oceanprotocol.com/stock/stock.json').json()
 
     return stock_data["results"]
 
