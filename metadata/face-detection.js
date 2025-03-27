@@ -43,7 +43,58 @@ async function getOriginalFrames() {
   })
 }
 
-async function loadModels() {
+async function downloadModels(directory) {
+  const folderPath = path.join(directory, 'models')
+  const urls = [
+    'https://github.com/oceanprotocol/c2d-examples/raw/refs/heads/main/face-detection/models/face_expression_model-shard1',
+    'https://github.com/oceanprotocol/c2d-examples/raw/refs/heads/main/face-detection/models/face_expression_model-weights_manifest.json',
+    'https://github.com/oceanprotocol/c2d-examples/raw/refs/heads/main/face-detection/models/face_landmark_68_model-shard1',
+    'https://github.com/oceanprotocol/c2d-examples/raw/refs/heads/main/face-detection/models/face_landmark_68_model-weights_manifest.json',
+    'https://github.com/oceanprotocol/c2d-examples/raw/refs/heads/main/face-detection/models/face_recognition_model-shard1',
+    'https://github.com/oceanprotocol/c2d-examples/raw/refs/heads/main/face-detection/models/face_recognition_model-shard2',
+    'https://github.com/oceanprotocol/c2d-examples/raw/refs/heads/main/face-detection/models/face_recognition_model-weights_manifest.json',
+    'https://github.com/oceanprotocol/c2d-examples/raw/refs/heads/main/face-detection/models/tiny_face_detector_model-shard1',
+    'https://github.com/oceanprotocol/c2d-examples/raw/refs/heads/main/face-detection/models/tiny_face_detector_model-weights_manifest.json'
+  ]
+  // Ensure the folder exists
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true })
+  }
+
+  // Function to download a file
+  const downloadFile = async (url) => {
+    try {
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(
+          `Failed to download ${url}: ${response.status} ${response.statusText}`
+        )
+      }
+
+      const fileName = path.basename(new URL(url).pathname)
+      const filePath = path.join(folderPath, fileName)
+
+      const fileStream = fs.createWriteStream(filePath)
+      return new Promise((resolve, reject) => {
+        response.body.pipe(fileStream)
+        response.body.on('error', reject)
+        fileStream.on('finish', () => {
+          console.log(`Downloaded: ${fileName}`)
+          resolve()
+        })
+      })
+    } catch (error) {
+      console.error(`Error downloading ${url}:`, error)
+    }
+  }
+
+  // Download all files concurrently
+  await Promise.all(urls.map(downloadFile))
+  console.log('All downloads completed!')
+}
+
+async function loadModels(directory) {
+  await downloadModels(directory)
   await faceapi.nets.tinyFaceDetector.loadFromDisk('models')
   await faceapi.nets.faceLandmark68Net.loadFromDisk('models')
   await faceapi.nets.faceRecognitionNet.loadFromDisk('models')
@@ -99,7 +150,7 @@ async function main() {
     fs.mkdirSync(outputDirectoryForProcessedFrames)
   }
 
-  await loadModels()
+  await loadModels(inputDirectory)
 
   await processImages(inputDirectory, outputDirectoryForProcessedFrames)
 
