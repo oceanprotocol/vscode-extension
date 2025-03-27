@@ -9,6 +9,7 @@ import {
   delay,
   getComputeLogs,
   getComputeResult,
+  saveOutput,
   saveResults
 } from './helpers/compute'
 
@@ -160,14 +161,14 @@ export async function activate(context: vscode.ExtensionContext) {
               if (status.statusText === 'Job finished') {
                 try {
                   // First request (index 0)
-                  console.log('Generating signature for first result...')
-                  progress.report({ message: 'Generating signature for first result...' })
-                  outputChannel.appendLine('Generating signature for first result...')
+                  console.log('Generating signature for logs request...')
+                  progress.report({ message: 'Generating signature for logs request...' })
+                  outputChannel.appendLine('Generating signature for logs request...')
 
                   // Retrieve first result (index 0)
                   progress.report({ message: 'Retrieving compute results (1/2)...' })
-                  outputChannel.appendLine('Retrieving first result...')
-                  const results1 = await getComputeResult(
+                  outputChannel.appendLine('Retrieving logs...')
+                  const logResult = await getComputeResult(
                     signer,
                     nodeUrl,
                     jobId,
@@ -179,36 +180,46 @@ export async function activate(context: vscode.ExtensionContext) {
                   progress.report({ message: 'Saving first result...' })
                   outputChannel.appendLine('Saving first result...')
                   console.log('Saving first result to folder path:', resultsFolderPath)
-                  const filePath1 = await saveResults(
-                    results1,
+                  const filePathLogs = await saveResults(
+                    logResult,
                     resultsFolderPath,
-                    'result1'
+                    'result-logs'
                   )
+                  outputChannel.appendLine(`Logs saved to: ${filePathLogs}`)
 
                   let filePath2: string | undefined
 
                   try {
                     // Second request (index 1) with new nonce and signature
-                    console.log('Generating signature for second result...')
                     progress.report({
-                      message: 'Generating signature for second result...'
+                      message: 'Requesting the output result...'
                     })
-                    outputChannel.appendLine('Generating signature for second result...')
+                    outputChannel.appendLine('Requesting the output result...')
+                    const outputResult = await getComputeResult(
+                      signer,
+                      nodeUrl,
+                      jobId,
+                      signer.address,
+                      1
+                    )
+                    const filePathOutput = await saveOutput(
+                      outputResult,
+                      resultsFolderPath,
+                      'result-output'
+                    )
+                    outputChannel.appendLine(`Output saved to: ${filePathOutput}`)
+                    vscode.window.showInformationMessage(
+                      'Compute job completed successfully!'
+                    )
+                    outputChannel.appendLine('Compute job completed successfully!')
                   } catch (error) {
                     console.log('No second result available:', error)
-                    outputChannel.appendLine('No second result available')
+                    outputChannel.appendLine('Error saving the output result')
+                    vscode.window.showErrorMessage('Error saving the output result')
                   }
 
-                  // Show success message with available results
-                  const successMessage = filePath2
-                    ? `Compute job completed successfully! Results saved to:\n${filePath1}\n${filePath2}`
-                    : `Compute job completed successfully! Result saved to:\n${filePath1}`
-
-                  vscode.window.showInformationMessage(successMessage)
-                  outputChannel.appendLine(successMessage)
-
-                  // Open files in editor
-                  const uri1 = vscode.Uri.file(filePath1)
+                  // Open log files in editor
+                  const uri1 = vscode.Uri.file(filePathLogs)
                   const document1 = await vscode.workspace.openTextDocument(uri1)
                   await vscode.window.showTextDocument(document1, { preview: false })
 
