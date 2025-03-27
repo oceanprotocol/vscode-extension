@@ -9,6 +9,7 @@ import {
   delay,
   getComputeLogs,
   getComputeResult,
+  saveOutput,
   saveResults
 } from './helpers/compute'
 
@@ -201,7 +202,7 @@ export async function activate(context: vscode.ExtensionContext) {
                       signer.address,
                       1
                     )
-                    const filePathOutput = await saveResults(
+                    const filePathOutput = await saveOutput(
                       outputResult,
                       resultsFolderPath,
                       'result-output'
