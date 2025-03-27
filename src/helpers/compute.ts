@@ -326,12 +326,12 @@ export async function saveOutput(
     await fs.promises.mkdir(resultsDir, { recursive: true })
 
     // Convert string to Buffer if needed
-    const tarContent =
-      typeof content === 'string' ? Buffer.from(content, 'binary') : content
+    // const tarContent =
+    //   typeof content === 'string' ? Buffer.from(content, 'binary') : content
 
-    // Save the tar file
-    await fs.promises.writeFile(filePath, new Uint8Array(tarContent))
-    console.log(`Tar file saved to: ${filePath}`)
+    // // Save the tar file
+    // await fs.promises.writeFile(filePath, new Uint8Array(tarContent))
+    // console.log(`Tar file saved to: ${filePath}`)
 
     // Create extraction directory
     const extractDir = path.join(destinationFolder, `${prefix}_${timestamp}_extracted`)
