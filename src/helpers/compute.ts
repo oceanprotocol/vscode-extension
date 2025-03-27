@@ -5,8 +5,7 @@ import axios from 'axios'
 import path from 'path'
 import { PassThrough } from 'stream'
 import * as tar from 'tar'
-import { generateNonceSignature } from '../helpers/signature'
-import { generateOceanSignature } from '../helpers/signature'
+import { generateSignature } from '../helpers/signature'
 
 interface ComputeStatus {
   owner: string
@@ -80,7 +79,7 @@ export async function computeStart(
 
     // Generate a proper signature using our existing function
     // We use a different jobId for starting compute (empty string)
-    const signatureResult = await generateNonceSignature(nonce, signer)
+    const signatureResult = await generateSignature(String(nonce), signer)
 
     console.log('Generated signature:', signatureResult.signature)
     console.log('Signature valid:', signatureResult.isValid)
@@ -102,9 +101,9 @@ export async function computeStart(
 
     console.log('Sending compute request with body:', requestBody)
 
-    const response = await axios.post(`${nodeUrl}/directCommand`, requestBody, {
-      timeout: 60000
-    })
+    const response = await axios.post(`${nodeUrl}/directCommand`, requestBody)
+
+    console.log('Free Start Compute response: ' + response)
 
     console.log('Free Start Compute response: ' + JSON.stringify(response.data))
 
@@ -162,13 +161,8 @@ export async function getComputeResult(
     console.log('Using nonce:', nonce)
 
     // Generate the signature using the Ocean Protocol format
-    const signatureResult = await generateOceanSignature({
-      signer,
-      consumerAddress,
-      jobId,
-      index,
-      nonce
-    })
+    const message = consumerAddress + jobId + index.toString() + nonce
+    const signatureResult = await generateSignature(message, signer)
 
     console.log('Generated result signature:', signatureResult.signature)
     console.log('Result signature valid:', signatureResult.isValid)
@@ -245,12 +239,22 @@ export async function getComputeLogs(
   nodeUrl: string,
   jobId: string,
   consumerAddress: string,
-  nonce: number,
-  signature: string,
-  outputChannel: vscode.OutputChannel
+  outputChannel: vscode.OutputChannel,
+  signer: Signer
 ): Promise<void> {
   try {
     outputChannel.show(true)
+
+    // Generate a unique nonce for this request
+    const nonce = Date.now()
+    console.log('Using nonce:', nonce)
+
+    // Generate the signature using the Ocean Protocol format
+    const message = consumerAddress + jobId + nonce
+    const signatureResult = await generateSignature(message, signer)
+
+    console.log('Generated result signature:', signatureResult.signature)
+    console.log('Result signature valid:', signatureResult.isValid)
 
     const response = await fetch(`${nodeUrl}/directCommand`, {
       method: 'POST',
@@ -262,7 +266,7 @@ export async function getComputeLogs(
         jobId,
         consumerAddress,
         nonce,
-        signature
+        signature: signatureResult.signature
       })
     })
 

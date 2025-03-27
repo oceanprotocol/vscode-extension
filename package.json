@@ -1,9 +1,9 @@
 {
   "name": "ocean-protocol-vscode-extension",
   "publisher": "OceanProtocol",
-  "displayName": "Ocean Protocol",
+  "displayName": "Ocean Nodes VS Code Extension",
   "description": "Easily publish assets and test your algorithms with the official Ocean Protocol vscode extension.",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -58,7 +58,8 @@
     "test": "vscode-test --extensionDevelopmentPath=. --extensionTestsPath=out/test/extension.test.js",
     "pretest": "npm run compile-tests",
     "posttest": "npm run lint",
-    "build": "npx vsce package"
+    "build": "npx vsce package",
+    "publish": "npx vsce publish"
   },
   "devDependencies": {
     "@types/chai": "^5.0.0",
@@ -99,7 +100,7 @@
     "@libp2p/websockets": "^9.0.6",
     "@multiformats/multiaddr": "^12.3.1",
     "@oceanprotocol/lib": "^3.4.6",
-    "axios": "^1.7.7",
+    "axios": "^1.8.2",
     "chai": "^4.3.10",
     "cross-fetch": "^4.0.0",
     "crypto": "^1.0.1",

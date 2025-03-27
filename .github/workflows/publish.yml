@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.16.0'
+
+      # Only run publish step when pushing to main (not on PRs)
+      - name: Publish to VS Code Marketplace
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          npm ci
+          # Extract version from package.json to use in the vsix filename
+          VERSION=$(node -p "require('./package.json').version")
+          npm run build
+          npx vsce publish -p ${{ secrets.VSCE_PAT }}
