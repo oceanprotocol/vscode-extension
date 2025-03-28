@@ -102,6 +102,10 @@ Refer to the project structure and available scripts for local development. Cont
 4. Open in VSCode:
    - Press F5 to start debugging. This will open a new VSCode window with the extension loaded.
 
+### Publishing the Extension
+
+For the CI to publish the extension, you just need to ensure that the version number is bumped in package.json on main and then the rest is automatic via the GitHub CI.
+
 ## License
 
 This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
