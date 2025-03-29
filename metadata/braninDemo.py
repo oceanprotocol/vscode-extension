@@ -2,12 +2,11 @@
 # Copyright 2022 Ocean Protocol Foundation
 # SPDX-License-Identifier: Apache-2.0
 #
-import json
-import os
 import pickle
 import sys
 
 import arff
+import requests
 import matplotlib
 import numpy
 from matplotlib import pyplot
@@ -35,25 +34,21 @@ def create_mesh(npoints):
     return X0, X1, Z
 
 
-def get_input(local=False):
-    if local:
-        print("Reading local file branin.arff.")
+def get_input(dataset_url):
+    response = requests.get(dataset_url, stream=True)  # Stream to handle large files
+    response.raise_for_status()  # Check for errors
 
-        return "branin.arff"
+    # Extract filename from URL
+    filename = dataset_url.split('/')[-1].split('?')[0]
 
-    dids = os.getenv("DIDS", None)
+    # Save the file locally
+    with open(filename, 'wb') as file:
+        for chunk in response.iter_content(chunk_size=8192):  
+            file.write(chunk)
 
-    if not dids:
-        print("No DIDs found in environment. Aborting.")
-        return
+    print(f"File downloaded as: {filename}")
 
-    dids = json.loads(dids)
-
-    for did in dids:
-        filename = f"data/inputs/{did}/0"  # 0 for metadata service
-        print(f"Reading asset file {filename}.")
-
-        return filename
+    return filename  
 
 
 def plot(Zhat, npoints):
@@ -69,7 +64,7 @@ def plot(Zhat, npoints):
 def run_gpr(local=False):
     npoints = 15
 
-    filename = get_input(local)
+    filename = get_input('https://raw.githubusercontent.com/oceanprotocol/c2d-examples/refs/heads/main/branin_and_gpr/branin.arff')
     if not filename:
         print("Could not retrieve filename.")
         return

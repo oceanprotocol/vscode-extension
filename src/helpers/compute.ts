@@ -329,7 +329,7 @@ export async function saveOutput(
     const tarContent =
       typeof content === 'string' ? Buffer.from(content, 'binary') : content
 
-    // Save the tar file
+    // // Save the tar file
     await fs.promises.writeFile(filePath, new Uint8Array(tarContent))
     console.log(`Tar file saved to: ${filePath}`)
 
