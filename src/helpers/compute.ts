@@ -45,6 +45,7 @@ export async function computeStart(
   dockerImage?: string,
   dockerTag?: string
 ): Promise<ComputeResponse> {
+  console.log(`algorithmContent: ${algorithmContent}`)
   console.log('Starting free compute job using provider: ', nodeUrl)
   console.log('Docker image:', dockerImage)
   console.log('Docker tag:', dockerTag)
@@ -52,9 +53,7 @@ export async function computeStart(
 
   // Fetch compute environments first
   try {
-    const envResponse = await axios.get(`${nodeUrl}/api/services/computeEnvironments`, {
-      timeout: 60000
-    })
+    const envResponse = await axios.get(`${nodeUrl}/api/services/computeEnvironments`)
     console.log('Environment response:', envResponse)
     if (!envResponse.data || !envResponse.data.length) {
       throw new Error('No compute environments available')
@@ -131,16 +130,10 @@ export async function checkComputeStatus(
   nodeUrl: string,
   jobId: string
 ): Promise<ComputeStatus> {
-  const response = await axios.post(
-    `${nodeUrl}/directCommand`,
-    {
-      command: 'getComputeStatus',
-      jobId
-    },
-    {
-      timeout: 60000
-    }
-  )
+  const response = await axios.post(`${nodeUrl}/directCommand`, {
+    command: 'getComputeStatus',
+    jobId
+  })
   return response.data[0]
 }
 
@@ -167,23 +160,16 @@ export async function getComputeResult(
     console.log('Generated result signature:', signatureResult.signature)
     console.log('Result signature valid:', signatureResult.isValid)
 
-    const response = await axios.post(
-      `${nodeUrl}/directCommand`,
-      {
-        command: 'getComputeResult',
-        jobId,
-        consumerAddress,
-        signature: signatureResult.signature,
-        index,
-        nonce
-      },
-      {
-        timeout: 60000
-      }
-    )
+    const response = await axios.post(`${nodeUrl}/directCommand`, {
+      command: 'getComputeResult',
+      jobId,
+      consumerAddress,
+      signature: signatureResult.signature,
+      index,
+      nonce
+    })
 
     console.log('Compute result response:', response)
-    console.log('Compute result data:', response.data)
     return response.data
   } catch (error) {
     console.error('Error getting compute result:', error)
@@ -312,7 +298,6 @@ export async function saveOutput(
   prefix: string = 'output'
 ): Promise<string> {
   try {
-    console.log('Content:', content)
     // Use provided destination folder or default to './results'
     const resultsDir = destinationFolder || path.join(process.cwd(), 'results')
 
