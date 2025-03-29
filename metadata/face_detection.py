@@ -1,6 +1,7 @@
 import cv2
 import requests
 import os
+import subprocess
 
 
 # Function to download video from URL
@@ -39,13 +40,32 @@ def detect_faces(video_path, output_path):
             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
         out.write(frame)
-        cv2.imshow('Face Detection', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
 
     cap.release()
     out.release()
     cv2.destroyAllWindows()
+    finalize_video(output_path)
+
+def finalize_video(output_path):
+    # Generate the output filename for the finalized video
+    finalized_output_path = output_path.replace(".mp4", "_final.mp4")
+    
+    # Use ffmpeg to move the moov atom to the beginning (faststart)
+    command = [
+        "ffmpeg",
+        "-i", output_path,
+        "-c", "copy",
+        "-movflags", "faststart",  # Ensure moov atom is at the start of the file
+        finalized_output_path
+    ]
+    
+    # Run the command
+    subprocess.run(command, check=True)
+    
+    # Optionally, delete the original file if it's no longer needed
+    os.remove(output_path)
+
+    print(f"Finalized video saved as {finalized_output_path}")
 
 
 if __name__ == "__main__":

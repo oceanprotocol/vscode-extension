@@ -4,7 +4,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'oceanProtocolExplorer'
   private nodeUrls = require('./node-urls.json')
   // Get a random node URL from the list
-  private randomNodeUrl = this.nodeUrls[Math.floor(Math.random() * this.nodeUrls.length)]
+  // private randomNodeUrl = this.nodeUrls[Math.floor(Math.random() * this.nodeUrls.length)]
+  private randomNodeUrl = this.nodeUrls[0]
 
   private _view?: vscode.WebviewView
 
