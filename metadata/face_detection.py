@@ -41,7 +41,7 @@ def detect_faces(image_dir, output_dir):
         img = cv2.imread(img_path)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30))
 
         for (x, y, w, h) in faces:
             cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
@@ -51,15 +51,26 @@ def detect_faces(image_dir, output_dir):
     
     print(f"✅ Processed {len(images)} frames with face detection.")
 
-def create_video_from_images(image_dir, output_video):
-    command = [
-    "ffmpeg",  "-i", "processed_frames/%04d.png",
-     "-vf", "scale=1280:720", "-vcodec", "libx264", "-crf", "23", "-preset", "fast", "-x264opts", "keyint=30", "-pix_fmt", "yuv420p", "-f", "mp4", "-c:a", "aac", "-movflags", "faststart", "-an", output_video,
-     "-loglevel", "debug"
-    ]
-    subprocess.run(command, check=True)
-   
-    print(f"✅Final video saved at: {output_video}")
+    first_frame = cv2.imread(images[0])
+    height, width, _ = first_frame.shape
+
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    video_writer = cv2.VideoWriter("/data/outputs/output_faces.mp4", fourcc, 25, (width, height))
+
+    for image in images:
+        frame_path = os.path.join(output_dir, os.path.basename(image))
+        frame = cv2.imread(frame_path)
+        video_writer.write(frame)
+
+    # Release video writer
+    video_writer.release()
+    print(f"✅ Final video saved at: /data/outputs/output_faces.mp4")
+
+    camera = cv2.VideoCapture("/data/outputs/output_faces.mp4")
+    print(camera.isOpened())
+    print(camera.read())
+
+    cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
@@ -72,7 +83,6 @@ if __name__ == "__main__":
     download_video(video_url, video_path)
     extract_frames(video_path, frames_dir)
     detect_faces(frames_dir, processed_frames_dir)
-    create_video_from_images(processed_frames_dir, output_path)
 
     # Cleanup downloaded video
     os.remove(video_path)
