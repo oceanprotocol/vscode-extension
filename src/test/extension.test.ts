@@ -234,7 +234,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     }
 
     try {
-      const filePath = await saveResults(mockResults, mockFolderPath)
+      const filePath = await saveResults(JSON.stringify(mockResults), mockFolderPath)
 
       // Verify file exists and content
       const fileExists = fs.existsSync(filePath)
