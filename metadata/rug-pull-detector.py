@@ -1,83 +1,134 @@
-import requests
-from datetime import datetime
+from web3 import Web3
+uniswap_v2_factory_abi = [  # Minimal ABI for Factory contract
+    {
+        "constant": True,
+        "inputs": [{"name": "tokenA", "type": "address"}, {"name": "tokenB", "type": "address"}],
+        "name": "getPair",
+        "outputs": [{"name": "", "type": "address"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "allPairsLength",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "constant": True,
+        "inputs": [{"name": "uint", "type": "uint256"}],
+        "name": "allPairs",
+        "outputs": [{"name": "pair", "type": "address"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function"
+    }
+]
 
-# CoinGecko API endpoint for token details
-COINGECKO_API_URL = "https://api.coingecko.com/api/v3/"
+pair_abi = [
+    {"constant": True, "inputs": [], "name": "token0", "outputs": [{"name": "", "type": "address"}],
+     "stateMutability": "view", "type": "function"},
+    {"constant": True, "inputs": [], "name": "token1", "outputs": [{"name": "", "type": "address"}],
+     "stateMutability": "view", "type": "function"},
+    {"constant": True, "inputs": [], "name": "totalSupply", "outputs": [{"name": "", "type": "uint256"}],
+     "stateMutability": "view", "type": "function"},
+    {"constant": True, "inputs": [], "name": "getReserves",
+     "outputs": [{"name": "reserve0", "type": "uint112"}, {"name": "reserve1", "type": "uint112"},
+                 {"name": "blockTimestampLast", "type": "uint32"}], "stateMutability": "view", "type": "function"}
+]
+
+token_abi = [
+    {"constant": True, "inputs": [], "name": "name", "outputs": [{"name": "", "type": "string"}],
+     "stateMutability": "view", "type": "function"},
+    {"constant": True, "inputs": [], "name": "symbol", "outputs": [{"name": "", "type": "string"}],
+     "stateMutability": "view", "type": "function"},
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "totalSupply",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]
+
+BASE_RPC_URL = "https://mainnet.base.org"  # Base RPC URL
+web3 = Web3(Web3.HTTPProvider(BASE_RPC_URL))
+
+# Ensure the connection to the Base chain
+if web3.is_connected():
+    print("Connected to Base Chain")
+
+# Example Uniswap V2 Factory contract address (replace with actual on Base)
+uniswap_v2_factory_address = "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6"  # Uniswap V2 factory (Ethereum mainnet example)
+
+# Create contract instance for the Uniswap V2 Factory
+factory_contract = web3.eth.contract(address=web3.to_checksum_address(uniswap_v2_factory_address),
+                                     abi=uniswap_v2_factory_abi)
+
+# Fetch the pair length
+all_pairs_length = factory_contract.functions.allPairsLength().call()
+print(f"All pairs length: {all_pairs_length}")
 
 
-# Function to fetch token details by ID
-def get_token_details(token_id):
-    url = f"{COINGECKO_API_URL}coins/{token_id}"
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        return response.json()
-    else:
-        print(f"Error fetching token details for {token_id}. Status Code: {response.status_code}")
-        return None
-
-
-# Function to fetch token pairs from a specific liquidity pool (example: Uniswap or PancakeSwap)
-def get_liquidity_pairs():
-    # Example of fetching top 100 tokens from CoinGecko for liquidity pool pairs
-    url = f"{COINGECKO_API_URL}coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1"
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        tokens = response.json()
-        return tokens
-    else:
-        print(f"Error fetching token pairs. Status Code: {response.status_code}")
-        return None
-
-
-# Function to calculate the token age based on the creation date
-def calculate_token_age(launch_date):
-    if not launch_date or launch_date == 'N/A':
-        return "N/A"
+def calculate_market_cap(token_contract, token_symbol, reserve0, reserve1):
     try:
-        # Try parsing with the expected format (including milliseconds)
-        launch_date = datetime.strptime(launch_date, "%Y-%m-%dT%H:%M:%S.%fZ")
-    except (ValueError, TypeError):
-        try:
-            # Fallback to parsing if the date is in the format "YYYY-MM-DD"
-            launch_date = datetime.strptime(launch_date, "%Y-%m-%d")
-        except ValueError:
-            # If the date is still not parsable, return N/A
-            return "N/A"
+        # Fetch total supply
+        total_supply = token_contract.functions.totalSupply().call()
 
-    # Calculate the age if the launch_date is successfully parsed
-    current_date = datetime.now()
-    age = current_date - launch_date
-    return age.days
+        # Determine price based on liquidity reserves
+        price_per_token = reserve1 / reserve0 if reserve0 > 0 else 0
 
+        # Calculate market cap
+        market_cap = total_supply * price_per_token
 
-# Main function to fetch and display token data
-def display_token_info():
-    tokens = get_liquidity_pairs()
-
-    if tokens:
-        for token in tokens:
-            token_id = token['id']
-            details = get_token_details(token_id)
-
-            if details:
-                name = details.get("name", "N/A")
-                symbol = details.get("symbol", "N/A")
-                launch_date = details.get("genesis_date", "N/A")
-                mintable = details.get("is_mintable", "N/A")
-                liquidity_pool_pair = f"{token['symbol']}-USD"  # Assuming we get liquidity pair as symbol-USD
-
-                token_age = calculate_token_age(launch_date) if launch_date != "N/A" else "N/A"
-
-                print(f"Token Name: {name}")
-                print(f"Token Symbol: {symbol}")
-                print(f"Liquidity Pool Pair: {liquidity_pool_pair}")
-                print(f"Token Age: {token_age} days")
-                print(f"Mintable: {mintable}")
-                print("-" * 40)
+        print(f"💰 {token_symbol} Market Cap: ${market_cap:,.2f}")
+        return market_cap
+    except Exception as e:
+        print(f"Error calculating market cap: {e}")
 
 
-# Run the script
-if __name__ == "__main__":
-    display_token_info()
+for i in range(all_pairs_length - 10, all_pairs_length):
+    pair_address = factory_contract.functions.allPairs(i).call()
+    print(f"pair address {i}: {pair_address}")
+    pair_contract = web3.eth.contract(address=pair_address, abi=pair_abi)
+
+    # Get total supply of LP tokens
+    total_lp_tokens = pair_contract.functions.totalSupply().call()
+    print(f"Total Supply of LP Tokens: {total_lp_tokens}")
+
+    # Get token addresses
+    token_0 = pair_contract.functions.token0().call()
+    token_1 = pair_contract.functions.token1().call()
+    token0_contract = web3.eth.contract(address=token_0, abi=token_abi)
+    token1_contract = web3.eth.contract(address=token_1, abi=token_abi)
+
+    # Get token names and symbols
+    token0_name = token0_contract.functions.name().call()
+    token0_symbol = token0_contract.functions.symbol().call()
+    token1_name = token1_contract.functions.name().call()
+    token1_symbol = token1_contract.functions.symbol().call()
+    print(f"Token 0: {token0_name} ({token0_symbol}) for pair {pair_address}")
+    print(f"Token 1: {token1_name} ({token1_symbol}) for pair {pair_address}")
+
+    # Fetch liquidity reserves
+    liquidity_status = ''
+    reserves = pair_contract.functions.getReserves().call()
+    reserve0, reserve1 = reserves[0], reserves[1]
+
+    print(f"Liquidity Reserves: {reserve0} {token0_symbol}, {reserve1} {token1_symbol}")
+
+    if reserve0 == 0 and reserve1 == 0:
+        liquidity_status = '❌ NOT LOCKED'
+    else:
+        liquidity_status = '✅ LOCKED'
+    print(f"Liquidity status: {liquidity_status}")
+
+    # Calculate market cap
+    market_cap_0 = calculate_market_cap(token_contract=token0_contract, token_symbol=token0_symbol, reserve0=reserve0, reserve1=reserve1)
+    market_cap_1 = calculate_market_cap(token_contract=token1_contract, token_symbol=token1_symbol, reserve0=reserve0, reserve1=reserve1)
+    print(40 * '-')
