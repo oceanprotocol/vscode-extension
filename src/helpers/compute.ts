@@ -160,30 +160,20 @@ export async function getComputeResult(
     console.log('Generated result signature:', signatureResult.signature)
     console.log('Result signature valid:', signatureResult.isValid)
 
-    const response = await fetch(`${nodeUrl}/directCommand`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
+    const response = await axios.post(
+      `${nodeUrl}/directCommand`,
+      {
         command: 'getComputeResult',
         jobId,
         consumerAddress,
         signature: signatureResult.signature,
         index,
         nonce
-      })
-    })
+      },
+      { responseType: 'arraybuffer' }
+    )
 
-    if (!response.ok) {
-      throw new Error(`Failed to get compute result: ${response.statusText}`)
-    }
-
-    const blob = await response.blob()
-    const arrayBuffer = await blob.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-
-    return buffer
+    return response.data
   } catch (error) {
     console.error('Error getting compute result:', error)
     throw error
