@@ -241,7 +241,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
       assert.ok(fileExists, 'Result file should exist')
 
       const content = await fs.promises.readFile(filePath, 'utf8')
-      assert.strictEqual(content, JSON.stringify(mockResults, null, 2))
+      assert.strictEqual(content, JSON.stringify(mockResults))
 
       // Clean up
       await fs.promises.unlink(filePath)
