@@ -160,17 +160,30 @@ export async function getComputeResult(
     console.log('Generated result signature:', signatureResult.signature)
     console.log('Result signature valid:', signatureResult.isValid)
 
-    const response = await axios.post(`${nodeUrl}/directCommand`, {
-      command: 'getComputeResult',
-      jobId,
-      consumerAddress,
-      signature: signatureResult.signature,
-      index,
-      nonce
+    const response = await fetch(`${nodeUrl}/directCommand`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        command: 'getComputeResult',
+        jobId,
+        consumerAddress,
+        signature: signatureResult.signature,
+        index,
+        nonce
+      })
     })
 
-    console.log('Compute result response:', response)
-    return response.data
+    if (!response.ok) {
+      throw new Error(`Failed to get compute result: ${response.statusText}`)
+    }
+
+    const blob = await response.blob()
+    const arrayBuffer = await blob.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    return buffer
   } catch (error) {
     console.error('Error getting compute result:', error)
     throw error
@@ -198,14 +211,8 @@ export async function saveResults(
 
     console.log('Saving results to:', filePath)
 
-    // Format the results string to handle new lines properly
-    const formattedResults =
-      typeof results === 'string'
-        ? results.replace(/\\n/g, '\n')
-        : JSON.stringify(results, null, 2)
-
     // Write the file
-    await fs.promises.writeFile(filePath, formattedResults, 'utf-8')
+    await fs.promises.writeFile(filePath, results, 'utf-8')
 
     // Verify file was created
     if (!fs.existsSync(filePath)) {
