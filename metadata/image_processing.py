@@ -1,5 +1,3 @@
-import os
-import json
 import requests
 from io import BytesIO
 from PIL import Image, ImageFilter
@@ -10,9 +8,14 @@ def apply_filters(image_url, filter):
         print("Filter is not provided.")
         return
     response = requests.get(image_url)
-    img = Image.open(BytesIO(response.content))
-    filtered_img = None
 
+    if response.status_code == 200:
+        img = Image.open(BytesIO(response.content))
+        img.show()
+    else:
+        print(f"Failed to fetch image: {response.status_code}")
+        print(response.text[:500])
+    filtered_img = None
     # Apply filter
     if filter == "blur":
         blurred_img = img.filter(ImageFilter.GaussianBlur(radius=5))
@@ -30,7 +33,7 @@ def apply_filters(image_url, filter):
     return filtered_img
 
 if __name__ == "__main__":
-    filtered_img = apply_filters(image_url='https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png', filter='blur')
+    filtered_img = apply_filters(image_url='https://raw.githubusercontent.com/mikolalysenko/lena/master/lena.png', filter='blur')
     filename = "/data/outputs/filtered_image.png"
     filtered_img.save(filename)
     print(f"Filters applied and images saved successfully as {filename}")
