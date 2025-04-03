@@ -45,6 +45,7 @@ export async function computeStart(
   dockerImage?: string,
   dockerTag?: string
 ): Promise<ComputeResponse> {
+  console.log(`algorithmContent: ${algorithmContent}`)
   console.log('Starting free compute job using provider: ', nodeUrl)
   console.log('Docker image:', dockerImage)
   console.log('Docker tag:', dockerTag)
@@ -52,9 +53,7 @@ export async function computeStart(
 
   // Fetch compute environments first
   try {
-    const envResponse = await axios.get(`${nodeUrl}/api/services/computeEnvironments`, {
-      timeout: 60000
-    })
+    const envResponse = await axios.get(`${nodeUrl}/api/services/computeEnvironments`)
     console.log('Environment response:', envResponse)
     if (!envResponse.data || !envResponse.data.length) {
       throw new Error('No compute environments available')
@@ -131,16 +130,10 @@ export async function checkComputeStatus(
   nodeUrl: string,
   jobId: string
 ): Promise<ComputeStatus> {
-  const response = await axios.post(
-    `${nodeUrl}/directCommand`,
-    {
-      command: 'getComputeStatus',
-      jobId
-    },
-    {
-      timeout: 60000
-    }
-  )
+  const response = await axios.post(`${nodeUrl}/directCommand`, {
+    command: 'getComputeStatus',
+    jobId
+  })
   return response.data[0]
 }
 
@@ -177,13 +170,9 @@ export async function getComputeResult(
         index,
         nonce
       },
-      {
-        timeout: 60000
-      }
+      { responseType: 'arraybuffer' }
     )
 
-    console.log('Compute result response:', response)
-    console.log('Compute result data:', response.data)
     return response.data
   } catch (error) {
     console.error('Error getting compute result:', error)
@@ -212,14 +201,8 @@ export async function saveResults(
 
     console.log('Saving results to:', filePath)
 
-    // Format the results string to handle new lines properly
-    const formattedResults =
-      typeof results === 'string'
-        ? results.replace(/\\n/g, '\n')
-        : JSON.stringify(results, null, 2)
-
     // Write the file
-    await fs.promises.writeFile(filePath, formattedResults, 'utf-8')
+    await fs.promises.writeFile(filePath, results, 'utf-8')
 
     // Verify file was created
     if (!fs.existsSync(filePath)) {
@@ -312,7 +295,6 @@ export async function saveOutput(
   prefix: string = 'output'
 ): Promise<string> {
   try {
-    console.log('Content:', content)
     // Use provided destination folder or default to './results'
     const resultsDir = destinationFolder || path.join(process.cwd(), 'results')
 
@@ -329,7 +311,7 @@ export async function saveOutput(
     const tarContent =
       typeof content === 'string' ? Buffer.from(content, 'binary') : content
 
-    // Save the tar file
+    // // Save the tar file
     await fs.promises.writeFile(filePath, new Uint8Array(tarContent))
     console.log(`Tar file saved to: ${filePath}`)
 
