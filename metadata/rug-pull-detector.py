@@ -1,4 +1,11 @@
 from web3 import Web3
+import datetime
+import random
+import io
+import sys
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+
 uniswap_v2_factory_abi = [  # Minimal ABI for Factory contract
     {
         "constant": True,
@@ -100,7 +107,7 @@ def calculate_market_cap(token_contract, token_symbol, reserve0, reserve1):
         # Calculate market cap
         market_cap = total_supply * price_per_token
 
-        print(f"💰 {token_symbol} Market Cap: ${market_cap:,.2f}")
+        print(f"{token_symbol} Market Cap: ${market_cap:,.2f}")
         return market_cap
     except Exception as e:
         print(f"Error calculating market cap: {e}")
@@ -113,14 +120,14 @@ def check_minting_ability(token_contract, token_name):
             f"Mint status: MINTABLE, token address: {token_contract.address}, token name: {token_name}"
         )
         print(
-            f"Total Supply Status: ❌ NOT FIXED, token address: {token_contract.address}, token name: {token_name}")
+            f"Total Supply Status: NOT FIXED, token address: {token_contract.address}, token name: {token_name}")
         return "MINTABLE", "NOT FIXED"
     except:
         print(
             f"Mint status: NOT MINTABLE, token address: {token_contract.address}, token name: {token_name}"
         )
         print(
-            f"Total Supply Status: ✅ FIXED, token address: {token_contract.address}, token name: {token_name}")
+            f"Total Supply Status: FIXED, token address: {token_contract.address}, token name: {token_name}")
         return "NOT MINTABLE", "FIXED"
 
 
@@ -205,9 +212,35 @@ def get_24h_volume(pair_contract):
         print(f"Error fetching 24h volume: {e}")
 
 
-for i in range(all_pairs_length - 10, all_pairs_length):
+def get_liquidity_status(pair_contract, token_contract, is_token0=True):
+    try:
+        reserves = pair_contract.functions.getReserves().call()
+        reserve = reserves[0] if is_token0 else reserves[1]
+
+        total_supply = token_contract.functions.totalSupply().call()
+
+        if total_supply == 0:
+            return "UNKNOWN"
+
+        locked_percent = (reserve / total_supply) * 100
+
+        if locked_percent > 99:
+            return "LOCKED"
+        elif locked_percent < 1:
+            return "FULLY UNLOCKED"
+        else:
+            return "PARTIALLY LOCKED"
+
+    except Exception as e:
+        return f"Error computing liquidity status: {e}"
+
+buffer = io.StringIO()
+sys.stdout = buffer
+random_number = random.randint(10, all_pairs_length)
+print(f'Total pairs: {all_pairs_length}.\nPrinting 10 token pairs between this interval ({random_number - 10}, {random_number})...')
+for i in range(random_number - 10, random_number):
     pair_address = factory_contract.functions.allPairs(i).call()
-    print(f"pair address {i}: {pair_address}")
+    print(f"Liquidity Pair Address: {pair_address}")
     pair_contract = web3.eth.contract(address=pair_address, abi=pair_abi)
 
     # Get total supply of LP tokens
@@ -229,23 +262,20 @@ for i in range(all_pairs_length - 10, all_pairs_length):
     print(f"Token 1: {token1_name} ({token1_symbol}) for pair {pair_address}")
 
     # Fetch liquidity reserves
-    liquidity_status = ''
-    reserves = pair_contract.functions.getReserves().call()
-    reserve0, reserve1 = reserves[0], reserves[1]
-
-    print(f"Liquidity Reserves: {reserve0} {token0_symbol}, {reserve1} {token1_symbol}")
-
-    if reserve0 == 0 and reserve1 == 0:
-        liquidity_status = '❌ NOT LOCKED'
-    else:
-        liquidity_status = '✅ LOCKED'
-    print(f"Liquidity status: {liquidity_status}")
+    liquidity_status_0 = get_liquidity_status(pair_contract=pair_contract, token_contract=token0_contract)
+    print(f"Liquidity status for token 0 {token0_contract.address}: {liquidity_status_0}")
+    liquidity_status_1 = get_liquidity_status(pair_contract=pair_contract, token_contract=token1_contract,
+                                              is_token0=False)
+    print(f"Liquidity status for token 1 {token1_contract.address}: {liquidity_status_1}")
 
     # Calculate market cap
-    market_cap_0 = calculate_market_cap(token_contract=token0_contract, token_symbol=token0_symbol, reserve0=reserve0,
-                                        reserve1=reserve1)
-    market_cap_1 = calculate_market_cap(token_contract=token1_contract, token_symbol=token1_symbol, reserve0=reserve0,
-                                        reserve1=reserve1)
+    reserves = pair_contract.functions.getReserves().call()
+    market_cap_0 = calculate_market_cap(token_contract=token0_contract, token_symbol=token0_symbol,
+                                        reserve0=reserves[0],
+                                        reserve1=reserves[1])
+    market_cap_1 = calculate_market_cap(token_contract=token1_contract, token_symbol=token1_symbol,
+                                        reserve0=reserves[0],
+                                        reserve1=reserves[1])
 
     # Check if each token from the pair is mintable
     mintable0, ts_status0 = check_minting_ability(token0_contract, token0_name)
@@ -266,3 +296,33 @@ for i in range(all_pairs_length - 10, all_pairs_length):
     # Compute 24h Volume of the pair
     total_volume_token0, total_volume_token1 = get_24h_volume(pair_contract=pair_contract)
     print(50 * '-')
+
+sys.stdout = sys.__stdout__
+
+# Get all printed content
+output_text = buffer.getvalue()
+
+# Save to PDF
+pdf_filename = '/data/outputs/report.pdf'
+c = canvas.Canvas(pdf_filename, pagesize=letter)
+width, height = letter
+
+title = "Uniswap V2 Pairs Characteristics"
+c.setFont("Helvetica-Bold", 16)
+c.drawCentredString(width / 2, height - 40, title)
+
+# Start writing output text below title
+c.setFont("Helvetica", 10)
+lines = output_text.split("\n")
+y = height - 70  # Start below title
+
+for line in lines:
+    if y < 40:
+        c.showPage()
+        y = height - 40
+        c.setFont("Helvetica", 10)
+    c.drawString(40, y, line)
+    y -= 15
+
+c.save()
+print(f"✅ Output saved to {pdf_filename}")
