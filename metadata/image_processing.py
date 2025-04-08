@@ -23,9 +23,6 @@ def apply_filters(image_url, filter):
     elif filter == "grayscale":
         grayscale_img = img.convert("L")
         filtered_img = grayscale_img
-    elif filter == "unsharp":
-        unsharp_img = img.filter(ImageFilter.UnsharpMask(radius=5))
-        filtered_img = unsharp_img
     else:
         print("Unknown filter.")
         return
