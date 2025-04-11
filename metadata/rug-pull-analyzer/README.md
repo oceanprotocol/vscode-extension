@@ -4,13 +4,13 @@ This python script is designed for free version of Compute-to-Data feature from 
 It aims fetching and analyzing the token pairs characteristics using **Uniswap V2** smart contracts
 on **Base chain**.
 It inspects various characteristics of the tokens involved in each pair and prints key risk and health
-indicators. The results are saved into a PDF report (`report.pdf`) titled "Uniswap V2 Pairs Characteristics".
+indicators. The results are saved into a PDF report (`report.pdf`) titled "Uniswap V2 Pair Characteristics".
 
 ## 🔍 What the Script Does
 
 1. Connects to the Base chain via an RPC endpoint.
 2. Interacts with the Uniswap V2 Factory contract.
-3. Randomly selects 10 Uniswap V2 pairs.
+3. Based on the input token address, it finds the corresponding pair backed up by WETH or USDC.
 4. For each pair, it fetches:
 
    - Pair address
@@ -43,7 +43,7 @@ indicators. The results are saved into a PDF report (`report.pdf`) titled "Unisw
 
 - Console output with all parameters per pair.
 - A PDF report saved as `report.pdf` with all printed logs.
-- Title: `"Uniswap V2 Pairs Characteristics"`
+- Title: `"Uniswap V2 Pair Characteristics"`
 
 ## 🚀 Requirements
 
