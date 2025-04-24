@@ -6,33 +6,37 @@ import path from 'path'
 import { PassThrough } from 'stream'
 import * as tar from 'tar'
 import { generateSignature } from '../helpers/signature'
+import { ComputeAlgorithm, ComputeJob, ProviderInstance } from '@oceanprotocol/lib'
 
-interface ComputeStatus {
-  owner: string
-  jobId: string
-  dateCreated: string
-  dateFinished: string | null
-  status: number
-  statusText: string
-  results: Array<{
-    filename: string
-    filesize: number
-    type: string
-    index: number
-  }>
-}
+const getContainerConfig = (
+  fileExtension: string,
+  dockerImage?: string,
+  dockerTag?: string
+) => {
+  if (dockerImage && dockerTag) {
+    return {
+      image: dockerImage,
+      tag: dockerTag,
+      entrypoint: fileExtension === 'py' ? 'python $ALGO' : 'node $ALGO'
+    }
+  }
 
-interface ComputeResponse {
-  owner: string
-  jobId: string
-  dateCreated: string
-  dateFinished: null
-  status: number
-  statusText: string
-  results: any[]
-  agreementId: string
-  expireTimestamp: number
-  environment: string
+  switch (fileExtension) {
+    case 'py':
+      return {
+        entrypoint: 'python $ALGO',
+        image: 'oceanprotocol/c2d_examples',
+        tag: 'py-general'
+      }
+    case 'js':
+      return {
+        entrypoint: 'node $ALGO',
+        image: 'oceanprotocol/c2d_examples',
+        tag: 'js-general'
+      }
+    default:
+      throw new Error('File extension not supported')
+  }
 }
 
 export async function computeStart(
@@ -41,76 +45,37 @@ export async function computeStart(
   nodeUrl: string,
   fileExtension: string,
   dataset?: any,
-  nonce: number = 1,
   dockerImage?: string,
   dockerTag?: string
-): Promise<ComputeResponse> {
-  console.log(`algorithmContent: ${algorithmContent}`)
-  console.log('Starting free compute job using provider: ', nodeUrl)
-  console.log('Docker image:', dockerImage)
-  console.log('Docker tag:', dockerTag)
-  const consumerAddress: string = await signer.getAddress()
-
-  // Fetch compute environments first
+): Promise<ComputeJob> {
   try {
-    const envResponse = await axios.get(`${nodeUrl}/api/services/computeEnvironments`)
-    console.log('Environment response:', envResponse)
-    if (!envResponse.data || !envResponse.data.length) {
+    const environments = await ProviderInstance.getComputeEnvironments(nodeUrl)
+    if (!environments || environments.length === 0) {
       throw new Error('No compute environments available')
     }
-    const environmentId = envResponse.data[0].id
-    console.log('Using compute environment:', environmentId)
 
-    // Determine container config based on file extension
-    const containerConfig =
-      fileExtension === 'py'
-        ? {
-            image: dockerImage || 'oceanprotocol/algo_dockers',
-            tag: dockerTag || 'python-branin',
-            entrypoint: 'python $ALGO',
-            termsAndConditions: true
-          }
-        : {
-            entrypoint: 'node $ALGO',
-            image: dockerImage || 'node',
-            tag: dockerTag || 'latest'
-          }
+    const environmentId = environments[0].id
 
-    // Generate a proper signature using our existing function
-    // We use a different jobId for starting compute (empty string)
-    const signatureResult = await generateSignature(String(nonce), signer)
+    const containerConfig = getContainerConfig(fileExtension, dockerImage, dockerTag)
 
-    console.log('Generated signature:', signatureResult.signature)
-    console.log('Signature valid:', signatureResult.isValid)
-
-    const requestBody = {
-      command: 'freeStartCompute',
-      consumerAddress: consumerAddress,
-      environment: environmentId,
-      nonce: nonce,
-      signature: signatureResult.signature, // Use the generated signature
-      datasets: dataset ? [dataset] : [],
-      algorithm: {
-        meta: {
-          rawcode: algorithmContent,
-          container: containerConfig
-        }
+    const datasets = dataset ? [dataset] : []
+    const algorithm: ComputeAlgorithm = {
+      meta: {
+        rawcode: algorithmContent,
+        container: { ...containerConfig, checksum: '' }
       }
     }
 
-    console.log('Sending compute request with body:', requestBody)
+    const computeJob = await ProviderInstance.freeComputeStart(
+      nodeUrl,
+      signer,
+      environmentId,
+      datasets,
+      algorithm
+    )
 
-    const response = await axios.post(`${nodeUrl}/directCommand`, requestBody)
-
-    console.log('Free Start Compute response: ' + response)
-
-    console.log('Free Start Compute response: ' + JSON.stringify(response.data))
-
-    if (!response.data || response.data.length === 0) {
-      throw new Error('Empty response from compute start')
-    }
-
-    return response.data[0]
+    const result = Array.isArray(computeJob) ? computeJob[0] : computeJob
+    return result
   } catch (e) {
     console.error('Free start compute error: ', e)
     if (e.response) {
@@ -128,13 +93,16 @@ export async function delay(ms: number): Promise<void> {
 
 export async function checkComputeStatus(
   nodeUrl: string,
+  consumerAddress: string,
   jobId: string
-): Promise<ComputeStatus> {
-  const response = await axios.post(`${nodeUrl}/directCommand`, {
-    command: 'getComputeStatus',
+): Promise<ComputeJob> {
+  const computeStatus = await ProviderInstance.computeStatus(
+    nodeUrl,
+    consumerAddress,
     jobId
-  })
-  return response.data[0]
+  )
+
+  return Array.isArray(computeStatus) ? computeStatus[0] : computeStatus
 }
 
 export async function getComputeResult(

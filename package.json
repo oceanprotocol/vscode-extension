@@ -99,7 +99,7 @@
     "@libp2p/tcp": "^10.0.7",
     "@libp2p/websockets": "^9.0.6",
     "@multiformats/multiaddr": "^12.3.1",
-    "@oceanprotocol/lib": "^3.4.6",
+    "@oceanprotocol/lib": "^4.0.2",
     "axios": "^1.8.2",
     "chai": "^4.3.10",
     "cross-fetch": "^4.0.0",

@@ -4,13 +4,11 @@ import * as sinon from 'sinon'
 import {
   computeStart,
   checkComputeStatus,
-  getComputeLogs,
   getComputeResult,
   saveResults
 } from '../helpers/compute'
 import { Wallet } from 'ethers'
 import axios from 'axios'
-import { PassThrough } from 'stream'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -116,7 +114,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
   test('checkComputeStatus should return correct status', async () => {
     const mockNodeUrl = 'http://test-node:8001'
     const mockJobId = 'test-job-id'
-
+    const mockConsumerAddress = '0x123'
     const mockResponse = {
       data: [
         {
@@ -128,7 +126,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
 
     sandbox.stub(axios, 'post').resolves(mockResponse)
 
-    const status = await checkComputeStatus(mockNodeUrl, mockJobId)
+    const status = await checkComputeStatus(mockNodeUrl, mockConsumerAddress, mockJobId)
     assert.strictEqual(status.statusText, 'Running')
   })
 

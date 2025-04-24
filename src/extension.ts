@@ -129,7 +129,6 @@ export async function activate(context: vscode.ExtensionContext) {
               nodeUrl,
               fileExtension,
               dataset,
-              Date.now(), // nonce equals date in milliseconds
               dockerImage,
               dockerTag
             )
@@ -145,7 +144,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
             while (true) {
               console.log('Checking job status...')
-              const status = await checkComputeStatus(nodeUrl, jobId)
+              const status = await checkComputeStatus(nodeUrl, signer.address, jobId)
               console.log('Job status:', status)
               console.log('Status text:', status.statusText)
               progress.report({ message: `${status.statusText}` })
