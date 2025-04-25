@@ -57,7 +57,7 @@
     "lint": "eslint src",
     "test-vs": "vscode-test",
     "pretest": "npm run compile-tests",
-    "test": "node --experimental-vm-modules out/test/extension.test.js",
+    "test": "vscode-test --extensionDevelopmentPath=. --extensionTestsPath=out/test/runTest.js",
     "posttest": "npm run lint",
     "build": "npx vsce package",
     "publish": "npx vsce publish"
