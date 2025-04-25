@@ -90,7 +90,6 @@ uniswap_v2_factory_address = "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6"
 
 USDC_contract = '0xd9AA594F65d163C22072c0eDFC7923A7F3470cC1'
 WETH_contract = '0x4200000000000000000000000000000000000006'
-
 API_KEY_ASI1 = "<API_KEY>"
 
 # Create contract instance for the Uniswap V2 Factory
@@ -262,7 +261,6 @@ def draw_formatted_line(c, x, y, line):
         text_obj.textOut(part)
 
     c.drawText(text_obj)
-
 
 
 # input token address from factory_contract.functions.allPairs(250).call()

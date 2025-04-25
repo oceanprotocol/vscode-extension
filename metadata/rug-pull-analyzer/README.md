@@ -14,7 +14,7 @@ The interaction with ASI1-mini is done through calling public API, being authent
 
 1. Connects to the Base chain via an RPC endpoint.
 2. Interacts with the Uniswap V2 Factory contract.
-3. Randomly selects 10 Uniswap V2 pairs.
+3. Based on the input token address, it finds the corresponding pair backed up by WETH or USDC.
 4. For each pair, it fetches:
 
    - Pair address
