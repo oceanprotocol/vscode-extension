@@ -24,6 +24,9 @@
   "@oceanprotocol/ddo-js": {
     "esm": true
   },
+  "mocha": {
+    "esm": true
+  },
   "include": ["src/**/*", "src/tests/**/*"],
   "exclude": ["node_modules"]
 }
