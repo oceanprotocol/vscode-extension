@@ -4,10 +4,11 @@
     "moduleResolution": "Node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "lib": ["ESNext", "dom"],
+    // "lib": ["ESNext", "dom"],
     "declaration": true,
     "target": "es6",
-    "module": "CommonJS",
+    // "module": "CommonJS",
+    "module": "ESNext",
     "removeComments": true,
     "experimentalDecorators": true,
     "preserveConstEnums": true,
@@ -16,6 +17,12 @@
     "sourceMap": true,
     "typeRoots": ["node_modules/@types"],
     "types": ["vscode", "mocha", "node"]
+  },
+  "@oceanprotocol/lib": {
+    "esm": true
+  },
+  "@oceanprotocol/ddo-js": {
+    "esm": true
   },
   "include": ["src/**/*", "src/tests/**/*"],
   "exclude": ["node_modules"]
