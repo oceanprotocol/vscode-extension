@@ -248,6 +248,21 @@ def find_pair_by_token(token_address):
         return
     return pair_address
 
+def draw_formatted_line(c, x, y, line):
+    text_obj = c.beginText()
+    text_obj.setTextOrigin(x, y)
+    text_obj.setFont("Helvetica", 10)
+
+    parts = line.split("**")
+    for i, part in enumerate(parts):
+        if i % 2 == 0:
+            text_obj.setFont("Helvetica", 10)  # Normal text
+        else:
+            text_obj.setFont("Helvetica-Bold", 10)  # Bold text
+        text_obj.textOut(part)
+
+    c.drawText(text_obj)
+
 
 
 # input token address from factory_contract.functions.allPairs(250).call()
@@ -349,7 +364,7 @@ for line in lines:
         c.showPage()
         y = height - 40
         c.setFont("Helvetica", 10)
-    c.drawString(40, y, line)
+    draw_formatted_line(c, 40, y, line)
     y -= 15
 
 c.save()
