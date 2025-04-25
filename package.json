@@ -56,8 +56,8 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "lint": "eslint src",
     "test-vs": "vscode-test",
-    "test": "node --experimental-vm-modules --extensionDevelopmentPath=. --extensionTestsPath=out/test/extension.test.js",
     "pretest": "npm run compile-tests",
+    "test": "node --experimental-vm-modules out/test/extension.test.js",
     "posttest": "npm run lint",
     "build": "npx vsce package",
     "publish": "npx vsce publish"
