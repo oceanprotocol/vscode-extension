@@ -1,13 +1,13 @@
 {
   "compilerOptions": {
     "resolveJsonModule": true,
-    "moduleResolution": "node",
+    "moduleResolution": "Node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "lib": ["ESNext", "dom"],
     "declaration": true,
     "target": "es6",
-    "module": "commonjs",
+    "module": "CommonJS",
     "removeComments": true,
     "experimentalDecorators": true,
     "preserveConstEnums": true,
