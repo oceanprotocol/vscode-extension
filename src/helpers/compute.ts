@@ -6,6 +6,7 @@ import path from 'path'
 import { PassThrough } from 'stream'
 import * as tar from 'tar'
 import { generateSignature } from '../helpers/signature'
+import { ComputeJob, ProviderInstance } from '@oceanprotocol/lib'
 
 interface ComputeStatus {
   owner: string
@@ -129,12 +130,10 @@ export async function delay(ms: number): Promise<void> {
 export async function checkComputeStatus(
   nodeUrl: string,
   jobId: string
-): Promise<ComputeStatus> {
-  const response = await axios.post(`${nodeUrl}/directCommand`, {
-    command: 'getComputeStatus',
-    jobId
-  })
-  return response.data[0]
+): Promise<ComputeJob> {
+  const computeStatus = await ProviderInstance.computeStatus(nodeUrl, '', jobId)
+
+  return Array.isArray(computeStatus) ? computeStatus[0] : computeStatus
 }
 
 export async function getComputeResult(
