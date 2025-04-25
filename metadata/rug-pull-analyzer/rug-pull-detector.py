@@ -1,3 +1,6 @@
+import json
+
+import requests
 from web3 import Web3
 import datetime
 import io
@@ -87,6 +90,8 @@ uniswap_v2_factory_address = "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6"
 
 USDC_contract = '0xd9AA594F65d163C22072c0eDFC7923A7F3470cC1'
 WETH_contract = '0x4200000000000000000000000000000000000006'
+
+API_KEY_ASI1 = "<API_KEY>"
 
 # Create contract instance for the Uniswap V2 Factory
 factory_contract = web3.eth.contract(address=web3.to_checksum_address(uniswap_v2_factory_address),
@@ -305,6 +310,25 @@ sys.stdout = sys.__stdout__
 
 # Get all printed content
 output_text = buffer.getvalue()
+
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": "bearer " + API_KEY_ASI1,
+}
+payload = json.dumps({
+            "model": "asi1-mini",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"Please provide positive aspects, potential risks and recommendations regarding this token with the following characteristics: {output_text}"
+                }
+            ],
+            "temperature": 0,
+            "stream": False
+        })
+response = requests.post('https://api.asi1.ai/v1/chat/completions', headers=headers, data=payload).json()
+output_llm = response['thought'][0]
+output_text += output_llm
 
 # Save to PDF
 pdf_filename = '/data/outputs/report.pdf'
