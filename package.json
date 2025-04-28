@@ -113,7 +113,8 @@
     "node-polyfill-webpack-plugin": "^4.0.0",
     "os": "^0.1.2",
     "path": "^0.12.7",
-    "private-ip": "^3.0.2"
+    "private-ip": "^3.0.2",
+    "tar": "^7.4.3"
   },
   "activationEvents": [
     "onCommand:ocean-protocol.searchAssets",
