@@ -1,10 +1,8 @@
 import * as vscode from 'vscode'
 import { Signer } from 'ethers'
 import fs from 'fs'
-import axios from 'axios'
 import path from 'path'
 import * as tar from 'tar'
-import { generateSignature } from '../helpers/signature'
 import { ComputeAlgorithm, ComputeJob, ProviderInstance } from '@oceanprotocol/lib'
 import { PassThrough } from 'stream'
 
@@ -109,39 +107,22 @@ export async function getComputeResult(
   signer: Signer,
   nodeUrl: string,
   jobId: string,
-  consumerAddress: string,
   index: number = 0
 ): Promise<any> {
   try {
-    console.log('Getting compute result for jobId:', jobId)
-    console.log('Using consumerAddress:', consumerAddress)
-    console.log('Using index:', index)
-
-    // Generate a unique nonce for this request
-    const nonce = Date.now()
-    console.log('Using nonce:', nonce)
-
-    // Generate the signature using the Ocean Protocol format
-    const message = consumerAddress + jobId + index.toString() + nonce
-    const signatureResult = await generateSignature(message, signer)
-
-    console.log('Generated result signature:', signatureResult.signature)
-    console.log('Result signature valid:', signatureResult.isValid)
-
-    const response = await axios.post(
-      `${nodeUrl}/directCommand`,
-      {
-        command: 'getComputeResult',
-        jobId,
-        consumerAddress,
-        signature: signatureResult.signature,
-        index,
-        nonce
-      },
-      { responseType: 'arraybuffer' }
+    const computResultUrl = await ProviderInstance.getComputeResultUrl(
+      nodeUrl,
+      signer,
+      jobId,
+      index
     )
 
-    return response.data
+    const response = await fetch(computResultUrl)
+    const blob = await response.blob()
+    const arrayBuffer = await blob.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    return buffer
   } catch (error) {
     console.error('Error getting compute result:', error)
     throw error

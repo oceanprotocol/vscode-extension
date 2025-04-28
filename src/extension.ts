@@ -167,13 +167,7 @@ export async function activate(context: vscode.ExtensionContext) {
                   // Retrieve first result (index 0)
                   progress.report({ message: 'Retrieving compute results (1/2)...' })
                   outputChannel.appendLine('Retrieving logs...')
-                  const logResult = await getComputeResult(
-                    signer,
-                    nodeUrl,
-                    jobId,
-                    signer.address,
-                    0
-                  )
+                  const logResult = await getComputeResult(signer, nodeUrl, jobId, 0)
 
                   // Save first result
                   progress.report({ message: 'Saving first result...' })
@@ -194,13 +188,7 @@ export async function activate(context: vscode.ExtensionContext) {
                       message: 'Requesting the output result...'
                     })
                     outputChannel.appendLine('Requesting the output result...')
-                    const outputResult = await getComputeResult(
-                      signer,
-                      nodeUrl,
-                      jobId,
-                      signer.address,
-                      1
-                    )
+                    const outputResult = await getComputeResult(signer, nodeUrl, jobId, 1)
                     const filePathOutput = await saveOutput(
                       outputResult,
                       resultsFolderPath,

@@ -8,7 +8,6 @@ import {
   saveResults
 } from '../helpers/compute'
 import { Wallet } from 'ethers'
-import axios from 'axios'
 import * as fs from 'fs'
 import * as path from 'path'
 import { ComputeEnvironment, ComputeJob, ProviderInstance } from '@oceanprotocol/lib'
@@ -174,26 +173,17 @@ suite('Ocean Protocol Extension Test Suite', () => {
   test('getComputeResult should handle successful result retrieval', async () => {
     const mockNodeUrl = 'http://test-node:8001'
     const mockJobId = 'test-job-id'
-    const mockConsumerAddress = '0x123'
     const mockSigner = new Wallet('0x' + '1'.repeat(64))
+    const mockResponse = 'http://dummy-node-url.com'
+    const mockResult = 'hello'
 
-    const mockResponse = {
-      data: {
-        result: 'Success',
-        output: 'Test output'
-      }
-    }
+    sandbox.stub(ProviderInstance, 'getComputeResultUrl').resolves(mockResponse)
+    sandbox.stub(global, 'fetch').resolves({
+      blob: () => Promise.resolve(new Blob([mockResult]))
+    } as Response)
 
-    sandbox.stub(axios, 'post').resolves(mockResponse)
-
-    const result = await getComputeResult(
-      mockSigner,
-      mockNodeUrl,
-      mockJobId,
-      mockConsumerAddress
-    )
-
-    assert.deepStrictEqual(result, mockResponse.data)
+    const result = await getComputeResult(mockSigner, mockNodeUrl, mockJobId)
+    assert.deepStrictEqual(result, Buffer.from(mockResult))
   })
 
   test('saveResults should correctly save to file', async () => {
