@@ -154,7 +154,7 @@ export async function activate(context: vscode.ExtensionContext) {
               if (status.statusText.includes('Running algorithm') && !logStreamStarted) {
                 logStreamStarted = true
                 // Start fetching logs once
-                getComputeLogs(nodeUrl, jobId, signer.address, computeLogsChannel, signer)
+                getComputeLogs(nodeUrl, signer, jobId, computeLogsChannel)
               }
 
               if (status.statusText === 'Job finished') {

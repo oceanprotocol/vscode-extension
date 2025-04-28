@@ -3,10 +3,10 @@ import { Signer } from 'ethers'
 import fs from 'fs'
 import axios from 'axios'
 import path from 'path'
-import { PassThrough } from 'stream'
 import * as tar from 'tar'
 import { generateSignature } from '../helpers/signature'
 import { ComputeAlgorithm, ComputeJob, ProviderInstance } from '@oceanprotocol/lib'
+import { PassThrough } from 'stream'
 
 const getContainerConfig = (
   fileExtension: string,
@@ -188,58 +188,25 @@ export async function saveResults(
 
 export async function getComputeLogs(
   nodeUrl: string,
+  signer: Signer,
   jobId: string,
-  consumerAddress: string,
-  outputChannel: vscode.OutputChannel,
-  signer: Signer
+  outputChannel: vscode.OutputChannel
 ): Promise<void> {
   try {
     outputChannel.show(true)
+    const stream = (await ProviderInstance.computeStreamableLogs(
+      nodeUrl,
+      signer,
+      jobId
+    )) as PassThrough
 
-    // Generate a unique nonce for this request
-    const nonce = Date.now()
-    console.log('Using nonce:', nonce)
-
-    // Generate the signature using the Ocean Protocol format
-    const message = consumerAddress + jobId + nonce
-    const signatureResult = await generateSignature(message, signer)
-
-    console.log('Generated result signature:', signatureResult.signature)
-    console.log('Result signature valid:', signatureResult.isValid)
-
-    const response = await fetch(`${nodeUrl}/directCommand`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        command: 'getComputeStreamableLogs',
-        jobId,
-        consumerAddress,
-        nonce,
-        signature: signatureResult.signature
-      })
-    })
-
-    if (response.ok) {
-      console.log('Response: ', response)
-      console.log('Response body: ', response.body)
-      outputChannel.show(true)
-    } else {
-      console.log(`No algorithm logs available yet: ${response.statusText}`)
-      return
-    }
-
-    const stream = response.body as unknown as PassThrough
     stream.on('data', (chunk) => {
       const text = chunk.toString('utf8')
       outputChannel.append(text)
     })
-
     stream.on('end', () => {
       console.log('Stream complete')
     })
-
     stream.on('error', (error) => {
       console.error('Stream error:', error)
       throw error
