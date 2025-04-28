@@ -11,9 +11,30 @@ import { Wallet } from 'ethers'
 import axios from 'axios'
 import * as fs from 'fs'
 import * as path from 'path'
+import { ComputeEnvironment, ComputeJob, ProviderInstance } from '@oceanprotocol/lib'
 
 // Use VS Code test runner syntax
 suite('Ocean Protocol Extension Test Suite', () => {
+  const mockEnvResponse: ComputeEnvironment[] = [
+    {
+      id: 'mock-environment-id',
+      description: 'mock-environment-description',
+      consumerAddress: 'mock-consumer-address',
+      runningJobs: 1000,
+      fees: null
+    }
+  ]
+
+  const mockComputeResponse: ComputeJob = {
+    jobId: 'test-job-id',
+    status: 0,
+    statusText: 'Created',
+    owner: 'mock-owner',
+    dateCreated: 'mock-date-created',
+    dateFinished: 'mock-date-finished',
+    results: [],
+    expireTimestamp: 1000
+  }
   let sandbox: sinon.SinonSandbox
   let outputChannel: vscode.OutputChannel
 
@@ -38,26 +59,8 @@ suite('Ocean Protocol Extension Test Suite', () => {
     const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'console.log("test")'
 
-    const mockEnvResponse = {
-      data: [
-        {
-          id: 'mock-environment-id'
-        }
-      ]
-    }
-
-    const mockComputeResponse = {
-      data: [
-        {
-          jobId: 'test-job-id',
-          status: 0,
-          statusText: 'Created'
-        }
-      ]
-    }
-
-    sandbox.stub(axios, 'get').resolves(mockEnvResponse)
-    sandbox.stub(axios, 'post').resolves(mockComputeResponse)
+    sandbox.stub(ProviderInstance, 'getComputeEnvironments').resolves(mockEnvResponse)
+    sandbox.stub(ProviderInstance, 'freeComputeStart').resolves(mockComputeResponse)
 
     const result = await computeStart(mockAlgorithm, mockSigner, mockNodeUrl, 'js')
 
@@ -70,44 +73,26 @@ suite('Ocean Protocol Extension Test Suite', () => {
     const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'print("test")'
 
-    const mockEnvResponse = {
-      data: [
-        {
-          id: 'mock-environment-id'
-        }
-      ]
-    }
-
-    const mockComputeResponse = {
-      data: [
-        {
-          jobId: 'test-job-id',
-          status: 0,
-          statusText: 'Created'
-        }
-      ]
-    }
-
-    sandbox.stub(axios, 'get').resolves(mockEnvResponse)
-    const postStub = sandbox.stub(axios, 'post').resolves(mockComputeResponse)
+    sandbox.stub(ProviderInstance, 'getComputeEnvironments').resolves(mockEnvResponse)
+    const computeStartStub = sandbox
+      .stub(ProviderInstance, 'freeComputeStart')
+      .resolves(mockComputeResponse)
 
     const result = await computeStart(mockAlgorithm, mockSigner, mockNodeUrl, 'py')
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.ok(
-      postStub.calledWith(
-        `${mockNodeUrl}/directCommand`,
-        sinon.match({
-          algorithm: {
-            meta: {
-              container: {
-                image: 'oceanprotocol/algo_dockers',
-                tag: 'python-branin'
-              }
-            }
+      computeStartStub.calledWith(mockNodeUrl, mockSigner, mockEnvResponse[0].id, [], {
+        meta: {
+          rawcode: mockAlgorithm,
+          container: {
+            entrypoint: 'python $ALGO',
+            image: 'oceanprotocol/c2d_examples',
+            tag: 'py-general',
+            checksum: ''
           }
-        })
-      )
+        }
+      })
     )
   })
 
@@ -115,16 +100,12 @@ suite('Ocean Protocol Extension Test Suite', () => {
     const mockNodeUrl = 'http://test-node:8001'
     const mockJobId = 'test-job-id'
     const mockConsumerAddress = '0x123'
-    const mockResponse = {
-      data: [
-        {
-          status: 1,
-          statusText: 'Running'
-        }
-      ]
-    }
 
-    sandbox.stub(axios, 'post').resolves(mockResponse)
+    sandbox.stub(ProviderInstance, 'computeStatus').resolves({
+      ...mockComputeResponse,
+      status: 1,
+      statusText: 'Running'
+    })
 
     const status = await checkComputeStatus(mockNodeUrl, mockConsumerAddress, mockJobId)
     assert.strictEqual(status.statusText, 'Running')
@@ -135,7 +116,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'console.log("test")'
 
-    sandbox.stub(axios, 'get').resolves({ data: [] })
+    sandbox.stub(ProviderInstance, 'getComputeEnvironments').resolves([])
 
     await assert.rejects(
       computeStart(mockAlgorithm, mockSigner, mockNodeUrl, 'js'),
