@@ -1,3 +1,6 @@
+import json
+
+import requests
 from web3 import Web3
 import datetime
 import io
@@ -75,7 +78,7 @@ token_abi = [
     }
 ]
 
-BASE_RPC_URL = "https://mainnet.base.org"  # Base RPC URL
+BASE_RPC_URL = "https://base.drpc.org"  # Base RPC URL
 web3 = Web3(Web3.HTTPProvider(BASE_RPC_URL))
 
 # Ensure the connection to the Base chain
@@ -87,6 +90,7 @@ uniswap_v2_factory_address = "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6"
 
 USDC_contract = '0xd9AA594F65d163C22072c0eDFC7923A7F3470cC1'
 WETH_contract = '0x4200000000000000000000000000000000000006'
+API_KEY_ASI1 = "<API_KEY>"
 
 # Create contract instance for the Uniswap V2 Factory
 factory_contract = web3.eth.contract(address=web3.to_checksum_address(uniswap_v2_factory_address),
@@ -243,6 +247,20 @@ def find_pair_by_token(token_address):
         return
     return pair_address
 
+def draw_formatted_line(c, x, y, line):
+    text_obj = c.beginText()
+    text_obj.setTextOrigin(x, y)
+    text_obj.setFont("Helvetica", 10)
+
+    parts = line.split("**")
+    for i, part in enumerate(parts):
+        if i % 2 == 0:
+            text_obj.setFont("Helvetica", 10)  # Normal text
+        else:
+            text_obj.setFont("Helvetica-Bold", 10)  # Bold text
+        text_obj.textOut(part)
+
+    c.drawText(text_obj)
 
 
 # input token address from factory_contract.functions.allPairs(250).call()
@@ -265,48 +283,38 @@ print(f"Total Supply of LP Tokens: {total_lp_tokens}")
 # Get token addresses
 token_0 = pair_contract.functions.token0().call()
 token_1 = pair_contract.functions.token1().call()
-token0_contract = web3.eth.contract(address=token_0, abi=token_abi)
-token1_contract = web3.eth.contract(address=token_1, abi=token_abi)
+if token_0 != USDC_contract and token_0 != WETH_contract:
+    input_token = token_0
+else:
+    input_token = token_1
+token_contract = web3.eth.contract(address=input_token, abi=token_abi)
 
 # Get token names and symbols
-token0_name = token0_contract.functions.name().call()
-token0_symbol = token0_contract.functions.symbol().call()
-token1_name = token1_contract.functions.name().call()
-token1_symbol = token1_contract.functions.symbol().call()
-print(f"Token 0: {token0_name} ({token0_symbol}) for pair {pair_address}")
-print(f"Token 1: {token1_name} ({token1_symbol}) for pair {pair_address}")
+token_name = token_contract.functions.name().call()
+token_symbol = token_contract.functions.symbol().call()
+print(f"Token: {token_name} ({token_symbol}) for pair {pair_address}")
 
 # Fetch liquidity reserves
-liquidity_status_0 = get_liquidity_status(pair_contract=pair_contract, token_contract=token0_contract)
-print(f"Liquidity status for token 0 {token0_contract.address}: {liquidity_status_0}")
-liquidity_status_1 = get_liquidity_status(pair_contract=pair_contract, token_contract=token1_contract,
-                                          is_token0=False)
-print(f"Liquidity status for token 1 {token1_contract.address}: {liquidity_status_1}")
+liquidity_status_0 = get_liquidity_status(pair_contract=pair_contract, token_contract=token_contract)
+print(f"Liquidity status for token 0 {token_contract.address}: {liquidity_status_0}")
 
 # Calculate market cap
 reserves = pair_contract.functions.getReserves().call()
-market_cap_0 = calculate_market_cap(token_contract=token0_contract, token_symbol=token0_symbol,
-                                    reserve0=reserves[0],
-                                    reserve1=reserves[1])
-market_cap_1 = calculate_market_cap(token_contract=token1_contract, token_symbol=token1_symbol,
+market_cap_0 = calculate_market_cap(token_contract=token_contract, token_symbol=token_symbol,
                                     reserve0=reserves[0],
                                     reserve1=reserves[1])
 
 # Check if each token from the pair is mintable
-mintable0, ts_status0 = check_minting_ability(token0_contract, token0_name)
-mintable1, ts_status1 = check_minting_ability(token1_contract, token1_name)
+mintable0, ts_status0 = check_minting_ability(token_contract, token_name)
 
 # Check if each token has owner renounced or not
-ownership0 = check_ownership_status(token0_contract)
-ownership1 = check_ownership_status(token1_contract)
+ownership0 = check_ownership_status(token_contract)
 
 # Calculate token age
-get_token_age(web3=web3, token_address=token0_contract.address)
-get_token_age(web3=web3, token_address=token1_contract.address)
+get_token_age(web3=web3, token_address=token_contract.address)
 
 # Check if selfdestruct function exists
-selfdestruct0 = check_self_destruct(web3=web3, contract_address=token0_contract.address)
-selfdestruct1 = check_self_destruct(web3=web3, contract_address=token1_contract.address)
+selfdestruct0 = check_self_destruct(web3=web3, contract_address=token_contract.address)
 
 # Compute 24h Volume of the pair
 total_volume_token0, total_volume_token1 = get_24h_volume(pair_contract=pair_contract)
@@ -315,6 +323,25 @@ sys.stdout = sys.__stdout__
 
 # Get all printed content
 output_text = buffer.getvalue()
+
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": "bearer " + API_KEY_ASI1,
+}
+payload = json.dumps({
+            "model": "asi1-mini",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"Please provide positive aspects, potential risks and recommendations regarding this token with the following characteristics: {output_text}"
+                }
+            ],
+            "temperature": 0,
+            "stream": False
+        })
+response = requests.post('https://api.asi1.ai/v1/chat/completions', headers=headers, data=payload).json()
+output_llm = response['thought'][0]
+output_text += output_llm
 
 # Save to PDF
 pdf_filename = '/data/outputs/report.pdf'
@@ -335,7 +362,7 @@ for line in lines:
         c.showPage()
         y = height - 40
         c.setFont("Helvetica", 10)
-    c.drawString(40, y, line)
+    draw_formatted_line(c, 40, y, line)
     y -= 15
 
 c.save()
