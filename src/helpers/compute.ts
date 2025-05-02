@@ -42,17 +42,15 @@ export async function computeStart(
   signer: Signer,
   nodeUrl: string,
   fileExtension: string,
+  environmentId?: string,
   dataset?: any,
   dockerImage?: string,
   dockerTag?: string
 ): Promise<ComputeJob> {
   try {
-    const environments = await ProviderInstance.getComputeEnvironments(nodeUrl)
-    if (!environments || environments.length === 0) {
-      throw new Error('No compute environments available')
+    if (!environmentId) {
+      throw new Error('No environment ID provided')
     }
-
-    const environmentId = environments[0].id
 
     const containerConfig = getContainerConfig(fileExtension, dockerImage, dockerTag)
 
@@ -254,4 +252,13 @@ export async function saveOutput(
     console.error('Error saving tar output:', error)
     throw new Error(`Failed to save tar output: ${error.message}`)
   }
+}
+
+export async function getComputeEnvironments(nodeUrl: string) {
+  const environments = await ProviderInstance.getComputeEnvironments(nodeUrl)
+  if (!environments || environments.length === 0) {
+    throw new Error('No compute environments available')
+  }
+
+  return environments
 }

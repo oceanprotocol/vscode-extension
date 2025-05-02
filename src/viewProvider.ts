@@ -73,6 +73,25 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
         try {
           switch (data.type) {
+            case 'getEnvironments':
+              try {
+                const environments = await vscode.commands.executeCommand(
+                  'ocean-protocol.getEnvironments',
+                  data.nodeUrl
+                )
+                webviewView.webview.postMessage({
+                  type: 'environmentsLoaded',
+                  environments: environments
+                })
+              } catch (error) {
+                console.error('Error loading environments:', error)
+                webviewView.webview.postMessage({
+                  type: 'environmentsLoaded',
+                  environments: [],
+                  error: 'Failed to load compute environments'
+                })
+              }
+              break
             case 'openFilePicker':
               const options: vscode.OpenDialogOptions = {
                 canSelectMany: false,
@@ -132,7 +151,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 data.nodeUrl,
                 data.datasetPath,
                 data.dockerImage,
-                data.dockerTag
+                data.dockerTag,
+                data.environmentId
               )
               break
           }
@@ -254,6 +274,36 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           #startComputeBtn {
             margin: 15px 0;
           }
+          .environment-section {
+            margin: 15px 0;
+          }
+          .environment-select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            background-color: var(--vscode-dropdown-background);
+            color: var(--vscode-dropdown-foreground);
+            border: 1px solid var(--vscode-dropdown-border);
+          }
+          .environment-details {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+            font-size: 0.9em;
+            display: none;
+          }
+          .environment-details.active {
+            display: block;
+          }
+          .environment-details p {
+            margin: 5px 0;
+          }
+          .environment-details .label {
+            font-weight: bold;
+            color: var(--vscode-descriptionForeground);
+          }
         </style>
     </head>
     <body>
@@ -272,6 +322,14 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
                       <label for="nodeUrlInput">Node URL (including port)</label>
                       <input id="nodeUrlInput" placeholder="Enter compute environment ID" value="${this.randomNodeUrl}" />
+
+                      <div class="environment-section">
+                        <label for="environmentSelect">Compute Environment</label>
+                        <select id="environmentSelect" class="environment-select">
+                          <option value="">Loading environments...</option>
+                        </select>
+                        <div id="environmentDetails" class="environment-details"></div>
+                      </div>
 
                       <label>Dataset</label>
                       <button id="selectDatasetBtn">Select Dataset File</button>
@@ -303,6 +361,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let selectedAlgorithmPath = '';
               let selectedResultsFolderPath = '';
               let isUsingDefaultAlgorithm = false;
+              let selectedEnvironment = null;
+              let availableEnvironments = [];
 
               function toggleSection(sectionId) {
                   const header = document.getElementById(sectionId + 'Header');
@@ -360,16 +420,42 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
                       vscode.postMessage({ 
                           type: 'startComputeJob',
-                              privateKey: privateKey,
-                              algorithmPath: selectedAlgorithmPath,
-                              resultsFolderPath: selectedResultsFolderPath,
-                              nodeUrl: nodeUrl,
-                              datasetPath: selectedDatasetPath || undefined,
-                              dockerImage: dockerImage || undefined,
-                              dockerTag: dockerTag || undefined
+                          privateKey: privateKey,
+                          algorithmPath: selectedAlgorithmPath,
+                          resultsFolderPath: selectedResultsFolderPath,
+                          nodeUrl: nodeUrl,
+                          datasetPath: selectedDatasetPath || undefined,
+                          dockerImage: dockerImage || undefined,
+                          dockerTag: dockerTag || undefined,
+                          environmentId: document.getElementById('environmentSelect').value || undefined
                       });
                   });
               }
+
+              async function loadEnvironments() {
+                const nodeUrl = document.getElementById('nodeUrlInput').value;
+                if (!nodeUrl) return;
+
+                const select = document.getElementById('environmentSelect');
+                select.innerHTML = '<option value="">Loading environments...</option>';
+                select.disabled = true;
+                document.getElementById('environmentDetails').style.display = 'none';
+
+                try {
+                  vscode.postMessage({
+                    type: 'getEnvironments',
+                    nodeUrl: nodeUrl
+                  });
+                } catch (error) {
+                  console.error('Error loading environments:', error);
+                  select.innerHTML = '<option value="">Error loading environments</option>';
+                  select.disabled = true;
+                  document.getElementById('environmentDetails').style.display = 'none';
+                }
+              }
+
+              document.getElementById('nodeUrlInput').addEventListener('input', loadEnvironments);
+              loadEnvironments();
 
               window.addEventListener('message', event => {
                   const message = event.data;
@@ -398,6 +484,67 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       case 'resultsFolder':
                           selectedResultsFolderPath = message.path;
                           document.getElementById('selectedResultsFolderPath').textContent = message.path;
+                          break;
+                      case 'environmentsLoaded':
+                          console.log('Environments loaded:', message.environments);
+                          availableEnvironments = message.environments;
+                          const select = document.getElementById('environmentSelect');
+                          
+                          if (message.error) {
+                            select.innerHTML = '<option value="">' + message.error + '</option>';
+                            select.disabled = true;
+                            document.getElementById('environmentDetails').style.display = 'none';
+                            return;
+                          }
+                          
+                          if (!message.environments || message.environments.length === 0) {
+                            select.innerHTML = '<option value="">No environments available</option>';
+                            select.disabled = true;
+                            document.getElementById('environmentDetails').style.display = 'none';
+                            return;
+                          }
+
+                          select.innerHTML = '';
+                          message.environments.forEach(env => {
+                              const option = document.createElement('option');
+                              option.value = env.id;
+                              option.textContent = env.platform.os + ' (' + env.platform.architecture + ')';
+                              select.appendChild(option);
+                          });
+                          select.disabled = false;
+                          document.getElementById('environmentDetails').style.display = 'none';
+
+                          function showEnvDetails(envId) {
+                              const detailsDiv = document.getElementById('environmentDetails');
+                              const selectedEnv = availableEnvironments.find(e => e.id === envId);
+                              if (!selectedEnv) {
+                                  detailsDiv.style.display = 'none';
+                                  return;
+                              }
+                              const resources = selectedEnv.resources.map(function(r) {
+                                  if (r.id === 'ram' || r.id === 'disk') {
+                                      const gb = Math.round(r.total / (1024 * 1024 * 1024));
+                                      return r.id + ': ' + gb + ' GB';
+                                  }
+                                  return r.id + ': ' + r.total;
+                              }).join(', ');
+                              detailsDiv.innerHTML = 
+                                  '<p><span class="label">OS:</span> ' + selectedEnv.platform.os + '</p>' +
+                                  '<p><span class="label">Architecture:</span> ' + selectedEnv.platform.architecture + '</p>' +
+                                  '<p><span class="label">Resources:</span> ' + resources + '</p>' +
+                                  '<p><span class="label">Max Job Duration:</span> ' + selectedEnv.maxJobDuration + ' seconds</p>' +
+                                  '<p><span class="label">Storage Expiry:</span> ' + selectedEnv.storageExpiry + ' seconds</p>';
+                              detailsDiv.style.display = 'block';
+                          }
+
+                          if (select.options.length > 0) {
+                              select.selectedIndex = 0;
+                              showEnvDetails(select.value);
+                          }
+
+                          select.addEventListener('change', function() {
+                              showEnvDetails(this.value);
+                          });
                           break;
                   }
               });

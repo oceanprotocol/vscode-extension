@@ -7,6 +7,7 @@ import {
   checkComputeStatus,
   computeStart,
   delay,
+  getComputeEnvironments,
   getComputeLogs,
   getComputeResult,
   saveOutput,
@@ -57,6 +58,16 @@ export async function activate(context: vscode.ExtensionContext) {
     })
     context.subscriptions.push(testCommand)
 
+    // Add handler for environment loading
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        'ocean-protocol.getEnvironments',
+        async (nodeUrl: string) => {
+          return await getComputeEnvironments(nodeUrl)
+        }
+      )
+    )
+
     // Rest of your existing startComputeJob command registration...
     let startComputeJob = vscode.commands.registerCommand(
       'ocean-protocol.startComputeJob',
@@ -67,7 +78,8 @@ export async function activate(context: vscode.ExtensionContext) {
         nodeUrl: string,
         datasetPath?: string,
         dockerImage?: string,
-        dockerTag?: string
+        dockerTag?: string,
+        environmentId?: string
       ) => {
         console.log('1. Starting compute job...')
         console.log('Dataset path:', datasetPath)
@@ -77,6 +89,7 @@ export async function activate(context: vscode.ExtensionContext) {
         console.log('Private key:', privateKey)
         console.log('Docker image:', dockerImage)
         console.log('Docker tag:', dockerTag)
+        console.log('Environment ID:', environmentId)
         const missingParams = []
         !algorithmPath && missingParams.push('algorithm path')
         !nodeUrl && missingParams.push('node URL')
@@ -128,6 +141,7 @@ export async function activate(context: vscode.ExtensionContext) {
               signer,
               nodeUrl,
               fileExtension,
+              environmentId,
               dataset,
               dockerImage,
               dockerTag
