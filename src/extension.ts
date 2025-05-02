@@ -129,7 +129,6 @@ export async function activate(context: vscode.ExtensionContext) {
               nodeUrl,
               fileExtension,
               dataset,
-              Date.now(), // nonce equals date in milliseconds
               dockerImage,
               dockerTag
             )
@@ -145,7 +144,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
             while (true) {
               console.log('Checking job status...')
-              const status = await checkComputeStatus(nodeUrl, jobId)
+              const status = await checkComputeStatus(nodeUrl, signer.address, jobId)
               console.log('Job status:', status)
               console.log('Status text:', status.statusText)
               progress.report({ message: `${status.statusText}` })
@@ -155,7 +154,7 @@ export async function activate(context: vscode.ExtensionContext) {
               if (status.statusText.includes('Running algorithm') && !logStreamStarted) {
                 logStreamStarted = true
                 // Start fetching logs once
-                getComputeLogs(nodeUrl, jobId, signer.address, computeLogsChannel, signer)
+                getComputeLogs(nodeUrl, signer, jobId, computeLogsChannel)
               }
 
               if (status.statusText === 'Job finished') {
@@ -168,13 +167,7 @@ export async function activate(context: vscode.ExtensionContext) {
                   // Retrieve first result (index 0)
                   progress.report({ message: 'Retrieving compute results (1/2)...' })
                   outputChannel.appendLine('Retrieving logs...')
-                  const logResult = await getComputeResult(
-                    signer,
-                    nodeUrl,
-                    jobId,
-                    signer.address,
-                    0
-                  )
+                  const logResult = await getComputeResult(signer, nodeUrl, jobId, 0)
 
                   // Save first result
                   progress.report({ message: 'Saving first result...' })
@@ -195,13 +188,7 @@ export async function activate(context: vscode.ExtensionContext) {
                       message: 'Requesting the output result...'
                     })
                     outputChannel.appendLine('Requesting the output result...')
-                    const outputResult = await getComputeResult(
-                      signer,
-                      nodeUrl,
-                      jobId,
-                      signer.address,
-                      1
-                    )
+                    const outputResult = await getComputeResult(signer, nodeUrl, jobId, 1)
                     const filePathOutput = await saveOutput(
                       outputResult,
                       resultsFolderPath,
