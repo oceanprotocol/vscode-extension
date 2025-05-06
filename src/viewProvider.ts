@@ -155,6 +155,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 data.environmentId
               )
               break
+            case 'copyToClipboard':
+              vscode.env.clipboard.writeText(data.text)
+              break
           }
         } catch (error) {
           console.error('Error handling message:', error)
@@ -508,7 +511,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           message.environments.forEach(env => {
                               const option = document.createElement('option');
                               option.value = env.id;
-                              option.textContent = env.platform.os + ' (' + env.platform.architecture + ')';
+                              const truncatedId = env.id.length > 13 
+                                  ? env.id.substring(0, 6) + '...' + env.id.substring(env.id.length - 4)
+                                  : env.id;
+                              option.textContent = env.platform.os + ' (' + truncatedId + ')';
                               select.appendChild(option);
                           });
                           select.disabled = false;
@@ -521,20 +527,78 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                                   detailsDiv.style.display = 'none';
                                   return;
                               }
-                              const resources = selectedEnv.resources.map(function(r) {
+
+                              // Format environment ID to show first and last few characters
+                              const truncatedId = selectedEnv.id.length > 13 
+                                  ? selectedEnv.id.substring(0, 6) + '...' + selectedEnv.id.substring(selectedEnv.id.length - 4)
+                                  : selectedEnv.id;
+
+                              // Process resources to show min/max values for paid resources
+                              const paidResourceDetails = selectedEnv.resources.map(r => {
+                                  let value = '';
                                   if (r.id === 'ram' || r.id === 'disk') {
-                                      const gb = Math.round(r.total / (1024 * 1024 * 1024));
-                                      return r.id + ': ' + gb + ' GB';
+                                      const minGb = Math.round(r.min / (1024 * 1024 * 1024));
+                                      const maxGb = Math.round(r.max / (1024 * 1024 * 1024));
+                                      value = minGb + '/' + maxGb + ' GB';
+                                  } else {
+                                      value = r.min + '/' + r.max;
                                   }
-                                  return r.id + ': ' + r.total;
-                              }).join(', ');
+                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Min/Max):</span> ' + value + '</p>';
+                              }).join('');
+
+                              // Process resources for free tier
+                              const freeResourceDetails = selectedEnv.free.resources.map(r => {
+                                  let value = '';
+                                  if (r.id === 'ram' || r.id === 'disk') {
+                                      const maxGb = Math.round(r.max / (1024 * 1024 * 1024));
+                                      value = maxGb + ' GB';
+                                  } else {
+                                      value = r.max;
+                                  }
+                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Max):</span> ' + value + '</p>';
+                              }).join('');
+
                               detailsDiv.innerHTML = 
+                                  '<p><span class="label">Environment ID:</span> ' + truncatedId + '</p>' +
                                   '<p><span class="label">OS:</span> ' + selectedEnv.platform.os + '</p>' +
                                   '<p><span class="label">Architecture:</span> ' + selectedEnv.platform.architecture + '</p>' +
-                                  '<p><span class="label">Resources:</span> ' + resources + '</p>' +
-                                  '<p><span class="label">Max Job Duration:</span> ' + selectedEnv.maxJobDuration + ' seconds</p>' +
-                                  '<p><span class="label">Storage Expiry:</span> ' + selectedEnv.storageExpiry + ' seconds</p>';
+                                  '<div style="margin: 4px 0;">' +
+                                  '<div class="label" style="margin-bottom: 2px;">Consumer Address:</div>' +
+                                  '<div style="display: flex; align-items: center; gap: 8px; background: var(--vscode-input-background); padding: 4px; border-radius: 4px;">' +
+                                  '<span style="font-family: monospace; flex-grow: 1; overflow-x: auto; white-space: nowrap;">' + 
+                                  (selectedEnv.consumerAddress.length > 24 
+                                      ? selectedEnv.consumerAddress.substring(0, 12) + '...' + selectedEnv.consumerAddress.substring(selectedEnv.consumerAddress.length - 8)
+                                      : selectedEnv.consumerAddress) + 
+                                  '</span>' +
+                                  '<button id="copyAddressBtn" ' +
+                                  'style="padding: 2px 8px; margin: 0; width: auto; min-width: 60px; font-size: 0.9em;">Copy</button>' +
+                                  '</div>' +
+                                  '</div>' +
+                                  '<p><span class="label">Paid Resources:</span></p>' +
+                                  '<div style="margin-left: 8px;">' + 
+                                  paidResourceDetails +
+                                  '<p style="margin: 4px 0;"><span class="label">Max Job Duration:</span> ' + selectedEnv.maxJobDuration + ' seconds</p>' +
+                                  '</div>' +
+                                  '<p><span class="label">Free Resources:</span></p>' +
+                                  '<div style="margin-left: 8px;">' + 
+                                  freeResourceDetails +
+                                  '<p style="margin: 4px 0;"><span class="label">Max Job Duration:</span> ' + selectedEnv.free.maxJobDuration + ' seconds</p>' +
+                                  '</div>';
                               detailsDiv.style.display = 'block';
+
+                              const copyBtn = document.getElementById('copyAddressBtn');
+                              if (copyBtn) {
+                                  copyBtn.addEventListener('click', () => {
+                                      vscode.postMessage({
+                                          type: 'copyToClipboard',
+                                          text: selectedEnv.consumerAddress
+                                      });
+                                      copyBtn.textContent = 'Copied!';
+                                      setTimeout(() => {
+                                          copyBtn.textContent = 'Copy';
+                                      }, 1500);
+                                  });
+                              }
                           }
 
                           if (select.options.length > 0) {
