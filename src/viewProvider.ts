@@ -73,6 +73,25 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
         try {
           switch (data.type) {
+            case 'getEnvironments':
+              try {
+                const environments = await vscode.commands.executeCommand(
+                  'ocean-protocol.getEnvironments',
+                  data.nodeUrl
+                )
+                webviewView.webview.postMessage({
+                  type: 'environmentsLoaded',
+                  environments: environments
+                })
+              } catch (error) {
+                console.error('Error loading environments:', error)
+                webviewView.webview.postMessage({
+                  type: 'environmentsLoaded',
+                  environments: [],
+                  error: 'Failed to load compute environments'
+                })
+              }
+              break
             case 'openFilePicker':
               const options: vscode.OpenDialogOptions = {
                 canSelectMany: false,
@@ -132,8 +151,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 data.nodeUrl,
                 data.datasetPath,
                 data.dockerImage,
-                data.dockerTag
+                data.dockerTag,
+                data.environmentId
               )
+              break
+            case 'copyToClipboard':
+              vscode.env.clipboard.writeText(data.text)
               break
           }
         } catch (error) {
@@ -254,6 +277,36 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           #startComputeBtn {
             margin: 15px 0;
           }
+          .environment-section {
+            margin: 15px 0;
+          }
+          .environment-select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            background-color: var(--vscode-dropdown-background);
+            color: var(--vscode-dropdown-foreground);
+            border: 1px solid var(--vscode-dropdown-border);
+          }
+          .environment-details {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+            font-size: 0.9em;
+            display: none;
+          }
+          .environment-details.active {
+            display: block;
+          }
+          .environment-details p {
+            margin: 5px 0;
+          }
+          .environment-details .label {
+            font-weight: bold;
+            color: var(--vscode-descriptionForeground);
+          }
         </style>
     </head>
     <body>
@@ -272,6 +325,14 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
                       <label for="nodeUrlInput">Node URL (including port)</label>
                       <input id="nodeUrlInput" placeholder="Enter compute environment ID" value="${this.randomNodeUrl}" />
+
+                      <div class="environment-section">
+                        <label for="environmentSelect">Compute Environment</label>
+                        <select id="environmentSelect" class="environment-select">
+                          <option value="">Loading environments...</option>
+                        </select>
+                        <div id="environmentDetails" class="environment-details"></div>
+                      </div>
 
                       <label>Dataset</label>
                       <button id="selectDatasetBtn">Select Dataset File</button>
@@ -303,6 +364,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let selectedAlgorithmPath = '';
               let selectedResultsFolderPath = '';
               let isUsingDefaultAlgorithm = false;
+              let selectedEnvironment = null;
+              let availableEnvironments = [];
+
+              const environmentDetails = document.getElementById('environmentDetails');
+              const nodeUrlInput = document.getElementById('nodeUrlInput');
+              const select = document.getElementById('environmentSelect');
 
               function toggleSection(sectionId) {
                   const header = document.getElementById(sectionId + 'Header');
@@ -360,16 +427,41 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
                       vscode.postMessage({ 
                           type: 'startComputeJob',
-                              privateKey: privateKey,
-                              algorithmPath: selectedAlgorithmPath,
-                              resultsFolderPath: selectedResultsFolderPath,
-                              nodeUrl: nodeUrl,
-                              datasetPath: selectedDatasetPath || undefined,
-                              dockerImage: dockerImage || undefined,
-                              dockerTag: dockerTag || undefined
+                          privateKey: privateKey,
+                          algorithmPath: selectedAlgorithmPath,
+                          resultsFolderPath: selectedResultsFolderPath,
+                          nodeUrl: nodeUrl,
+                          datasetPath: selectedDatasetPath || undefined,
+                          dockerImage: dockerImage || undefined,
+                          dockerTag: dockerTag || undefined,
+                          environmentId: document.getElementById('environmentSelect').value || undefined
                       });
                   });
               }
+
+              async function loadEnvironments() {
+                const nodeUrl = nodeUrlInput.value;
+                if (!nodeUrl) return;
+
+                select.innerHTML = '<option value="">Loading environments...</option>';
+                select.disabled = true;
+                environmentDetails.style.display = 'none';
+
+                try {
+                  vscode.postMessage({
+                    type: 'getEnvironments',
+                    nodeUrl: nodeUrl
+                  });
+                } catch (error) {
+                  console.error('Error loading environments:', error);
+                  select.innerHTML = '<option value="">Error loading environments</option>';
+                  select.disabled = true;
+                  environmentDetails.style.display = 'none';
+                }
+              }
+
+              nodeUrlInput.addEventListener('input', loadEnvironments);
+              loadEnvironments();
 
               window.addEventListener('message', event => {
                   const message = event.data;
@@ -398,6 +490,128 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       case 'resultsFolder':
                           selectedResultsFolderPath = message.path;
                           document.getElementById('selectedResultsFolderPath').textContent = message.path;
+                          break;
+                      case 'environmentsLoaded':
+                          console.log('Environments loaded:', message.environments);
+                          availableEnvironments = message.environments;
+                          const select = document.getElementById('environmentSelect');
+                          
+                          if (message.error) {
+                            select.innerHTML = '<option value="">' + message.error + '</option>';
+                            select.disabled = true;
+                            document.getElementById('environmentDetails').style.display = 'none';
+                            return;
+                          }
+                          
+                          if (!message.environments || message.environments.length === 0) {
+                            select.innerHTML = '<option value="">No environments available</option>';
+                            select.disabled = true;
+                            document.getElementById('environmentDetails').style.display = 'none';
+                            return;
+                          }
+
+                          select.innerHTML = '';
+                          message.environments.forEach(env => {
+                              const option = document.createElement('option');
+                              option.value = env.id;
+                              const truncatedId = env.id.length > 13 
+                                  ? env.id.substring(0, 6) + '...' + env.id.substring(env.id.length - 4)
+                                  : env.id;
+                              option.textContent = env.platform.os + ' (' + truncatedId + ')';
+                              select.appendChild(option);
+                          });
+                          select.disabled = false;
+                          document.getElementById('environmentDetails').style.display = 'none';
+
+                          function showEnvDetails(envId) {
+                              const detailsDiv = document.getElementById('environmentDetails');
+                              const selectedEnv = availableEnvironments.find(e => e.id === envId);
+                              if (!selectedEnv) {
+                                  detailsDiv.style.display = 'none';
+                                  return;
+                              }
+
+                              // Format environment ID to show first and last few characters
+                              const truncatedId = selectedEnv.id.length > 13 
+                                  ? selectedEnv.id.substring(0, 6) + '...' + selectedEnv.id.substring(selectedEnv.id.length - 4)
+                                  : selectedEnv.id;
+
+                              // Process resources to show min/max values for paid resources
+                              const paidResourceDetails = selectedEnv.resources.map(r => {
+                                  let value = '';
+                                  if (r.id === 'ram' || r.id === 'disk') {
+                                      const minGb = Math.round(r.min / (1024 * 1024 * 1024));
+                                      const maxGb = Math.round(r.max / (1024 * 1024 * 1024));
+                                      value = minGb + '/' + maxGb + ' GB';
+                                  } else {
+                                      value = r.min + '/' + r.max;
+                                  }
+                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Min/Max):</span> ' + value + '</p>';
+                              }).join('');
+
+                              // Process resources for free tier
+                              const freeResourceDetails = selectedEnv.free.resources.map(r => {
+                                  let value = '';
+                                  if (r.id === 'ram' || r.id === 'disk') {
+                                      const maxGb = Math.round(r.max / (1024 * 1024 * 1024));
+                                      value = maxGb + ' GB';
+                                  } else {
+                                      value = r.max;
+                                  }
+                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Max):</span> ' + value + '</p>';
+                              }).join('');
+
+                              detailsDiv.innerHTML = 
+                                  '<p><span class="label">Environment ID:</span> ' + truncatedId + '</p>' +
+                                  '<p><span class="label">OS:</span> ' + selectedEnv.platform.os + '</p>' +
+                                  '<p><span class="label">Architecture:</span> ' + selectedEnv.platform.architecture + '</p>' +
+                                  '<div style="margin: 4px 0;">' +
+                                  '<div class="label" style="margin-bottom: 2px;">Consumer Address:</div>' +
+                                  '<div style="display: flex; align-items: center; gap: 8px; background: var(--vscode-input-background); padding: 4px; border-radius: 4px;">' +
+                                  '<span style="font-family: monospace; flex-grow: 1; overflow-x: auto; white-space: nowrap;">' + 
+                                  (selectedEnv.consumerAddress.length > 24 
+                                      ? selectedEnv.consumerAddress.substring(0, 12) + '...' + selectedEnv.consumerAddress.substring(selectedEnv.consumerAddress.length - 8)
+                                      : selectedEnv.consumerAddress) + 
+                                  '</span>' +
+                                  '<button id="copyAddressBtn" ' +
+                                  'style="padding: 2px 8px; margin: 0; width: auto; min-width: 60px; font-size: 0.9em;">Copy</button>' +
+                                  '</div>' +
+                                  '</div>' +
+                                  // '<p><span class="label">Paid Resources:</span></p>' +
+                                  // '<div style="margin-left: 8px;">' + 
+                                  // paidResourceDetails +
+                                  // '<p style="margin: 4px 0;"><span class="label">Max Job Duration:</span> ' + selectedEnv.maxJobDuration + ' seconds</p>' +
+                                  // '</div>' +
+                                  '<p><span class="label">Free Resources:</span></p>' +
+                                  '<div style="margin-left: 8px;">' + 
+                                  freeResourceDetails +
+                                  '<p style="margin: 4px 0;"><span class="label">Max Job Duration:</span> ' + selectedEnv.free.maxJobDuration + ' seconds</p>' +
+                                  '</div>';
+                              detailsDiv.style.display = 'block';
+
+                              const copyBtn = document.getElementById('copyAddressBtn');
+                              if (copyBtn) {
+                                  copyBtn.addEventListener('click', () => {
+                                      vscode.postMessage({
+                                          type: 'copyToClipboard',
+                                          text: selectedEnv.consumerAddress
+                                      });
+                                      copyBtn.textContent = 'Copied!';
+                                      setTimeout(() => {
+                                          copyBtn.textContent = 'Copy';
+                                      }, 1500);
+                                  });
+                              }
+                          }
+
+                          if (select.options.length > 0) {
+                              select.selectedIndex = 0;
+                              showEnvDetails(select.value);
+                          }
+
+                          select.addEventListener('change', function() {
+                              showEnvDetails(this.value);
+                          });
                           break;
                   }
               });

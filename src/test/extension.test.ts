@@ -61,7 +61,13 @@ suite('Ocean Protocol Extension Test Suite', () => {
     sandbox.stub(ProviderInstance, 'getComputeEnvironments').resolves(mockEnvResponse)
     sandbox.stub(ProviderInstance, 'freeComputeStart').resolves(mockComputeResponse)
 
-    const result = await computeStart(mockAlgorithm, mockSigner, mockNodeUrl, 'js')
+    const result = await computeStart(
+      mockAlgorithm,
+      mockSigner,
+      mockNodeUrl,
+      'js',
+      mockEnvResponse[0].id
+    )
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.strictEqual(result.statusText, 'Created')
@@ -77,7 +83,13 @@ suite('Ocean Protocol Extension Test Suite', () => {
       .stub(ProviderInstance, 'freeComputeStart')
       .resolves(mockComputeResponse)
 
-    const result = await computeStart(mockAlgorithm, mockSigner, mockNodeUrl, 'py')
+    const result = await computeStart(
+      mockAlgorithm,
+      mockSigner,
+      mockNodeUrl,
+      'py',
+      mockEnvResponse[0].id
+    )
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.ok(
@@ -118,8 +130,8 @@ suite('Ocean Protocol Extension Test Suite', () => {
     sandbox.stub(ProviderInstance, 'getComputeEnvironments').resolves([])
 
     await assert.rejects(
-      computeStart(mockAlgorithm, mockSigner, mockNodeUrl, 'js'),
-      /No compute environments available/
+      computeStart(mockAlgorithm, mockSigner, mockNodeUrl, 'js', undefined),
+      /No environment ID provided/
     )
   })
 
