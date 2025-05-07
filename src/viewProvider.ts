@@ -367,6 +367,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let selectedEnvironment = null;
               let availableEnvironments = [];
 
+              const environmentDetails = document.getElementById('environmentDetails');
+              const nodeUrlInput = document.getElementById('nodeUrlInput');
+              const select = document.getElementById('environmentSelect');
+
               function toggleSection(sectionId) {
                   const header = document.getElementById(sectionId + 'Header');
                   const content = document.getElementById(sectionId);
@@ -436,13 +440,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               }
 
               async function loadEnvironments() {
-                const nodeUrl = document.getElementById('nodeUrlInput').value;
+                const nodeUrl = nodeUrlInput.value;
                 if (!nodeUrl) return;
 
-                const select = document.getElementById('environmentSelect');
                 select.innerHTML = '<option value="">Loading environments...</option>';
                 select.disabled = true;
-                document.getElementById('environmentDetails').style.display = 'none';
+                environmentDetails.style.display = 'none';
 
                 try {
                   vscode.postMessage({
@@ -453,11 +456,11 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   console.error('Error loading environments:', error);
                   select.innerHTML = '<option value="">Error loading environments</option>';
                   select.disabled = true;
-                  document.getElementById('environmentDetails').style.display = 'none';
+                  environmentDetails.style.display = 'none';
                 }
               }
 
-              document.getElementById('nodeUrlInput').addEventListener('input', loadEnvironments);
+              nodeUrlInput.addEventListener('input', loadEnvironments);
               loadEnvironments();
 
               window.addEventListener('message', event => {
