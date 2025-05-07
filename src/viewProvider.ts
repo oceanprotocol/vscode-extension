@@ -574,11 +574,11 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                                   'style="padding: 2px 8px; margin: 0; width: auto; min-width: 60px; font-size: 0.9em;">Copy</button>' +
                                   '</div>' +
                                   '</div>' +
-                                  '<p><span class="label">Paid Resources:</span></p>' +
-                                  '<div style="margin-left: 8px;">' + 
-                                  paidResourceDetails +
-                                  '<p style="margin: 4px 0;"><span class="label">Max Job Duration:</span> ' + selectedEnv.maxJobDuration + ' seconds</p>' +
-                                  '</div>' +
+                                  // '<p><span class="label">Paid Resources:</span></p>' +
+                                  // '<div style="margin-left: 8px;">' + 
+                                  // paidResourceDetails +
+                                  // '<p style="margin: 4px 0;"><span class="label">Max Job Duration:</span> ' + selectedEnv.maxJobDuration + ' seconds</p>' +
+                                  // '</div>' +
                                   '<p><span class="label">Free Resources:</span></p>' +
                                   '<div style="margin-left: 8px;">' + 
                                   freeResourceDetails +
