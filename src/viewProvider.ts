@@ -26,47 +26,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
         localResourceRoots: [this._extensionUri]
       }
 
-      // Get the currently active file for algorithm
-      const activeEditor = vscode.window.activeTextEditor
-      const currentFilePath = activeEditor?.document.uri.fsPath
-
       webviewView.webview.html = this._getHtmlForWebview(webviewView.webview)
-
-      // If there's an active file, use it as the algorithm
-      if (currentFilePath && currentFilePath.endsWith('.js')) {
-        console.log('Setting default algorithm:', currentFilePath)
-        webviewView.webview.postMessage({
-          type: 'fileSelected',
-          filePath: currentFilePath,
-          elementId: 'selectedAlgorithmPath',
-          isDefault: true
-        })
-      }
-
-      // Listen for active editor changes
-      vscode.window.onDidChangeActiveTextEditor((editor) => {
-        if (editor) {
-          const filePath = editor.document.uri.fsPath
-          const fileExtension = filePath.split('.').pop()?.toLowerCase()
-
-          if (fileExtension === 'js' || fileExtension === 'py') {
-            webviewView.webview.postMessage({
-              type: 'fileSelected',
-              filePath: filePath,
-              elementId: 'selectedAlgorithmPath',
-              isDefault: true
-            })
-          } else {
-            webviewView.webview.postMessage({
-              type: 'fileSelected',
-              filePath: 'Please open either a .js or .py file in the editor.',
-              elementId: 'selectedAlgorithmPath',
-              isDefault: true,
-              error: 'Please open either a .js or .py file in the editor.'
-            })
-          }
-        }
-      })
 
       webviewView.webview.onDidReceiveMessage(async (data) => {
         console.log('Received message from webview:', data)
@@ -96,6 +56,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               const options: vscode.OpenDialogOptions = {
                 canSelectMany: false,
                 openLabel: 'Select',
+                defaultUri: vscode.workspace.workspaceFolders?.[0]?.uri,
                 filters: {
                   'Algorithm Files': ['js', 'py'],
                   'Dataset Files': ['json']
@@ -275,7 +236,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border);
           }
           #startComputeBtn {
-            margin: 15px 0;
+            margin: 10px 0;
           }
           .environment-section {
             margin: 15px 0;
@@ -307,13 +268,22 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             font-weight: bold;
             color: var(--vscode-descriptionForeground);
           }
+          .error-message {
+            color: var(--vscode-errorForeground);
+            font-size: 0.9em;
+            display: none;
+          }
         </style>
     </head>
     <body>
           <div class="container">
-              <div id="selectedAlgorithmPath" class="selectedFile"></div>
+              <div id="selectedAlgorithmPath" class="selectedFile">
+                <span class="filePrefix">Selected algorithm: </span>
+                <span class="filePath">Please select a .js or .py file</span>
+              </div>
               
               <button id="startComputeBtn">Start Compute Job</button>
+              <div id="errorMessage" class="error-message"></div>
           </div>
 
           <div class="section">
@@ -416,14 +386,23 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       const nodeUrl = document.getElementById('nodeUrlInput').value || "${this.randomNodeUrl}";
                       const dockerImage = document.getElementById('dockerImageInput').value;
                       const dockerTag = document.getElementById('dockerTagInput').value;
-                      // Only require algorithm to be selected
+                      const errorMessage = document.getElementById('errorMessage');
+                      
+                      // Check for required fields
                       if (!selectedAlgorithmPath) {
-                          vscode.postMessage({
-                              type: 'error',
-                              message: 'Please select an algorithm file'
-                          });
+                          errorMessage.textContent = 'Please select an algorithm file';
+                          errorMessage.style.display = 'block';
                           return;
                       }
+                      
+                      if (!selectedResultsFolderPath) {
+                          errorMessage.textContent = 'Please select a results folder';
+                          errorMessage.style.display = 'block';
+                          return;
+                      }
+
+                      // Clear any previous error
+                      errorMessage.style.display = 'none';
 
                       vscode.postMessage({ 
                           type: 'startComputeJob',
