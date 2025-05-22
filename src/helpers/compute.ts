@@ -52,29 +52,29 @@ export const getComputeAsset = async (nodeUrl: string, dataset?: string) => {
   const isDatasetDid = dataset?.startsWith('did:')
   if (isDatasetDid) {
     const ddo = await fetchDdoByDid(nodeUrl, dataset)
-    return { documentId: dataset, serviceId: ddo.services[0].id }
+    return [{ documentId: dataset, serviceId: ddo.services[0].id }]
   }
 
   const isDatasetUrl = dataset?.startsWith('http')
   if (isDatasetUrl) {
-    return { fileObject: { type: FileObjectType.URL, url: dataset, method: 'GET' } }
+    return [{ fileObject: { type: FileObjectType.URL, url: dataset, method: 'GET' } }]
   }
 
   const isDatasetIpfs = dataset?.startsWith('Qm')
   if (isDatasetIpfs) {
-    return { fileObject: { type: FileObjectType.IPFS, hash: dataset } }
+    return [{ fileObject: { type: FileObjectType.IPFS, hash: dataset } }]
   }
 
   const arweaveUrl = `https://arweave.net/${dataset}`
   const isDatasetUnknownArweave = await fetch(arweaveUrl)
   if (isDatasetUnknownArweave.status === 200) {
-    return { fileObject: { type: FileObjectType.URL, url: arweaveUrl, method: 'GET' } }
+    return [{ fileObject: { type: FileObjectType.URL, url: arweaveUrl, method: 'GET' } }]
   }
 
   const ipfsUrl = `https://ipfs.io/ipfs/${dataset}`
   const isDatasetUnknownIpfs = await fetch(ipfsUrl)
   if (isDatasetUnknownIpfs.status === 200) {
-    return { fileObject: { type: FileObjectType.URL, url: ipfsUrl, method: 'GET' } }
+    return [{ fileObject: { type: FileObjectType.URL, url: ipfsUrl, method: 'GET' } }]
   }
 
   return []
@@ -97,7 +97,7 @@ export async function computeStart(
 
     const containerConfig = getContainerConfig(fileExtension, dockerImage, dockerTag)
 
-    const datasets = (await getComputeAsset(nodeUrl, dataset)) as ComputeAsset
+    const datasets = (await getComputeAsset(nodeUrl, dataset)) as ComputeAsset[]
     const algorithm: ComputeAlgorithm = {
       meta: {
         rawcode: algorithmContent,
@@ -109,7 +109,7 @@ export async function computeStart(
       nodeUrl,
       signer,
       environmentId,
-      [datasets],
+      datasets,
       algorithm
     )
 
