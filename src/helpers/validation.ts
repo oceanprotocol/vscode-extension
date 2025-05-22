@@ -1,4 +1,9 @@
-export const validateDatasetFromInput = async (input: string): Promise<boolean> => {
+import { fetchDdoByDid } from './indexer'
+
+export const validateDatasetFromInput = async (
+  nodeUrl: string,
+  input: string
+): Promise<boolean> => {
   if (input.startsWith('http')) {
     const response = await fetch(input)
     return response.status === 200
@@ -10,7 +15,8 @@ export const validateDatasetFromInput = async (input: string): Promise<boolean> 
   }
 
   if (input.startsWith('did:')) {
-    return true
+    const ddo = await fetchDdoByDid(nodeUrl, input)
+    return ddo !== null
   }
 
   const unknownInputArweave = await fetch(`https://arweave.net/${input}`)

@@ -1,5 +1,4 @@
 import * as vscode from 'vscode'
-import { validateDatasetFromInput } from './helpers/validation'
 
 export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'oceanProtocolExplorer'
@@ -35,7 +34,11 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
         try {
           switch (data.type) {
             case 'validateDatasetFromInput':
-              const isValid = await validateDatasetFromInput(data.input)
+              const isValid = await vscode.commands.executeCommand(
+                'ocean-protocol.validateDataset',
+                data.nodeUrl,
+                data.input
+              )
               webviewView.webview.postMessage({
                 type: 'datasetValidationResult',
                 isValid: isValid
@@ -383,6 +386,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 document.getElementById('datasetInput').addEventListener('input', (e) => {
                   const input = e.target.value.trim();
                   const validationIcon = document.getElementById('datasetValidationIcon');
+                  const nodeUrl = document.getElementById('nodeUrlInput').value;
                   
                   if (!input) {
                     validationIcon.textContent = '';
@@ -393,6 +397,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   console.log('Dataset input changed:', input);
                   vscode.postMessage({
                     type: 'validateDatasetFromInput',
+                    nodeUrl: nodeUrl,
                     input: input
                   });
                 });

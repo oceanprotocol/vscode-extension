@@ -3,8 +3,15 @@ import { Signer } from 'ethers'
 import fs from 'fs'
 import path from 'path'
 import * as tar from 'tar'
-import { ComputeAlgorithm, ComputeJob, ProviderInstance } from '@oceanprotocol/lib'
+import {
+  ComputeAlgorithm,
+  ComputeAsset,
+  ComputeJob,
+  FileObjectType,
+  ProviderInstance
+} from '@oceanprotocol/lib'
 import { PassThrough } from 'stream'
+import { fetchDdoByDid } from './indexer'
 
 const getContainerConfig = (
   fileExtension: string,
@@ -37,13 +44,49 @@ const getContainerConfig = (
   }
 }
 
+export const getComputeAsset = async (nodeUrl: string, dataset?: string) => {
+  if (!dataset) {
+    return []
+  }
+
+  const isDatasetDid = dataset?.startsWith('did:')
+  if (isDatasetDid) {
+    const ddo = await fetchDdoByDid(nodeUrl, dataset)
+    return { documentId: dataset, serviceId: ddo.services[0].id }
+  }
+
+  const isDatasetUrl = dataset?.startsWith('http')
+  if (isDatasetUrl) {
+    return { fileObject: { type: FileObjectType.URL, url: dataset, method: 'GET' } }
+  }
+
+  const isDatasetIpfs = dataset?.startsWith('Qm')
+  if (isDatasetIpfs) {
+    return { fileObject: { type: FileObjectType.IPFS, hash: dataset } }
+  }
+
+  const arweaveUrl = `https://arweave.net/${dataset}`
+  const isDatasetUnknownArweave = await fetch(arweaveUrl)
+  if (isDatasetUnknownArweave.status === 200) {
+    return { fileObject: { type: FileObjectType.URL, url: arweaveUrl, method: 'GET' } }
+  }
+
+  const ipfsUrl = `https://ipfs.io/ipfs/${dataset}`
+  const isDatasetUnknownIpfs = await fetch(ipfsUrl)
+  if (isDatasetUnknownIpfs.status === 200) {
+    return { fileObject: { type: FileObjectType.URL, url: ipfsUrl, method: 'GET' } }
+  }
+
+  return []
+}
+
 export async function computeStart(
   algorithmContent: string,
   signer: Signer,
   nodeUrl: string,
   fileExtension: string,
   environmentId?: string,
-  dataset?: any,
+  dataset?: string,
   dockerImage?: string,
   dockerTag?: string
 ): Promise<ComputeJob> {
@@ -54,7 +97,7 @@ export async function computeStart(
 
     const containerConfig = getContainerConfig(fileExtension, dockerImage, dockerTag)
 
-    const datasets = dataset ? [dataset] : []
+    const datasets = (await getComputeAsset(nodeUrl, dataset)) as ComputeAsset
     const algorithm: ComputeAlgorithm = {
       meta: {
         rawcode: algorithmContent,
@@ -66,7 +109,7 @@ export async function computeStart(
       nodeUrl,
       signer,
       environmentId,
-      datasets,
+      [datasets],
       algorithm
     )
 
