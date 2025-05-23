@@ -427,6 +427,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       // Clear any previous error
                       errorMessage.style.display = 'none';
 
+                      // Clear any previous error
+                      errorMessage.style.display = 'none';
+
                       const datasetInput = document.getElementById('datasetInput').value;
                       vscode.postMessage({ 
                           type: 'startComputeJob',
