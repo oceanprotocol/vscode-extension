@@ -13,6 +13,7 @@ import {
   saveOutput,
   saveResults
 } from './helpers/compute'
+import { validateDatasetFromInput } from './helpers/validation'
 
 globalThis.fetch = fetch
 
@@ -68,6 +69,14 @@ export async function activate(context: vscode.ExtensionContext) {
       )
     )
 
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        'ocean-protocol.validateDataset',
+        async (nodeUrl: string, input: string) => {
+          return await validateDatasetFromInput(nodeUrl, input)
+        }
+      )
+    )
     // Rest of your existing startComputeJob command registration...
     let startComputeJob = vscode.commands.registerCommand(
       'ocean-protocol.startComputeJob',
@@ -76,13 +85,13 @@ export async function activate(context: vscode.ExtensionContext) {
         resultsFolderPath: string,
         privateKey: string | undefined,
         nodeUrl: string,
-        datasetPath?: string,
+        dataset?: string,
         dockerImage?: string,
         dockerTag?: string,
         environmentId?: string
       ) => {
         console.log('1. Starting compute job...')
-        console.log('Dataset path:', datasetPath)
+        console.log('Dataset:', dataset)
         console.log('Algorithm path:', algorithmPath)
         console.log('Results folder path:', resultsFolderPath)
         console.log('Node URL:', nodeUrl)
@@ -126,12 +135,6 @@ export async function activate(context: vscode.ExtensionContext) {
             }
             console.log('Signer created')
 
-            // Read files
-            let dataset
-            if (datasetPath) {
-              const datasetContent = await fs.promises.readFile(datasetPath, 'utf8')
-              dataset = JSON.parse(datasetContent)
-            }
             const algorithmContent = await fs.promises.readFile(algorithmPath, 'utf8')
 
             // Start compute job

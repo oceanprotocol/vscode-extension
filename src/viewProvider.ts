@@ -33,6 +33,17 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
         try {
           switch (data.type) {
+            case 'validateDatasetFromInput':
+              const isValid = await vscode.commands.executeCommand(
+                'ocean-protocol.validateDataset',
+                data.nodeUrl,
+                data.input
+              )
+              webviewView.webview.postMessage({
+                type: 'datasetValidationResult',
+                isValid: isValid
+              })
+              break
             case 'getEnvironments':
               try {
                 const environments = await vscode.commands.executeCommand(
@@ -304,16 +315,18 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                         <div id="environmentDetails" class="environment-details"></div>
                       </div>
 
-                      <label>Dataset</label>
-                      <button id="selectDatasetBtn">Select Dataset File</button>
-                      <div id="selectedDatasetPath" class="selectedFile"></div>
-
                       <label>Algorithm</label>
                       <button id="selectAlgorithmBtn">Select Algorithm File</button>
 
                       <label>Results Folder</label>
                       <button id="selectResultsFolderBtn">Select Results Folder</button>
                       <div id="selectedResultsFolderPath" class="selectedFile"></div>
+
+                      <div style="display: flex; align-items: baseline; gap: 8px;">
+                        <label for="datasetInput">Dataset URL/IPFS/Arweave/DID</label>
+                        <span id="datasetValidationIcon" style="font-size: 1em; min-width: 20px; line-height: 1;"></span>
+                      </div>
+                      <input id="datasetInput" placeholder="Enter URL, IPFS hash, Arweave ID, or DID" />
 
                       <label for="privateKeyInput">Private Key</label>
                       <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
@@ -330,7 +343,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           <script>
               const vscode = acquireVsCodeApi();
               let selectedFilePath = '';
-              let selectedDatasetPath = '';
               let selectedAlgorithmPath = '';
               let selectedResultsFolderPath = '';
               let isUsingDefaultAlgorithm = false;
@@ -351,16 +363,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               // Initialize only the setup section toggle
               document.getElementById('setupHeader').addEventListener('click', () => toggleSection('setup'));
 
-              if (document.getElementById('selectDatasetBtn')) {
-                  document.getElementById('selectDatasetBtn').addEventListener('click', () => {
-                      console.log('Dataset button clicked');
-                      vscode.postMessage({ 
-                          type: 'openFilePicker',
-                          elementId: 'selectedDatasetPath'
-                      });
-                  });
-              }
-
               if (document.getElementById('selectAlgorithmBtn')) {
                   document.getElementById('selectAlgorithmBtn').addEventListener('click', () => {
                       console.log('Algorithm button clicked');
@@ -378,6 +380,27 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           type: 'selectResultsFolder' 
                       });
                   });
+              }
+
+              if (document.getElementById('datasetInput')) {
+                document.getElementById('datasetInput').addEventListener('input', (e) => {
+                  const input = e.target.value.trim();
+                  const validationIcon = document.getElementById('datasetValidationIcon');
+                  const nodeUrl = document.getElementById('nodeUrlInput').value;
+                  
+                  if (!input) {
+                    validationIcon.textContent = '';
+                    document.getElementById('errorMessage').style.display = 'none';
+                    return;
+                  }
+
+                  console.log('Dataset input changed:', input);
+                  vscode.postMessage({
+                    type: 'validateDatasetFromInput',
+                    nodeUrl: nodeUrl,
+                    input: input
+                  });
+                });
               }
 
               if (document.getElementById('startComputeBtn')) {
@@ -404,13 +427,17 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       // Clear any previous error
                       errorMessage.style.display = 'none';
 
+                      // Clear any previous error
+                      errorMessage.style.display = 'none';
+
+                      const datasetInput = document.getElementById('datasetInput').value;
                       vscode.postMessage({ 
                           type: 'startComputeJob',
                           privateKey: privateKey,
                           algorithmPath: selectedAlgorithmPath,
                           resultsFolderPath: selectedResultsFolderPath,
                           nodeUrl: nodeUrl,
-                          datasetPath: selectedDatasetPath || undefined,
+                          datasetPath: datasetInput || undefined,
                           dockerImage: dockerImage || undefined,
                           dockerTag: dockerTag || undefined,
                           environmentId: document.getElementById('environmentSelect').value || undefined
@@ -470,6 +497,16 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           selectedResultsFolderPath = message.path;
                           document.getElementById('selectedResultsFolderPath').textContent = message.path;
                           break;
+                      case 'datasetValidationResult':
+                        const validationIcon = document.getElementById('datasetValidationIcon');
+                        if(!message.isValid) {
+                          validationIcon.textContent = 'x';
+                          validationIcon.style.color = 'var(--vscode-errorForeground)';
+                          return
+                        }
+                        validationIcon.textContent = '✓';
+                        validationIcon.style.color = '#4CAF50';
+                        break;
                       case 'environmentsLoaded':
                           console.log('Environments loaded:', message.environments);
                           availableEnvironments = message.environments;
@@ -556,11 +593,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                                   'style="padding: 2px 8px; margin: 0; width: auto; min-width: 60px; font-size: 0.9em;">Copy</button>' +
                                   '</div>' +
                                   '</div>' +
-                                  // '<p><span class="label">Paid Resources:</span></p>' +
-                                  // '<div style="margin-left: 8px;">' + 
-                                  // paidResourceDetails +
-                                  // '<p style="margin: 4px 0;"><span class="label">Max Job Duration:</span> ' + selectedEnv.maxJobDuration + ' seconds</p>' +
-                                  // '</div>' +
                                   '<p><span class="label">Free Resources:</span></p>' +
                                   '<div style="margin-left: 8px;">' + 
                                   freeResourceDetails +
