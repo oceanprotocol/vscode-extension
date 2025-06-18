@@ -21,6 +21,23 @@ let computeLogsChannel: vscode.OutputChannel
 
 const outputChannel = vscode.window.createOutputChannel('Ocean Protocol extension')
 
+vscode.window.registerUriHandler({
+  handleUri(uri: vscode.Uri) {
+    console.log('URI handler called with URI:', uri)
+    const urlParams = new URLSearchParams(uri.query)
+    const authToken = urlParams.get('authToken')
+    const nodeUrl = urlParams.get('nodeUrl')
+    const isFreeCompute = urlParams.get('isFreeCompute')
+    const environmentId = urlParams.get('environmentId')
+    const feeToken = urlParams.get('feeToken')
+    const jobDuration = urlParams.get('jobDuration')
+    const resources = urlParams.get('resources')
+    console.log({ authToken, nodeUrl, isFreeCompute, environmentId, feeToken, jobDuration, resources })
+    vscode.window.showInformationMessage('Compute job configured successfully!')
+    // Handle the URI as needed
+  }
+});
+
 export async function activate(context: vscode.ExtensionContext) {
   outputChannel.show()
   outputChannel.appendLine('Ocean Protocol extension is now active!')

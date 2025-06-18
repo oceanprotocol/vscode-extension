@@ -250,26 +250,28 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border);
           }
           #startComputeBtn {
-            margin: 10px 0;
+            margin: 5px 0;
           }
           #configureCompute {
-            background: none;
-            border: none;
-            color: var(--vscode-textLink-foreground);
+            background-color: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border: 1px solid var(--vscode-button-border);
             cursor: pointer;
-            padding: 0;
-            margin: -2px auto 15px auto;
-            width: auto;
-            font-size: 0.9em;
-            vertical-align: middle;
-            line-height: 1;
-            display: block;
-            text-align: center;
-            text-decoration: underline;
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            font-size: var(--vscode-font-size);
+            text-decoration: none;
           }
           #configureCompute:hover {
-            color: var(--vscode-textLink-activeForeground);
-            background: none;
+            background-color: var(--vscode-button-secondaryHoverBackground);
+          }
+          #datasetInput {
+            width: 100%; 
+            padding: 8px;
+          }
+          #selectedResultsFolderPath {
+            margin-bottom: 20px;
           }
           .environment-section {
             margin: 15px 0;
@@ -315,9 +317,19 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 <span class="filePath">Please select a .js or .py file</span>
               </div>
               
+              <div id="selectedResultsFolderPath" class="selectedFile">
+                <span class="filePrefix">Selected results folder: </span>
+                <span class="filePath">Please select a folder</span>
+              </div>
+              <div></div>
               <button id="startComputeBtn">Start Compute Job</button>
-              <button id="configureCompute">configure compute</button>
+              <button id="configureCompute">Configure Compute ⚙️</button>
               <div id="errorMessage" class="error-message"></div>
+
+              <button id="selectAlgorithmBtn">Select Algorithm File</button>
+
+              <button id="selectResultsFolderBtn">Select Results Folder</button>
+              <input id="datasetInput" placeholder="Dataset URL/IPFS/Arweave/DID" />
           </div>
 
           <div class="section">
@@ -337,19 +349,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                         </select>
                         <div id="environmentDetails" class="environment-details"></div>
                       </div>
-
-                      <label>Algorithm</label>
-                      <button id="selectAlgorithmBtn">Select Algorithm File</button>
-
-                      <label>Results Folder</label>
-                      <button id="selectResultsFolderBtn">Select Results Folder</button>
-                      <div id="selectedResultsFolderPath" class="selectedFile"></div>
-
-                      <div style="display: flex; align-items: baseline; gap: 8px;">
-                        <label for="datasetInput">Dataset URL/IPFS/Arweave/DID</label>
-                        <span id="datasetValidationIcon" style="font-size: 1em; min-width: 20px; line-height: 1;"></span>
-                      </div>
-                      <input id="datasetInput" placeholder="Enter URL, IPFS hash, Arweave ID, or DID" />
 
                       <label for="privateKeyInput">Private Key</label>
                       <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
@@ -527,7 +526,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           break;
                       case 'resultsFolder':
                           selectedResultsFolderPath = message.path;
-                          document.getElementById('selectedResultsFolderPath').textContent = message.path;
+                          const resultsElement = document.getElementById('selectedResultsFolderPath');
+                          resultsElement.innerHTML = '<span class="filePrefix">Selected results folder: </span><span class="filePath">' + message.path + '</span>';
                           break;
                       case 'datasetValidationResult':
                         const validationIcon = document.getElementById('datasetValidationIcon');
