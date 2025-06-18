@@ -6,12 +6,12 @@ import * as tar from 'tar'
 import {
   ComputeAlgorithm,
   ComputeAsset,
-  ComputeJob,
-  FileObjectType,
+  ComputeJob, FileObjectType,
   ProviderInstance
 } from '@oceanprotocol/lib'
 import { PassThrough } from 'stream'
 import { fetchDdoByDid } from './indexer'
+import { SelectedConfig } from '../types'
 
 const getContainerConfig = (
   fileExtension: string,
@@ -85,23 +85,18 @@ export const getComputeAsset = async (nodeUrl: string, dataset?: string) => {
 }
 
 export async function computeStart(
-  algorithmContent: string,
+  config: SelectedConfig,
   signer: Signer,
-  nodeUrl: string,
+  algorithmContent: string,
   fileExtension: string,
-  environmentId?: string,
   dataset?: string,
   dockerImage?: string,
-  dockerTag?: string
+  dockerTag?: string,
 ): Promise<ComputeJob> {
   try {
-    if (!environmentId) {
-      throw new Error('No environment ID provided')
-    }
-
     const containerConfig = getContainerConfig(fileExtension, dockerImage, dockerTag)
 
-    const datasets = (await getComputeAsset(nodeUrl, dataset)) as ComputeAsset[]
+    const datasets = (await getComputeAsset(config.nodeUrl, dataset)) as ComputeAsset[]
     const algorithm: ComputeAlgorithm = {
       meta: {
         rawcode: algorithmContent,
@@ -110,9 +105,9 @@ export async function computeStart(
     }
 
     const computeJob = await ProviderInstance.freeComputeStart(
-      nodeUrl,
+      config.nodeUrl,
       signer,
-      environmentId,
+      config.environmentId,
       datasets,
       algorithm
     )

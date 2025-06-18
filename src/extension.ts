@@ -14,12 +14,15 @@ import {
   saveResults
 } from './helpers/compute'
 import { validateDatasetFromInput } from './helpers/validation'
+import { SelectedConfig } from './types'
 
 globalThis.fetch = fetch
 
+const provider = new OceanProtocolViewProvider()
 let computeLogsChannel: vscode.OutputChannel
 
 const outputChannel = vscode.window.createOutputChannel('Ocean Protocol extension')
+let config: SelectedConfig | null = null
 
 vscode.window.registerUriHandler({
   handleUri(uri: vscode.Uri) {
@@ -34,7 +37,12 @@ vscode.window.registerUriHandler({
     const resources = urlParams.get('resources')
     console.log({ authToken, nodeUrl, isFreeCompute, environmentId, feeToken, jobDuration, resources })
     vscode.window.showInformationMessage('Compute job configured successfully!')
-    // Handle the URI as needed
+
+    config = new SelectedConfig(authToken, nodeUrl, isFreeCompute, environmentId, feeToken, jobDuration, resources)
+    console.log({ config })
+
+    // Update the UI with the new values
+    provider?.notifyConfigUpdate(config)
   }
 });
 
@@ -48,7 +56,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   try {
     // Create and register the webview provider
-    const provider = new OceanProtocolViewProvider(context.extensionUri)
     console.log('Created OceanProtocolViewProvider')
 
     const registration = vscode.window.registerWebviewViewProvider(
@@ -68,7 +75,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // Create a test command to verify the webview is accessible
     let testCommand = vscode.commands.registerCommand('ocean-protocol.test', () => {
       console.log('Test command executed')
-      if (provider.resolveWebviewView) {
+      if (provider?.resolveWebviewView) {
         console.log('Webview is available')
       } else {
         console.log('Webview is not available')
@@ -81,7 +88,7 @@ export async function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand(
         'ocean-protocol.getEnvironments',
         async (nodeUrl: string) => {
-          return await getComputeEnvironments(nodeUrl)
+          return await getComputeEnvironments(config?.nodeUrl || '')
         }
       )
     )
@@ -90,11 +97,11 @@ export async function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand(
         'ocean-protocol.validateDataset',
         async (nodeUrl: string, input: string) => {
-          return await validateDatasetFromInput(nodeUrl, input)
+          return await validateDatasetFromInput(config?.nodeUrl || '', input)
         }
       )
     )
-    // Rest of your existing startComputeJob command registration...
+
     let startComputeJob = vscode.commands.registerCommand(
       'ocean-protocol.startComputeJob',
       async (
@@ -157,14 +164,13 @@ export async function activate(context: vscode.ExtensionContext) {
             // Start compute job
             const fileExtension = algorithmPath.split('.').pop()?.toLowerCase()
             const computeResponse = await computeStart(
-              algorithmContent,
+              config,
               signer,
-              nodeUrl,
+              algorithmContent,
               fileExtension,
-              environmentId,
               dataset,
               dockerImage,
-              dockerTag
+              dockerTag,
             )
             console.log('Compute result received:', computeResponse)
             const jobId = computeResponse.jobId

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import { SelectedConfig } from './types'
 
 export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'oceanProtocolExplorer'
@@ -9,7 +10,16 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView
 
-  constructor(private readonly _extensionUri: vscode.Uri) {}
+  constructor() { }
+
+  public notifyConfigUpdate(config: SelectedConfig) {
+    if (this._view?.webview) {
+      this._view.webview.postMessage({
+        type: 'configUpdate',
+        config
+      })
+    }
+  }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -23,7 +33,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
       webviewView.webview.options = {
         enableScripts: true,
-        localResourceRoots: [this._extensionUri]
       }
 
       webviewView.webview.html = this._getHtmlForWebview(webviewView.webview)
@@ -505,6 +514,15 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   console.log('Received message:', message);
                   
                   switch (message.type) {
+                      case 'configUpdate':
+                          if (message.config.nodeUrl) {
+                              const nodeUrlInput = document.getElementById('nodeUrlInput');
+                              if (nodeUrlInput) {
+                                  nodeUrlInput.value = message.config.nodeUrl;
+                                  loadEnvironments();
+                              }
+                          }
+                          break;
                       case 'fileSelected':
                           if (message.elementId === 'selectedDatasetPath') {
                               selectedDatasetPath = message.filePath;
