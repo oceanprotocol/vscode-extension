@@ -130,6 +130,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             case 'copyToClipboard':
               vscode.env.clipboard.writeText(data.text)
               break
+            case 'openBrowser':
+              vscode.env.openExternal(vscode.Uri.parse(data.url))
+              break
           }
         } catch (error) {
           console.error('Error handling message:', error)
@@ -249,6 +252,25 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           #startComputeBtn {
             margin: 10px 0;
           }
+          #configureCompute {
+            background: none;
+            border: none;
+            color: var(--vscode-textLink-foreground);
+            cursor: pointer;
+            padding: 0;
+            margin: -2px auto 15px auto;
+            width: auto;
+            font-size: 0.9em;
+            vertical-align: middle;
+            line-height: 1;
+            display: block;
+            text-align: center;
+            text-decoration: underline;
+          }
+          #configureCompute:hover {
+            color: var(--vscode-textLink-activeForeground);
+            background: none;
+          }
           .environment-section {
             margin: 15px 0;
           }
@@ -294,6 +316,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               </div>
               
               <button id="startComputeBtn">Start Compute Job</button>
+              <button id="configureCompute">configure compute</button>
               <div id="errorMessage" class="error-message"></div>
           </div>
 
@@ -441,6 +464,15 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           dockerImage: dockerImage || undefined,
                           dockerTag: dockerTag || undefined,
                           environmentId: document.getElementById('environmentSelect').value || undefined
+                      });
+                  });
+              }
+
+              if (document.getElementById('configureCompute')) {
+                  document.getElementById('configureCompute').addEventListener('click', () => {
+                      vscode.postMessage({ 
+                          type: 'openBrowser',
+                          url: 'http://localhost:3000'
                       });
                   });
               }
