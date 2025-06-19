@@ -361,6 +361,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
                       <label for="privateKeyInput">Private Key</label>
                       <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
+
+                      <label for="authTokenInput">Auth Token</label>
+                      <input id="authTokenInput" type="password" placeholder="Enter your auth token" />
                       
                       <label for="dockerImageInput">Docker Image (optional)</label>
                       <input id="dockerImageInput" placeholder="Enter custom Docker image name" />
@@ -437,6 +440,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               if (document.getElementById('startComputeBtn')) {
                   document.getElementById('startComputeBtn').addEventListener('click', () => {
                       const privateKey = document.getElementById('privateKeyInput').value;
+                      const authToken = document.getElementById('authTokenInput').value;
                       const nodeUrl = document.getElementById('nodeUrlInput').value || "${this.randomNodeUrl}";
                       const dockerImage = document.getElementById('dockerImageInput').value;
                       const dockerTag = document.getElementById('dockerTagInput').value;
@@ -520,6 +524,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                               if (nodeUrlInput) {
                                   nodeUrlInput.value = message.config.nodeUrl;
                                   loadEnvironments();
+                              }
+                          }
+                          if (message.config.authToken) {
+                              const authTokenInput = document.getElementById('authTokenInput');
+                              if (authTokenInput) {
+                                  authTokenInput.value = message.config.authToken;
                               }
                           }
                           break;
