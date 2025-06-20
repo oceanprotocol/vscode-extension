@@ -1,5 +1,4 @@
 import * as vscode from 'vscode'
-import { Signer } from 'ethers'
 import fs from 'fs'
 import path from 'path'
 import * as tar from 'tar'
@@ -86,7 +85,6 @@ export const getComputeAsset = async (nodeUrl: string, dataset?: string) => {
 
 export async function computeStart(
   config: SelectedConfig,
-  signer: Signer,
   algorithmContent: string,
   fileExtension: string,
   dataset?: string,
@@ -106,10 +104,11 @@ export async function computeStart(
 
     const computeJob = await ProviderInstance.freeComputeStart(
       config.nodeUrl,
-      signer,
+      config.authToken,
       config.environmentId,
       datasets,
-      algorithm
+      algorithm,
+      config.resources,
     )
 
     const result = Array.isArray(computeJob) ? computeJob[0] : computeJob
@@ -130,13 +129,12 @@ export async function delay(ms: number): Promise<void> {
 }
 
 export async function checkComputeStatus(
-  nodeUrl: string,
-  consumerAddress: string,
+  config: SelectedConfig,
   jobId: string
 ): Promise<ComputeJob> {
   const computeStatus = await ProviderInstance.computeStatus(
-    nodeUrl,
-    consumerAddress,
+    config.nodeUrl,
+    config.address,
     jobId
   )
 
@@ -144,20 +142,23 @@ export async function checkComputeStatus(
 }
 
 export async function getComputeResult(
-  signer: Signer,
-  nodeUrl: string,
+  config: SelectedConfig,
   jobId: string,
   index: number = 0
 ): Promise<any> {
   try {
     const computResultUrl = await ProviderInstance.getComputeResultUrl(
-      nodeUrl,
-      signer,
+      config.nodeUrl,
+      config.authToken,
       jobId,
-      index
+      index,
     )
 
-    const response = await fetch(computResultUrl)
+    const response = await fetch(computResultUrl, {
+      headers: {
+        Authorization: config.authToken
+      }
+    })
     const blob = await response.blob()
     const arrayBuffer = await blob.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
@@ -208,17 +209,16 @@ export async function saveResults(
 }
 
 export async function getComputeLogs(
-  nodeUrl: string,
-  signer: Signer,
+  config: SelectedConfig,
   jobId: string,
   outputChannel: vscode.OutputChannel
 ): Promise<void> {
   try {
     outputChannel.show(true)
     const stream = (await ProviderInstance.computeStreamableLogs(
-      nodeUrl,
-      signer,
-      jobId
+      config.nodeUrl,
+      config.authToken,
+      jobId,
     )) as PassThrough
 
     stream.on('data', (chunk) => {

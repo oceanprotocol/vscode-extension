@@ -128,7 +128,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 'ocean-protocol.startComputeJob',
                 data.algorithmPath,
                 data.resultsFolderPath,
-                data.privateKey,
+                data.authToken,
                 data.nodeUrl,
                 data.datasetPath,
                 data.dockerImage,
@@ -332,8 +332,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               </div>
               <div></div>
               <button id="startComputeBtn">Start Compute Job</button>
-              <button id="configureCompute">Configure Compute ⚙️</button>
               <div id="errorMessage" class="error-message"></div>
+              <button id="configureCompute">Configure Compute ⚙️</button>
+
 
               <button id="selectAlgorithmBtn">Select Algorithm File</button>
 
@@ -358,9 +359,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                         </select>
                         <div id="environmentDetails" class="environment-details"></div>
                       </div>
-
-                      <label for="privateKeyInput">Private Key</label>
-                      <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
 
                       <label for="authTokenInput">Auth Token</label>
                       <input id="authTokenInput" type="password" placeholder="Enter your auth token" />
@@ -439,7 +437,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
               if (document.getElementById('startComputeBtn')) {
                   document.getElementById('startComputeBtn').addEventListener('click', () => {
-                      const privateKey = document.getElementById('privateKeyInput').value;
                       const authToken = document.getElementById('authTokenInput').value;
                       const nodeUrl = document.getElementById('nodeUrlInput').value || "${this.randomNodeUrl}";
                       const dockerImage = document.getElementById('dockerImageInput').value;
@@ -468,7 +465,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       const datasetInput = document.getElementById('datasetInput').value;
                       vscode.postMessage({ 
                           type: 'startComputeJob',
-                          privateKey: privateKey,
+                          authToken: authToken,
                           algorithmPath: selectedAlgorithmPath,
                           resultsFolderPath: selectedResultsFolderPath,
                           nodeUrl: nodeUrl,
@@ -531,6 +528,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                               if (authTokenInput) {
                                   authTokenInput.value = message.config.authToken;
                               }
+                          }
+                          if (message.config.environmentId) {
+                            const environmentSelect = document.getElementById('environmentSelect');
+                            if (environmentSelect) {
+                              environmentSelect.value = message.config.environmentId;
+                            }
                           }
                           break;
                       case 'fileSelected':

@@ -1,6 +1,5 @@
 import * as vscode from 'vscode'
 import { OceanProtocolViewProvider } from './viewProvider'
-import { ethers } from 'ethers'
 import * as fs from 'fs'
 import fetch from 'cross-fetch'
 import {
@@ -15,6 +14,8 @@ import {
 } from './helpers/compute'
 import { validateDatasetFromInput } from './helpers/validation'
 import { SelectedConfig } from './types'
+import { ethers } from 'ethers'
+import { ProviderInstance } from '@oceanprotocol/lib'
 
 globalThis.fetch = fetch
 
@@ -22,7 +23,7 @@ const provider = new OceanProtocolViewProvider()
 let computeLogsChannel: vscode.OutputChannel
 
 const outputChannel = vscode.window.createOutputChannel('Ocean Protocol extension')
-let config: SelectedConfig | null = null
+let config: SelectedConfig = new SelectedConfig({})
 
 vscode.window.registerUriHandler({
   handleUri(uri: vscode.Uri) {
@@ -35,10 +36,12 @@ vscode.window.registerUriHandler({
     const feeToken = urlParams.get('feeToken')
     const jobDuration = urlParams.get('jobDuration')
     const resources = urlParams.get('resources')
-    console.log({ authToken, nodeUrl, isFreeCompute, environmentId, feeToken, jobDuration, resources })
+    const address = urlParams.get('address')
+    console.log({ authToken, address, nodeUrl, isFreeCompute, environmentId, feeToken, jobDuration, resources })
     vscode.window.showInformationMessage('Compute job configured successfully!')
 
-    config = new SelectedConfig(authToken, nodeUrl, isFreeCompute, environmentId, feeToken, jobDuration, resources)
+    const resourcesParsed = resources ? SelectedConfig.parseResources(resources) : undefined
+    config.updateFields({ authToken, address, nodeUrl, isFreeCompute, environmentId, feeToken, jobDuration, resources: resourcesParsed })
     console.log({ config })
 
     // Update the UI with the new values
@@ -88,7 +91,7 @@ export async function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand(
         'ocean-protocol.getEnvironments',
         async (nodeUrl: string) => {
-          return await getComputeEnvironments(config?.nodeUrl || '')
+          return await getComputeEnvironments(nodeUrl)
         }
       )
     )
@@ -97,7 +100,7 @@ export async function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand(
         'ocean-protocol.validateDataset',
         async (nodeUrl: string, input: string) => {
-          return await validateDatasetFromInput(config?.nodeUrl || '', input)
+          return await validateDatasetFromInput(nodeUrl, input)
         }
       )
     )
@@ -107,7 +110,7 @@ export async function activate(context: vscode.ExtensionContext) {
       async (
         algorithmPath: string,
         resultsFolderPath: string,
-        privateKey: string | undefined,
+        authToken: string | undefined,
         nodeUrl: string,
         dataset?: string,
         dockerImage?: string,
@@ -119,7 +122,7 @@ export async function activate(context: vscode.ExtensionContext) {
         console.log('Algorithm path:', algorithmPath)
         console.log('Results folder path:', resultsFolderPath)
         console.log('Node URL:', nodeUrl)
-        console.log('Private key:', privateKey)
+        console.log('Auth token:', authToken)
         console.log('Docker image:', dockerImage)
         console.log('Docker tag:', dockerTag)
         console.log('Environment ID:', environmentId)
@@ -134,6 +137,27 @@ export async function activate(context: vscode.ExtensionContext) {
           return
         }
 
+        if (!authToken || authToken === '') {
+          try {
+            const signer = ethers.Wallet.createRandom()
+            console.log('Generated new wallet address:', signer.address)
+            vscode.window.showInformationMessage(
+              `Using generated wallet with address: ${signer.address}`
+            )
+            // Generate new token and register the address in the config
+            authToken = await ProviderInstance.generateAuthToken(signer, nodeUrl)
+            console.log('Generated auth token:', authToken)
+            config.updateFields({ address: signer.address })
+          } catch (error) {
+            console.log(error)
+            vscode.window.showErrorMessage('Failed to create a new wallet. Please use Configure Compute first.')
+            return
+          }
+        }
+
+        // Update back the config with new values from the extension
+        config.updateFields({ authToken, nodeUrl, environmentId })
+
         const progressOptions = {
           location: vscode.ProgressLocation.Notification,
           title: 'Compute Job Status',
@@ -146,26 +170,12 @@ export async function activate(context: vscode.ExtensionContext) {
             // Initial setup
             progress.report({ message: 'Starting compute job...' })
 
-            // Generate a random wallet if no private key provided
-            const signer = privateKey
-              ? new ethers.Wallet(privateKey)
-              : ethers.Wallet.createRandom()
-
-            if (!privateKey) {
-              console.log('Generated new wallet address:', signer.address)
-              vscode.window.showInformationMessage(
-                `Using generated wallet with address: ${signer.address}`
-              )
-            }
-            console.log('Signer created')
-
             const algorithmContent = await fs.promises.readFile(algorithmPath, 'utf8')
 
             // Start compute job
             const fileExtension = algorithmPath.split('.').pop()?.toLowerCase()
             const computeResponse = await computeStart(
               config,
-              signer,
               algorithmContent,
               fileExtension,
               dataset,
@@ -184,7 +194,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
             while (true) {
               console.log('Checking job status...')
-              const status = await checkComputeStatus(nodeUrl, signer.address, jobId)
+              const status = await checkComputeStatus(config, jobId)
               console.log('Job status:', status)
               console.log('Status text:', status.statusText)
               progress.report({ message: `${status.statusText}` })
@@ -194,7 +204,7 @@ export async function activate(context: vscode.ExtensionContext) {
               if (status.statusText.includes('Running algorithm') && !logStreamStarted) {
                 logStreamStarted = true
                 // Start fetching logs once
-                getComputeLogs(nodeUrl, signer, jobId, computeLogsChannel)
+                getComputeLogs(config, jobId, computeLogsChannel)
               }
 
               if (status.statusText === 'Job finished') {
@@ -207,7 +217,7 @@ export async function activate(context: vscode.ExtensionContext) {
                   // Retrieve first result (index 0)
                   progress.report({ message: 'Retrieving compute results (1/2)...' })
                   outputChannel.appendLine('Retrieving logs...')
-                  const logResult = await getComputeResult(signer, nodeUrl, jobId, 0)
+                  const logResult = await getComputeResult(config, jobId, 0)
 
                   // Save first result
                   progress.report({ message: 'Saving first result...' })
@@ -228,7 +238,7 @@ export async function activate(context: vscode.ExtensionContext) {
                       message: 'Requesting the output result...'
                     })
                     outputChannel.appendLine('Requesting the output result...')
-                    const outputResult = await getComputeResult(signer, nodeUrl, jobId, 1)
+                    const outputResult = await getComputeResult(config, jobId, 1)
                     const filePathOutput = await saveOutput(
                       outputResult,
                       resultsFolderPath,
