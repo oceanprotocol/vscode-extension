@@ -37,11 +37,14 @@ vscode.window.registerUriHandler({
     const jobDuration = urlParams.get('jobDuration')
     const resources = urlParams.get('resources')
     const address = urlParams.get('address')
+    const chainId = urlParams.get('chainId')
     console.log({ authToken, address, nodeUrl, isFreeCompute, environmentId, feeToken, jobDuration, resources })
     vscode.window.showInformationMessage('Compute job configured successfully!')
+    const isFreeComputeBoolean = isFreeCompute === 'true' ? true : false
+    const chainIdNumber = chainId ? Number(chainId) : undefined
 
     const resourcesParsed = resources ? SelectedConfig.parseResources(resources) : undefined
-    config.updateFields({ authToken, address, nodeUrl, isFreeCompute, environmentId, feeToken, jobDuration, resources: resourcesParsed })
+    config.updateFields({ authToken, address, nodeUrl, isFreeCompute: isFreeComputeBoolean, environmentId, feeToken, jobDuration, resources: resourcesParsed, chainId: chainIdNumber })
     console.log({ config })
 
     // Update the UI with the new values

@@ -4,11 +4,12 @@ export class SelectedConfig {
     authToken?: string
     address?: string
     nodeUrl?: string
-    isFreeCompute?: string
+    isFreeCompute?: boolean
     environmentId?: string
     feeToken?: string
     jobDuration?: string
     resources?: ComputeResourceRequest[]
+    chainId?: number
 
     constructor(params: Partial<SelectedConfig>) {
         Object.assign(this, params)

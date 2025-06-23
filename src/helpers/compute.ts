@@ -102,6 +102,24 @@ export async function computeStart(
       }
     }
 
+    // Paid compute job
+    if (!config.isFreeCompute) {
+      console.log('----------> Paid compute job started')
+      const computeJob = await ProviderInstance.computeStart(
+        config.nodeUrl,
+        config.authToken,
+        config.environmentId,
+        datasets,
+        algorithm,
+        Number(config.jobDuration),
+        config.feeToken,
+        config.resources,
+        config.chainId,
+      )
+
+      return Array.isArray(computeJob) ? computeJob[0] : computeJob
+    }
+
     const computeJob = await ProviderInstance.freeComputeStart(
       config.nodeUrl,
       config.authToken,

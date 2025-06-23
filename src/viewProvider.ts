@@ -331,7 +331,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 <span class="filePath">Please select a folder</span>
               </div>
               <div></div>
-              <button id="startComputeBtn">Start Compute Job</button>
+              <button id="startComputeBtn">Start <strong>FREE</strong> Compute Job</button>
               <div id="errorMessage" class="error-message"></div>
               <button id="configureCompute">Configure Compute ⚙️</button>
 
@@ -533,6 +533,14 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                             const environmentSelect = document.getElementById('environmentSelect');
                             if (environmentSelect) {
                               environmentSelect.value = message.config.environmentId;
+                            }
+                          }
+                          if (message.config.isFreeCompute !== undefined) {
+                            const startComputeBtn = document.getElementById('startComputeBtn');
+                            if (startComputeBtn) {
+                              startComputeBtn.innerHTML = message.config.isFreeCompute === true 
+                                ? 'Start <strong>FREE</strong> Compute Job'
+                                : 'Start <strong>PAID</strong> Compute Job';
                             }
                           }
                           break;
