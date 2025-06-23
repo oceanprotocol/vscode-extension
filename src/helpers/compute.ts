@@ -102,6 +102,10 @@ export async function computeStart(
       }
     }
 
+    if (!config.environmentId) {
+      throw new Error('No environment ID provided')
+    }
+
     // Paid compute job
     if (!config.isFreeCompute) {
       console.log('----------> Paid compute job started')
