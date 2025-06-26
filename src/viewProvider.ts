@@ -484,7 +484,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   document.getElementById('configureCompute').addEventListener('click', () => {
                       vscode.postMessage({ 
                           type: 'openBrowser',
-                          url: 'http://localhost:3000'
+                          url: 'https://vscode-extension-config-test-page.vercel.app/'
                       });
                   });
               }

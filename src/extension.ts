@@ -27,7 +27,6 @@ let config: SelectedConfig = new SelectedConfig({ isFreeCompute: true })
 
 vscode.window.registerUriHandler({
   handleUri(uri: vscode.Uri) {
-    console.log('URI handler called with URI:', uri)
     const urlParams = new URLSearchParams(uri.query)
     const authToken = urlParams.get('authToken')
     const nodeUrl = urlParams.get('nodeUrl')
