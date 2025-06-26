@@ -7,12 +7,14 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   // Get a random node URL from the list
   // private randomNodeUrl = this.nodeUrls[Math.floor(Math.random() * this.nodeUrls.length)]
   private randomNodeUrl = this.nodeUrls[0]
+  private config: SelectedConfig
 
   private _view?: vscode.WebviewView
 
   constructor() { }
 
   public notifyConfigUpdate(config: SelectedConfig) {
+    this.config = config
     if (this._view?.webview) {
       this._view.webview.postMessage({
         type: 'configUpdate',
@@ -140,7 +142,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               vscode.env.clipboard.writeText(data.text)
               break
             case 'openBrowser':
-              vscode.env.openExternal(vscode.Uri.parse(data.url))
+              const appName = vscode.env?.appName || 'vscode'
+              vscode.env.openExternal(vscode.Uri.parse(`${data.url}?ide=${appName?.toLowerCase()}&isFreeCompute=${this.config?.isFreeCompute || true}`))
               break
           }
         } catch (error) {

@@ -23,7 +23,7 @@ const provider = new OceanProtocolViewProvider()
 let computeLogsChannel: vscode.OutputChannel
 
 const outputChannel = vscode.window.createOutputChannel('Ocean Protocol extension')
-let config: SelectedConfig = new SelectedConfig({})
+let config: SelectedConfig = new SelectedConfig({ isFreeCompute: true })
 
 vscode.window.registerUriHandler({
   handleUri(uri: vscode.Uri) {
