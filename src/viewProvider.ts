@@ -353,7 +353,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   <div class="container">
 
                       <label for="nodeUrlInput">Node URL (including port)</label>
-                      <input id="nodeUrlInput" placeholder="Enter compute environment ID" value="${this.randomNodeUrl}" />
+                      <input id="nodeUrlInput" placeholder="Enter node URL" value="${this.randomNodeUrl}" />
 
                       <div class="environment-section">
                         <label for="environmentSelect">Compute Environment</label>
@@ -491,7 +491,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
               async function loadEnvironments() {
                 const nodeUrl = nodeUrlInput.value;
-                if (!nodeUrl) return;
 
                 select.innerHTML = '<option value="">Loading environments...</option>';
                 select.disabled = true;
