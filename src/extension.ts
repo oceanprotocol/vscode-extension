@@ -152,7 +152,7 @@ export async function activate(context: vscode.ExtensionContext) {
             config.updateFields({ address: signer.address })
           } catch (error) {
             console.log(error)
-            vscode.window.showErrorMessage('Failed to create a new wallet. Please use Configure Compute first.')
+            vscode.window.showErrorMessage('Error generating auth token. Please make sure you selected a valid node')
             return
           }
         }
