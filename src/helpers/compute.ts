@@ -13,6 +13,7 @@ import {
 import { PassThrough } from 'stream'
 import { fetchDdoByDid } from './indexer'
 
+
 const getContainerConfig = (
   fileExtension: string,
   dockerImage?: string,
@@ -81,6 +82,17 @@ export const getComputeAsset = async (nodeUrl: string, dataset?: string) => {
     return []
   } catch (e) {
     return []
+  }
+}
+
+export async function stopComputeJob(nodeUrl: string, jobId: string, signer: Signer) {
+  try {
+    const computeJob = await ProviderInstance.computeStop(jobId, nodeUrl, signer)
+    return computeJob
+  } catch (e) {
+    console.log({ e })
+    console.error('Stop compute job error: ', e)
+    throw e
   }
 }
 
