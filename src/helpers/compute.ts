@@ -111,8 +111,8 @@ export async function computeStart(
 
     const computeJob = await ProviderInstance.freeComputeStart(
       nodeUrl,
-      // @ts-ignore for now - type 'import(lib.commonjs/providers/network").Network' is not assignable to type ('/lib.esm/providers/network").Network'.
-      signer,
+      // any for now - type 'import(lib.commonjs/providers/network").Network' is not assignable to type ('/lib.esm/providers/network").Network'.
+      signer as any,
       environmentId,
       datasets,
       algorithm
@@ -158,8 +158,8 @@ export async function getComputeResult(
   try {
     const computResultUrl = await ProviderInstance.getComputeResultUrl(
       nodeUrl,
-      // @ts-ignore for now - type 'import(lib.commonjs/providers/network").Network' is not assignable to type ('/lib.esm/providers/network").Network'.
-      signer,
+      // any for now - type 'import(lib.commonjs/providers/network").Network' is not assignable to type ('/lib.esm/providers/network").Network'.
+      signer as any,
       jobId,
       index
     )
@@ -224,8 +224,8 @@ export async function getComputeLogs(
     outputChannel.show(true)
     const stream = (await ProviderInstance.computeStreamableLogs(
       nodeUrl,
-      // @ts-ignore for now - type 'import(lib.commonjs/providers/network").Network' is not assignable to type ('/lib.esm/providers/network").Network'.
-      signer,
+      // any for now - type 'import(lib.commonjs/providers/network").Network' is not assignable to type ('/lib.esm/providers/network").Network'.
+      signer as any,
       jobId
     )) as PassThrough
 
