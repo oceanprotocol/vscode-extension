@@ -93,8 +93,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.ok(
-      // any for now - type 'import(lib.commonjs/providers/network").Network' is not assignable to type ('/lib.esm/providers/network").Network'.
-      computeStartStub.calledWith(mockNodeUrl, mockSigner as any, mockEnvResponse[0].id, [], {
+      computeStartStub.calledWith(mockNodeUrl, mockSigner, mockEnvResponse[0].id, [], {
         meta: {
           rawcode: mockAlgorithm,
           container: {
