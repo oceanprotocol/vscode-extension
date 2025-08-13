@@ -7,7 +7,7 @@
     "lib": ["ESNext", "dom"],
     "declaration": true,
     "target": "es6",
-    "module": "esnext",
+    "module": "es2022",
     "removeComments": true,
     "experimentalDecorators": true,
     "preserveConstEnums": true,
