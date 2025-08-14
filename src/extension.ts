@@ -21,7 +21,7 @@ globalThis.fetch = fetch
 const outputChannel = vscode.window.createOutputChannel('Ocean Protocol extension')
 
 export async function activate(context: vscode.ExtensionContext) {
-  let savedSigner: ethers.Wallet | null = null
+  let savedSigner: ethers.Wallet | ethers.HDNodeWallet | null = null
   let savedJobId: string | null = null
   let savedNodeUrl: string | null = null
 
