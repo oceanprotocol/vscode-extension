@@ -133,6 +133,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 data.environmentId
               )
               break
+            case 'stopComputeJob':
+              await vscode.commands.executeCommand('ocean-protocol.stopComputeJob')
+              break
             case 'copyToClipboard':
               vscode.env.clipboard.writeText(data.text)
               break
@@ -256,6 +259,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           #startComputeBtn {
             margin: 10px 0;
           }
+          #stopComputeBtn {
+            margin: 10px 0;
+          }
           .environment-section {
             margin: 15px 0;
           }
@@ -301,6 +307,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               </div>
               
               <button id="startComputeBtn">Start Compute Job</button>
+              <button id="stopComputeBtn" style="display: none;">Stop Compute Job</button>
               <div id="errorMessage" class="error-message"></div>
           </div>
 
@@ -425,6 +432,25 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 });
               }
 
+              // Toggle button visibility
+              function showStartButton() {
+                  document.getElementById('startComputeBtn').style.display = 'block';
+                  document.getElementById('stopComputeBtn').style.display = 'none';
+                  // Reset button state
+                  document.getElementById('startComputeBtn').disabled = false;
+                  document.getElementById('startComputeBtn').style.opacity = '1';
+              }
+
+              function showStopButton() {
+                  document.getElementById('startComputeBtn').style.display = 'none';
+                  document.getElementById('stopComputeBtn').style.display = 'block';
+              }
+
+              function disableStartButton() {
+                document.getElementById('startComputeBtn').disabled = true;
+                document.getElementById('startComputeBtn').style.opacity = '0.8';
+              }
+
               if (document.getElementById('startComputeBtn')) {
                   document.getElementById('startComputeBtn').addEventListener('click', () => {
                       const privateKey = document.getElementById('privateKeyInput').value;
@@ -468,6 +494,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           dockerTag: dockerTag || undefined,
                           environmentId: document.getElementById('environmentSelect').value || undefined
                       });
+                  });
+              }
+
+              if (document.getElementById('stopComputeBtn')) {
+                  document.getElementById('stopComputeBtn').addEventListener('click', () => {
+                      vscode.postMessage({ type: 'stopComputeJob' });
                   });
               }
 
@@ -657,6 +689,18 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                               currentAutoSelectedFile = message.filePath;
                           }
                           updateAlgorithmDisplay();
+                          break;
+                      case 'jobLoading':
+                          disableStartButton();
+                          break;
+                      case 'jobStarted':
+                          showStopButton();
+                          break;
+                      case 'jobStopped':
+                          showStartButton();
+                          break;
+                      case 'jobCompleted':
+                          showStartButton();
                           break;
                   }
               });
