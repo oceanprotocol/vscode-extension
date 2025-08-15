@@ -11,6 +11,8 @@ import {
 import { PassThrough } from 'stream'
 import { fetchDdoByDid } from './indexer'
 import { SelectedConfig } from '../types'
+import { ethers } from 'ethers'
+
 
 const getContainerConfig = (
   fileExtension: string,
@@ -80,6 +82,17 @@ export const getComputeAsset = async (nodeUrl: string, dataset?: string) => {
     return []
   } catch (e) {
     return []
+  }
+}
+
+export async function stopComputeJob(nodeUrl: string, jobId: string, signer: ethers.Wallet | ethers.HDNodeWallet | null) {
+  try {
+    const computeJob = await ProviderInstance.computeStop(jobId, nodeUrl, signer)
+    return computeJob
+  } catch (e) {
+    console.log({ e })
+    console.error('Stop compute job error: ', e)
+    throw e
   }
 }
 

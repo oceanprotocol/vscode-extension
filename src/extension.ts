@@ -10,7 +10,8 @@ import {
   getComputeLogs,
   getComputeResult,
   saveOutput,
-  saveResults
+  saveResults,
+  stopComputeJob
 } from './helpers/compute'
 import { validateDatasetFromInput } from './helpers/validation'
 import { SelectedConfig } from './types'
@@ -19,11 +20,10 @@ import { ProviderInstance } from '@oceanprotocol/lib'
 
 globalThis.fetch = fetch
 
-const provider = new OceanProtocolViewProvider()
-let computeLogsChannel: vscode.OutputChannel
-
 const outputChannel = vscode.window.createOutputChannel('Ocean Protocol extension')
 let config: SelectedConfig = new SelectedConfig({ isFreeCompute: true })
+let provider: OceanProtocolViewProvider
+let computeLogsChannel: vscode.OutputChannel
 
 vscode.window.registerUriHandler({
   handleUri(uri: vscode.Uri) {
@@ -52,15 +52,17 @@ vscode.window.registerUriHandler({
 });
 
 export async function activate(context: vscode.ExtensionContext) {
+  let savedSigner: ethers.Wallet | ethers.HDNodeWallet | null = null
+  let savedJobId: string | null = null
+  let savedNodeUrl: string | null = null
+
   outputChannel.show()
   outputChannel.appendLine('Ocean Protocol extension is now active!')
   console.log('Ocean Protocol extension is now active!')
 
-  // Create the output channel once when the extension activates
-  computeLogsChannel = vscode.window.createOutputChannel('Algorithm Logs')
-
   try {
     // Create and register the webview provider
+    provider = new OceanProtocolViewProvider()
     console.log('Created OceanProtocolViewProvider')
 
     const registration = vscode.window.registerWebviewViewProvider(
@@ -76,6 +78,23 @@ export async function activate(context: vscode.ExtensionContext) {
     // Add to subscriptions
     context.subscriptions.push(registration)
     console.log('Added registration to subscriptions')
+
+    // Listen for active editor changes
+    context.subscriptions.push(
+      vscode.window.onDidChangeActiveTextEditor((editor) => {
+        let filePath = null
+        if (editor && editor.document.uri.scheme === 'file') {
+          const fileExtension = editor.document.uri.fsPath.split('.').pop()?.toLowerCase()
+          if (fileExtension === 'js' || fileExtension === 'py') {
+            filePath = editor.document.uri.fsPath
+          }
+        }
+        provider.sendMessage({
+          type: 'activeEditorChanged',
+          filePath: filePath
+        })
+      })
+    )
 
     // Create a test command to verify the webview is accessible
     let testCommand = vscode.commands.registerCommand('ocean-protocol.test', () => {
@@ -107,6 +126,25 @@ export async function activate(context: vscode.ExtensionContext) {
       )
     )
 
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        'ocean-protocol.stopComputeJob',
+        async () => {
+          if (!savedJobId) {
+            vscode.window.showErrorMessage('No active job to stop')
+            return
+          }
+          try {
+            await stopComputeJob(savedNodeUrl, savedJobId, savedSigner)
+            savedJobId = null
+            provider.sendMessage({ type: 'jobStopped' })
+            vscode.window.showInformationMessage('Job stopped successfully')
+          } catch (error) {
+            vscode.window.showErrorMessage('Failed to stop job')
+          }
+        }
+      )
+    )
     let startComputeJob = vscode.commands.registerCommand(
       'ocean-protocol.startComputeJob',
       async (
@@ -132,6 +170,9 @@ export async function activate(context: vscode.ExtensionContext) {
         !algorithmPath && missingParams.push('algorithm path')
         !nodeUrl && missingParams.push('node URL')
 
+        // Save the node URL to know which node to stop the job on
+        savedNodeUrl = nodeUrl
+
         if (missingParams.length > 0) {
           vscode.window.showErrorMessage(
             `Missing required parameters: ${missingParams.join(', ')}`
@@ -139,9 +180,10 @@ export async function activate(context: vscode.ExtensionContext) {
           return
         }
 
+        let signer: ethers.HDNodeWallet
         if (!authToken || authToken === '') {
           try {
-            const signer = ethers.Wallet.createRandom()
+            signer = ethers.Wallet.createRandom()
             console.log('Generated new wallet address:', signer.address)
             vscode.window.showInformationMessage(
               `Using generated wallet with address: ${signer.address}`
@@ -155,10 +197,19 @@ export async function activate(context: vscode.ExtensionContext) {
             vscode.window.showErrorMessage('Error generating auth token. Please make sure you selected a valid node')
             return
           }
+        } else {
+          // Create a signer for existing auth token - we'll need the address from config
+          signer = ethers.Wallet.createRandom() // This will be replaced with proper implementation
         }
 
         // Update back the config with new values from the extension
         config.updateFields({ authToken, nodeUrl, environmentId })
+
+        // Save signer and nodeUrl for stop job functionality
+        savedSigner = signer
+        savedNodeUrl = nodeUrl
+
+        provider.sendMessage({ type: 'jobLoading' })
 
         const progressOptions = {
           location: vscode.ProgressLocation.Notification,
@@ -186,7 +237,14 @@ export async function activate(context: vscode.ExtensionContext) {
             )
             console.log('Compute result received:', computeResponse)
             const jobId = computeResponse.jobId
-            console.log('Job ID:', jobId)
+            // Save the job ID for future use
+            savedJobId = jobId
+
+            // Notify webview that job started
+            provider.sendMessage({
+              type: 'jobStarted',
+              jobId: jobId
+            })
 
             outputChannel.show()
             outputChannel.appendLine(`Starting compute job with ID: ${jobId}`)
@@ -194,6 +252,9 @@ export async function activate(context: vscode.ExtensionContext) {
             // Start fetching logs periodically
             let logStreamStarted = false
 
+            const computeLogsChannel = vscode.window.createOutputChannel(
+              `Algorithm Logs - ${jobId.slice(0, 3)}...`
+            )
             while (true) {
               console.log('Checking job status...')
               const status = await checkComputeStatus(config, jobId)
@@ -247,6 +308,10 @@ export async function activate(context: vscode.ExtensionContext) {
                       'result-output'
                     )
                     outputChannel.appendLine(`Output saved to: ${filePathOutput}`)
+                    // Reset job state and notify webview that job completed
+                    savedJobId = null
+                    provider.sendMessage({ type: 'jobCompleted' })
+
                     vscode.window.showInformationMessage(
                       'Compute job completed successfully!'
                     )
@@ -273,6 +338,9 @@ export async function activate(context: vscode.ExtensionContext) {
                 status.statusText.toLowerCase().includes('error') ||
                 status.statusText.toLowerCase().includes('failed')
               ) {
+                // Reset job state and notify webview on failure
+                savedJobId = null
+                provider.sendMessage({ type: 'jobStopped' })
                 throw new Error(`Job failed with status: ${status.statusText}`)
               }
 
@@ -281,6 +349,11 @@ export async function activate(context: vscode.ExtensionContext) {
           })
         } catch (error) {
           console.error('Error details:', error)
+
+          // Reset job state and notify webview on error
+          savedJobId = null
+          provider.sendMessage({ type: 'jobStopped' })
+
           if (error instanceof Error && error.message) {
             vscode.window.showErrorMessage(`Error with compute job: ${error.message}`)
           } else {

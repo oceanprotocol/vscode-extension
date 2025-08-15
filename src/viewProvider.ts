@@ -23,6 +23,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  public sendMessage(message: any) {
+    if (this._view) {
+      this._view.webview.postMessage(message)
+    }
+  }
+
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
     context: vscode.WebviewViewResolveContext,
@@ -137,6 +143,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 data.dockerTag,
                 data.environmentId
               )
+              break
+            case 'stopComputeJob':
+              await vscode.commands.executeCommand('ocean-protocol.stopComputeJob')
               break
             case 'copyToClipboard':
               vscode.env.clipboard.writeText(data.text)
@@ -285,6 +294,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           #selectedResultsFolderPath {
             margin-bottom: 20px;
           }
+          #stopComputeBtn {
+            margin: 10px 0;
+          }
           .environment-section {
             margin: 15px 0;
           }
@@ -335,6 +347,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               </div>
               <div></div>
               <button id="startComputeBtn">Start <strong>FREE</strong> Compute Job</button>
+              <button id="stopComputeBtn" style="display: none;">Stop Compute Job</button>
               <div id="errorMessage" class="error-message"></div>
               <button id="configureCompute">Configure Compute ⚙️</button>
 
@@ -383,6 +396,21 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let isUsingDefaultAlgorithm = false;
               let selectedEnvironment = null;
               let availableEnvironments = [];
+              let currentAutoSelectedFile = null;
+
+              // Helper function to update algorithm display
+              function updateAlgorithmDisplay() {
+                  const element = document.getElementById('selectedAlgorithmPath');
+                  
+                  if (currentAutoSelectedFile) {
+                      element.innerHTML = '<span class="filePrefix">Current file (auto-selected): </span><span class="filePath">' + currentAutoSelectedFile + '</span>';
+                  } else if (selectedAlgorithmPath) {
+                      const prefix = isUsingDefaultAlgorithm ? 'Current algorithm file: ' : 'Selected algorithm: ';
+                      element.innerHTML = '<span class="filePrefix">' + prefix + '</span><span class="filePath">' + selectedAlgorithmPath + '</span>';
+                  } else {
+                      element.innerHTML = '<span class="filePrefix">Algorithm: </span><span class="filePath">Please open a .js or .py file or select manually</span>';
+                  }
+              }
 
               const environmentDetails = document.getElementById('environmentDetails');
               const nodeUrlInput = document.getElementById('nodeUrlInput');
@@ -438,6 +466,25 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 });
               }
 
+              // Toggle button visibility
+              function showStartButton() {
+                  document.getElementById('startComputeBtn').style.display = 'block';
+                  document.getElementById('stopComputeBtn').style.display = 'none';
+                  // Reset button state
+                  document.getElementById('startComputeBtn').disabled = false;
+                  document.getElementById('startComputeBtn').style.opacity = '1';
+              }
+
+              function showStopButton() {
+                  document.getElementById('startComputeBtn').style.display = 'none';
+                  document.getElementById('stopComputeBtn').style.display = 'block';
+              }
+
+              function disableStartButton() {
+                document.getElementById('startComputeBtn').disabled = true;
+                document.getElementById('startComputeBtn').style.opacity = '0.8';
+              }
+
               if (document.getElementById('startComputeBtn')) {
                   document.getElementById('startComputeBtn').addEventListener('click', () => {
                       const authToken = document.getElementById('authTokenInput').value;
@@ -446,33 +493,37 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       const dockerTag = document.getElementById('dockerTagInput').value;
                       const errorMessage = document.getElementById('errorMessage');
                       
-                      // Check for required fields
-                      if (!selectedAlgorithmPath) {
-                          errorMessage.textContent = 'Please select an algorithm file';
-                          errorMessage.style.display = 'block';
-                          return;
-                      }
-                      
                       if (!selectedResultsFolderPath) {
                           errorMessage.textContent = 'Please select a results folder';
                           errorMessage.style.display = 'block';
                           return;
                       }
 
-                      // Clear any previous error
-                      errorMessage.style.display = 'none';
+                      // Determine algorithm path using auto-selection priority
+                      let algorithmPath = null;
+                      if (currentAutoSelectedFile) {
+                          algorithmPath = currentAutoSelectedFile;
+                      } else if (selectedAlgorithmPath) {
+                          algorithmPath = selectedAlgorithmPath;
+                      }
+                      
+                      if (!algorithmPath) {
+                          errorMessage.textContent = 'Please open a .js or .py file or manually select an algorithm';
+                          errorMessage.style.display = 'block';
+                          return;
+                      }
 
                       // Clear any previous error
                       errorMessage.style.display = 'none';
 
-                      const datasetInput = document.getElementById('datasetInput').value;
+                      // Start compute job directly
                       vscode.postMessage({ 
                           type: 'startComputeJob',
                           authToken: authToken,
-                          algorithmPath: selectedAlgorithmPath,
+                          algorithmPath: algorithmPath,
                           resultsFolderPath: selectedResultsFolderPath,
                           nodeUrl: nodeUrl,
-                          datasetPath: datasetInput || undefined,
+                          datasetPath: document.getElementById('datasetInput').value || undefined,
                           dockerImage: dockerImage || undefined,
                           dockerTag: dockerTag || undefined,
                           environmentId: document.getElementById('environmentSelect').value || undefined
@@ -486,6 +537,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           type: 'openBrowser',
                           url: 'https://vscode-extension-config-test-page.vercel.app/'
                       });
+                  });
+              }
+
+              if (document.getElementById('stopComputeBtn')) {
+                  document.getElementById('stopComputeBtn').addEventListener('click', () => {
+                      vscode.postMessage({ type: 'stopComputeJob' });
                   });
               }
 
@@ -554,9 +611,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           } else if (message.elementId === 'selectedAlgorithmPath') {
                               selectedAlgorithmPath = message.filePath;
                               isUsingDefaultAlgorithm = message.isDefault || false;
-                              const element = document.getElementById('selectedAlgorithmPath');
-                              const prefix = isUsingDefaultAlgorithm ? 'Current algorithm file: ' : 'Selected algorithm: ';
-                              element.innerHTML = '<span class="filePrefix">' + prefix + '</span><span class="filePath">' + message.filePath + '</span>';
+                              // Manual selection overrides auto-selection
+                              currentAutoSelectedFile = null;
+                              updateAlgorithmDisplay();
                           } else {
                               selectedFilePath = message.filePath;
                               document.getElementById('selectedFilePath').textContent = 'Selected file: ' + message.filePath;
@@ -696,6 +753,26 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           select.addEventListener('change', function() {
                               showEnvDetails(this.value);
                           });
+                          break;
+
+                      case 'activeEditorChanged':
+                          // Only update if we have a valid algorithm file, otherwise keep the last one
+                          if (message.filePath) {
+                              currentAutoSelectedFile = message.filePath;
+                          }
+                          updateAlgorithmDisplay();
+                          break;
+                      case 'jobLoading':
+                          disableStartButton();
+                          break;
+                      case 'jobStarted':
+                          showStopButton();
+                          break;
+                      case 'jobStopped':
+                          showStartButton();
+                          break;
+                      case 'jobCompleted':
+                          showStartButton();
                           break;
                   }
               });
