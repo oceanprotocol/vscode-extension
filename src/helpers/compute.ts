@@ -339,10 +339,8 @@ export async function withRetrial<T>(
       return await fn()
     } catch (error) {
       lastError = error as Error
-      console.log(`Attempt ${attempt + 1} of ${maxRetries} failed`)
 
       if (attempt === maxRetries - 1) {
-
         throw lastError
       }
 
