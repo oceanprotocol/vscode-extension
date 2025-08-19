@@ -12,7 +12,8 @@ import {
   getComputeResult,
   saveOutput,
   saveResults,
-  stopComputeJob
+  stopComputeJob,
+  withRetrial
 } from './helpers/compute'
 import { validateDatasetFromInput } from './helpers/validation'
 
@@ -214,7 +215,12 @@ export async function activate(context: vscode.ExtensionContext) {
             )
             while (true) {
               console.log('Checking job status...')
-              const status = await checkComputeStatus(nodeUrl, signer.address, jobId)
+              const status = await withRetrial(
+                () => checkComputeStatus(nodeUrl, signer.address, jobId),
+                5,
+                1000,
+                progress
+              )
               console.log('Job status:', status)
               console.log('Status text:', status.statusText)
               progress.report({ message: `${status.statusText}` })
