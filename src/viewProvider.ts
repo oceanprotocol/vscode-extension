@@ -400,6 +400,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let selectedEnvironment = null;
               let availableEnvironments = [];
               let currentAutoSelectedFile = null;
+              let configResources = null;
 
               // Helper function to update algorithm display
               function updateAlgorithmDisplay() {
@@ -609,6 +610,18 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                             const environmentSelect = document.getElementById('environmentSelect');
                             if (environmentSelect) {
                               environmentSelect.value = message.config.environmentId;
+                              // Refresh environment details if an environment is selected
+                              if (message.config.environmentId && availableEnvironments.length > 0) {
+                                showEnvDetails(message.config.environmentId);
+                              }
+                            }
+                          }
+                          if (message.config.resources) {
+                            configResources = message.config.resources;
+                            // Refresh environment details if an environment is selected
+                            const environmentSelect = document.getElementById('environmentSelect');
+                            if (environmentSelect && environmentSelect.value) {
+                              showEnvDetails(environmentSelect.value);
                             }
                           }
                           if (message.config.isFreeCompute !== undefined) {
@@ -705,30 +718,36 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                                   ? selectedEnv.id.substring(0, 6) + '...' + selectedEnv.id.substring(selectedEnv.id.length - 4)
                                   : selectedEnv.id;
 
-                              // Process resources to show min/max values for paid resources
-                              const paidResourceDetails = selectedEnv.resources.map(r => {
-                                  let value = '';
-                                  if (r.id === 'ram' || r.id === 'disk') {
-                                      const minGb = Math.round(r.min / (1024 * 1024 * 1024));
-                                      const maxGb = Math.round(r.max / (1024 * 1024 * 1024));
-                                      value = minGb + '/' + maxGb + ' GB';
-                                  } else {
-                                      value = r.min + '/' + r.max;
-                                  }
-                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Min/Max):</span> ' + value + '</p>';
-                              }).join('');
-
-                              // Process resources for free tier
-                              const freeResourceDetails = selectedEnv.free.resources.map(r => {
-                                  let value = '';
-                                  if (r.id === 'ram' || r.id === 'disk') {
-                                      const maxGb = Math.round(r.max / (1024 * 1024 * 1024));
-                                      value = maxGb + ' GB';
-                                  } else {
-                                      value = r.max;
-                                  }
-                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Max):</span> ' + value + '</p>';
-                              }).join('');
+                              // Process resources - use selected resources if available, otherwise show max resources
+                              let resourceDetails = '';
+                              let resourcesLabel = 'Max Resources:';
+                              
+                              if (configResources && configResources.length > 0) {
+                                  // Show selected resources
+                                  resourcesLabel = 'Selected Resources:';
+                                  resourceDetails = configResources.map(r => {
+                                      let value = '';
+                                      if (r.id === 'ram' || r.id === 'disk') {
+                                          const gb = Math.round(r.amount / (1024 * 1024 * 1024));
+                                          value = gb + ' GB';
+                                      } else {
+                                          value = r.amount;
+                                      }
+                                      return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + value + '</p>';
+                                  }).join('');
+                              } else {
+                                  // Show max resources (existing behavior)
+                                  resourceDetails = selectedEnv.free?.resources.map(r => {
+                                      let value = '';
+                                      if (r.id === 'ram' || r.id === 'disk') {
+                                          const maxGb = Math.round(r.max / (1024 * 1024 * 1024));
+                                          value = maxGb + ' GB';
+                                      } else {
+                                          value = r.max;
+                                      }
+                                      return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Max):</span> ' + value + '</p>';
+                                  }).join('');
+                              }
 
                               detailsDiv.innerHTML = 
                                   '<p><span class="label">Environment ID:</span> ' + truncatedId + '</p>' +
@@ -746,10 +765,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                                   'style="padding: 2px 8px; margin: 0; width: auto; min-width: 60px; font-size: 0.9em;">Copy</button>' +
                                   '</div>' +
                                   '</div>' +
-                                  '<p><span class="label">Free Resources:</span></p>' +
+                                  '<p><span class="label">' + resourcesLabel + '</span></p>' +
                                   '<div style="margin-left: 8px;">' + 
-                                  freeResourceDetails +
-                                  '<p style="margin: 4px 0;"><span class="label">Max Job Duration:</span> ' + selectedEnv.free.maxJobDuration + ' seconds</p>' +
+                                  resourceDetails +
+                                  '<p style="margin: 4px 0;"><span class="label">Max Job Duration:</span> ' + selectedEnv.free?.maxJobDuration + ' seconds</p>' +
                                   '</div>';
                               detailsDiv.style.display = 'block';
 
