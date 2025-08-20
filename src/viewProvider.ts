@@ -319,7 +319,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   <div class="container">
 
                       <label for="nodeUrlInput">Node URL (including port)</label>
-                      <input id="nodeUrlInput" placeholder="Enter compute environment ID" value="${this.randomNodeUrl}" />
+                      <div style="display: flex; align-items: center; gap: 4px;">
+                        <input id="nodeUrlInput" placeholder="Enter compute environment ID" value="${this.randomNodeUrl}" style="flex: 1;" />
+                        <button id="validateNodeBtn" style="padding: 2px 8px; font-size: 0.75em; width: 50px; height: 30px; flex-shrink: 0; box-sizing: border-box;">Check</button>
+                      </div>
 
                       <div class="environment-section">
                         <label for="environmentSelect">Compute Environment</label>
@@ -505,7 +508,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
               async function loadEnvironments() {
                 const nodeUrl = nodeUrlInput.value;
-                if (!nodeUrl) return;
+                if (!nodeUrl) {
+                  disableStartButton();
+                  return;
+                }
 
                 select.innerHTML = '<option value="">Loading environments...</option>';
                 select.disabled = true;
@@ -521,10 +527,20 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   select.innerHTML = '<option value="">Error loading environments</option>';
                   select.disabled = true;
                   environmentDetails.style.display = 'none';
+                  disableStartButton();
                 }
               }
 
-              nodeUrlInput.addEventListener('input', loadEnvironments);
+              if (document.getElementById('validateNodeBtn')) {
+                  document.getElementById('validateNodeBtn').addEventListener('click', () => {
+                      loadEnvironments();
+                  });
+              }
+              
+              // Disable start button initially until node URL is validated
+              disableStartButton();
+              
+              // Load environments on page load
               loadEnvironments();
 
               window.addEventListener('message', event => {
@@ -574,6 +590,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                             select.innerHTML = '<option value="">' + message.error + '</option>';
                             select.disabled = true;
                             document.getElementById('environmentDetails').style.display = 'none';
+                            disableStartButton();
                             return;
                           }
                           
@@ -581,6 +598,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                             select.innerHTML = '<option value="">No environments available</option>';
                             select.disabled = true;
                             document.getElementById('environmentDetails').style.display = 'none';
+                            disableStartButton();
                             return;
                           }
 
@@ -596,6 +614,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           });
                           select.disabled = false;
                           document.getElementById('environmentDetails').style.display = 'none';
+                          
+                          // Enable start button when environments are loaded successfully
+                          document.getElementById('startComputeBtn').disabled = false;
+                          document.getElementById('startComputeBtn').style.opacity = '1';
 
                           function showEnvDetails(envId) {
                               const detailsDiv = document.getElementById('environmentDetails');
