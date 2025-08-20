@@ -11,7 +11,8 @@ import {
   getComputeResult,
   saveOutput,
   saveResults,
-  stopComputeJob
+  stopComputeJob,
+  withRetrial
 } from './helpers/compute'
 import { validateDatasetFromInput } from './helpers/validation'
 import { SelectedConfig } from './types'
@@ -257,7 +258,10 @@ export async function activate(context: vscode.ExtensionContext) {
             )
             while (true) {
               console.log('Checking job status...')
-              const status = await checkComputeStatus(config, jobId)
+              const status = await withRetrial(
+                () => checkComputeStatus(config, jobId),
+                progress
+              )
               console.log('Job status:', status)
               console.log('Status text:', status.statusText)
               progress.report({ message: `${status.statusText}` })
@@ -267,7 +271,10 @@ export async function activate(context: vscode.ExtensionContext) {
               if (status.statusText.includes('Running algorithm') && !logStreamStarted) {
                 logStreamStarted = true
                 // Start fetching logs once
-                getComputeLogs(config, jobId, computeLogsChannel)
+                withRetrial(
+                  () => getComputeLogs(config, jobId, computeLogsChannel),
+                  progress
+                )
               }
 
               if (status.statusText === 'Job finished') {
@@ -280,7 +287,10 @@ export async function activate(context: vscode.ExtensionContext) {
                   // Retrieve first result (index 0)
                   progress.report({ message: 'Retrieving compute results (1/2)...' })
                   outputChannel.appendLine('Retrieving logs...')
-                  const logResult = await getComputeResult(config, jobId, 0)
+                  const logResult = await withRetrial(
+                    () => getComputeResult(config, jobId, 0),
+                    progress
+                  )
 
                   // Save first result
                   progress.report({ message: 'Saving first result...' })
@@ -301,7 +311,10 @@ export async function activate(context: vscode.ExtensionContext) {
                       message: 'Requesting the output result...'
                     })
                     outputChannel.appendLine('Requesting the output result...')
-                    const outputResult = await getComputeResult(config, jobId, 1)
+                    const outputResult = await withRetrial(
+                      () => getComputeResult(config, jobId, 1),
+                      progress
+                    )
                     const filePathOutput = await saveOutput(
                       outputResult,
                       resultsFolderPath,

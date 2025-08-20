@@ -169,13 +169,17 @@ export async function checkComputeStatus(
   config: SelectedConfig,
   jobId: string
 ): Promise<ComputeJob> {
-  const computeStatus = await ProviderInstance.computeStatus(
-    config.nodeUrl,
-    config.address,
-    jobId
-  )
+  try {
+    const computeStatus = await ProviderInstance.computeStatus(
+      config.nodeUrl,
+      config.address,
+      jobId
+    )
 
-  return Array.isArray(computeStatus) ? computeStatus[0] : computeStatus
+    return Array.isArray(computeStatus) ? computeStatus[0] : computeStatus
+  } catch (error) {
+    throw new Error('Failed to check compute status')
+  }
 }
 
 export async function getComputeResult(
@@ -340,4 +344,33 @@ export async function getComputeEnvironments(nodeUrl: string) {
   }
 
   return environments
+}
+
+export async function withRetrial<T>(
+  fn: () => Promise<T>,
+  progress?: vscode.Progress<{ message?: string }>,
+  maxRetries: number = 5,
+  delay: number = 2000,
+): Promise<T> {
+  let lastError: Error
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      lastError = error as Error
+
+      if (attempt === maxRetries - 1) {
+        throw lastError
+      }
+
+      const retryDelay = delay * Math.pow(2, attempt)
+      if (progress) {
+        progress.report({ message: `Attempt ${attempt + 1} failed. Retry in ${retryDelay}ms...` })
+      }
+      await new Promise(resolve => setTimeout(resolve, retryDelay))
+    }
+  }
+
+  throw lastError!
 }
