@@ -328,9 +328,9 @@ export async function getComputeEnvironments(nodeUrl: string) {
 
 export async function withRetrial<T>(
   fn: () => Promise<T>,
-  maxRetries: number = 3,
-  delay: number = 1000,
-  progress?: vscode.Progress<{ message?: string }>
+  progress?: vscode.Progress<{ message?: string }>,
+  maxRetries: number = 5,
+  delay: number = 2000,
 ): Promise<T> {
   let lastError: Error
 
