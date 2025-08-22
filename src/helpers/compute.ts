@@ -137,7 +137,11 @@ export async function computeStart(
       console.error('Error response data:', e.response.data)
       console.error('Error response status:', e.response.status)
       console.error('Error response headers:', e.response.headers)
+      if (e.response?.status === 400) {
+        throw new Error(e.response?.data?.message)
+      }
     }
+
     throw e
   }
 }
