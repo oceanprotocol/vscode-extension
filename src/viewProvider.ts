@@ -9,7 +9,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView
 
-  constructor(private readonly _extensionUri: vscode.Uri) { }
+  constructor(private readonly _extensionUri: vscode.Uri) {}
 
   public sendMessage(message: any) {
     if (this._view) {
@@ -139,7 +139,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             case 'copyToClipboard':
               vscode.env.clipboard.writeText(data.text)
               break
-
           }
         } catch (error) {
           console.error('Error handling message:', error)
@@ -647,14 +646,18 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
                               // Process resources for free tier
                               const freeResourceDetails = selectedEnv.free.resources.map(r => {
-                                  let value = '';
+                                  let maxValue = '';
+                                  let availableValue = '';
                                   if (r.id === 'ram' || r.id === 'disk') {
                                       const maxGb = Math.round(r.max / (1024 * 1024 * 1024));
-                                      value = maxGb + ' GB';
+                                      const availableGb = Math.round((r.max - r.inUse) / (1024 * 1024 * 1024));
+                                      maxValue = maxGb + ' GB';
+                                      availableValue = availableGb + ' GB';
                                   } else {
-                                      value = r.max;
+                                      maxValue = r.max;
+                                      availableValue = r.max - r.inUse;
                                   }
-                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Max):</span> ' + value + '</p>';
+                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + maxValue + ' / ' + availableValue + '</p>';
                               }).join('');
 
                               detailsDiv.innerHTML = 
@@ -673,7 +676,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                                   'style="padding: 2px 8px; margin: 0; width: auto; min-width: 60px; font-size: 0.9em;">Copy</button>' +
                                   '</div>' +
                                   '</div>' +
-                                  '<p><span class="label">Free Resources:</span></p>' +
+                                  '<p><span class="label">Free Resources (MAX/AVAILABLE):</span></p>' +
                                   '<div style="margin-left: 8px;">' + 
                                   freeResourceDetails +
                                   '<p style="margin: 4px 0;"><span class="label">Max Job Duration:</span> ' + selectedEnv.free.maxJobDuration + ' seconds</p>' +
