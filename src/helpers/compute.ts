@@ -23,7 +23,12 @@ const getContainerConfig = (
     return {
       image: dockerImage,
       tag: dockerTag,
-      entrypoint: fileExtension === 'py' ? 'python $ALGO' : 'node $ALGO'
+      entrypoint:
+        fileExtension === 'py'
+          ? 'python $ALGO'
+          : fileExtension === 'js'
+            ? 'node $ALGO'
+            : ''
     }
   }
 
