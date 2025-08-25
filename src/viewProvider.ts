@@ -11,7 +11,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView
 
-  constructor() { }
+  constructor() {}
 
   public notifyConfigUpdate(config: SelectedConfig) {
     this.config = config
@@ -40,7 +40,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
       this._view = webviewView
 
       webviewView.webview.options = {
-        enableScripts: true,
+        enableScripts: true
       }
 
       webviewView.webview.html = this._getHtmlForWebview(webviewView.webview)
@@ -152,7 +152,11 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               break
             case 'openBrowser':
               const appName = vscode.env?.appName || 'vscode'
-              vscode.env.openExternal(vscode.Uri.parse(`${data.url}?ide=${appName?.toLowerCase()}&isFreeCompute=${this.config?.isFreeCompute || true}`))
+              vscode.env.openExternal(
+                vscode.Uri.parse(
+                  `${data.url}?ide=${appName?.toLowerCase()}&isFreeCompute=${this.config?.isFreeCompute || true}&nodeUrl=${data.nodeUrl}`
+                )
+              )
               break
           }
         } catch (error) {
@@ -539,7 +543,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   document.getElementById('configureCompute').addEventListener('click', () => {
                       vscode.postMessage({ 
                           type: 'openBrowser',
-                          url: 'https://vscode-extension-config-test-page.vercel.app/'
+                          url: 'https://vscode-extension-config-test-page.vercel.app/',
+                          nodeUrl: nodeUrlInput.value || "${this.randomNodeUrl}"
                       });
                   });
               }
