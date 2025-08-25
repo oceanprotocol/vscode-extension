@@ -368,7 +368,7 @@ export async function activate(context: vscode.ExtensionContext) {
           provider.sendMessage({ type: 'jobStopped' })
 
           if (error instanceof Error && error.message) {
-            vscode.window.showErrorMessage(`Error with compute job: ${error.message}`)
+            vscode.window.showErrorMessage(`Compute job failed: ${error.message}`)
           } else {
             vscode.window.showErrorMessage('Something went wrong. Please try again.')
           }
