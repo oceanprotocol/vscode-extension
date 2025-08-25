@@ -405,6 +405,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let availableEnvironments = [];
               let currentAutoSelectedFile = null;
               let configResources = null;
+              let jobDuration = null;
 
               // Helper function to update algorithm display
               function updateAlgorithmDisplay() {
@@ -623,6 +624,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           }
                           if (message.config.resources) {
                             configResources = message.config.resources;
+                            jobDuration = message.config.jobDuration;
                             // Refresh environment details if an environment is selected
                             const environmentSelect = document.getElementById('environmentSelect');
                             if (environmentSelect && environmentSelect.value) {
@@ -740,6 +742,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                                       }
                                       return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + value + '</p>';
                                   }).join('');
+                                  resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (jobDuration || 'N/A') + ' seconds</p>';
                               } else {
                                   // Show max resources (existing behavior)
                                   resourceDetails = selectedEnv.free?.resources.map(r => {
@@ -752,6 +755,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                                       }
                                       return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Max):</span> ' + value + '</p>';
                                   }).join('');
+                                  resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (selectedEnv.free?.maxJobDuration || 'N/A') + ' seconds</p>';
                               }
 
                               detailsDiv.innerHTML = 
@@ -773,7 +777,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                                   '<p><span class="label">' + resourcesLabel + '</span></p>' +
                                   '<div style="margin-left: 8px;">' + 
                                   resourceDetails +
-                                  '<p style="margin: 4px 0;"><span class="label">Max Job Duration:</span> ' + selectedEnv.free?.maxJobDuration + ' seconds</p>' +
                                   '</div>';
                               detailsDiv.style.display = 'block';
 
