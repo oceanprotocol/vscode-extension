@@ -13,7 +13,6 @@ import { fetchDdoByDid } from './indexer'
 import { SelectedConfig } from '../types'
 import { ethers } from 'ethers'
 
-
 const getContainerConfig = (
   fileExtension: string,
   dockerImage?: string,
@@ -95,7 +94,6 @@ export async function stopComputeJob(nodeUrl: string, jobId: string, signerOrAut
     const computeJob = await ProviderInstance.computeStop(jobId, nodeUrl, signerOrAuthToken)
     return computeJob
   } catch (e) {
-    console.log({ e })
     console.error('Stop compute job error: ', e)
     throw e
   }
@@ -123,8 +121,6 @@ export async function computeStart(
     if (!config.environmentId) {
       throw new Error('No environment ID provided')
     }
-
-    console.log({ resources: config.resources })
 
     // Paid compute job
     if (!config.isFreeCompute) {

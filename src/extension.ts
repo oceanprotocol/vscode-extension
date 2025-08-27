@@ -24,7 +24,6 @@ globalThis.fetch = fetch
 const outputChannel = vscode.window.createOutputChannel('Ocean Protocol extension')
 let config: SelectedConfig = new SelectedConfig({ isFreeCompute: true })
 let provider: OceanProtocolViewProvider
-let computeLogsChannel: vscode.OutputChannel
 
 vscode.window.registerUriHandler({
   handleUri(uri: vscode.Uri) {
@@ -38,7 +37,6 @@ vscode.window.registerUriHandler({
     const resources = urlParams.get('resources')
     const address = urlParams.get('address')
     const chainId = urlParams.get('chainId')
-    console.log({ authToken, address, nodeUrl, isFreeCompute, environmentId, feeToken, jobDuration, resources })
     vscode.window.showInformationMessage('Compute job configured successfully!')
     const isFreeComputeBoolean = isFreeCompute === 'true' ? true : false
     const chainIdNumber = chainId ? Number(chainId) : undefined
@@ -302,8 +300,6 @@ export async function activate(context: vscode.ExtensionContext) {
                     'result-logs'
                   )
                   outputChannel.appendLine(`Logs saved to: ${filePathLogs}`)
-
-                  let filePath2: string | undefined
 
                   try {
                     // Second request (index 1) with new nonce and signature
