@@ -11,7 +11,7 @@ import {
 import { PassThrough } from 'stream'
 import { fetchDdoByDid } from './indexer'
 import { SelectedConfig } from '../types'
-import { ethers } from 'ethers'
+import { Signer } from 'ethers'
 
 const getContainerConfig = (
   fileExtension: string,
@@ -22,12 +22,7 @@ const getContainerConfig = (
     return {
       image: dockerImage,
       tag: dockerTag,
-      entrypoint:
-        fileExtension === 'py'
-          ? 'python $ALGO'
-          : fileExtension === 'js'
-            ? 'node $ALGO'
-            : ''
+      entrypoint: fileExtension === 'py' ? 'python $ALGO' : 'node $ALGO'
     }
   }
 
@@ -89,7 +84,7 @@ export const getComputeAsset = async (nodeUrl: string, dataset?: string) => {
   }
 }
 
-export async function stopComputeJob(nodeUrl: string, jobId: string, signerOrAuthToken: ethers.Wallet | ethers.HDNodeWallet | string | null) {
+export async function stopComputeJob(nodeUrl: string, jobId: string, signerOrAuthToken: Signer | string | null) {
   try {
     const computeJob = await ProviderInstance.computeStop(jobId, nodeUrl, signerOrAuthToken)
     return computeJob

@@ -16,7 +16,7 @@ import {
 } from './helpers/compute'
 import { validateDatasetFromInput } from './helpers/validation'
 import { SelectedConfig } from './types'
-import { ethers } from 'ethers'
+import { ethers, Signer } from 'ethers'
 import { ProviderInstance } from '@oceanprotocol/lib'
 
 globalThis.fetch = fetch
@@ -51,7 +51,7 @@ vscode.window.registerUriHandler({
 });
 
 export async function activate(context: vscode.ExtensionContext) {
-  let savedSigner: ethers.Wallet | ethers.HDNodeWallet | null = null
+  let savedSigner: Signer | null = null
   let savedJobId: string | null = null
   let savedNodeUrl: string | null = null
 
@@ -169,7 +169,7 @@ export async function activate(context: vscode.ExtensionContext) {
         !algorithmPath && missingParams.push('algorithm path')
         !nodeUrl && missingParams.push('node URL')
 
-        // Save the node URL to know which node to stop the job on
+        // Save the node URL for future use
         savedNodeUrl = nodeUrl
 
         if (missingParams.length > 0) {
@@ -183,31 +183,23 @@ export async function activate(context: vscode.ExtensionContext) {
         if (!authToken || authToken === '') {
           try {
             signer = ethers.Wallet.createRandom()
+            savedSigner = signer
             console.log('Generated new wallet address:', signer.address)
             vscode.window.showInformationMessage(
               `Using generated wallet with address: ${signer.address}`
             )
             // Generate new token and register the address in the config
             authToken = await ProviderInstance.generateAuthToken(signer, nodeUrl)
-            console.log('Generated auth token:', authToken)
             config.updateFields({ address: signer.address })
           } catch (error) {
             console.log(error)
             vscode.window.showErrorMessage('Error generating auth token. Please make sure you selected a valid node')
             return
           }
-        } else {
-          // Create a signer for existing auth token - we'll need the address from config
-          signer = ethers.Wallet.createRandom() // This will be replaced with proper implementation
         }
 
         // Update back the config with new values from the extension
         config.updateFields({ authToken, nodeUrl, environmentId })
-
-        // Save signer and nodeUrl for stop job functionality
-        savedSigner = signer
-        savedNodeUrl = nodeUrl
-
         provider.sendMessage({ type: 'jobLoading' })
 
         const progressOptions = {
