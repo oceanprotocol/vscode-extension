@@ -406,6 +406,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let currentAutoSelectedFile = null;
               let configResources = null;
               let jobDuration = null;
+              let isFreeCompute = true; // Default to free compute
 
               // Helper function to update algorithm display
               function updateAlgorithmDisplay() {
@@ -633,6 +634,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                             }
                           }
                           if (message.config.isFreeCompute !== undefined) {
+                            isFreeCompute = message.config.isFreeCompute;
                             const startComputeBtn = document.getElementById('startComputeBtn');
                             if (startComputeBtn) {
                               startComputeBtn.innerHTML = message.config.isFreeCompute === true 
@@ -726,37 +728,73 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                                   ? selectedEnv.id.substring(0, 6) + '...' + selectedEnv.id.substring(selectedEnv.id.length - 4)
                                   : selectedEnv.id;
 
-                              // Process resources - use selected resources if available, otherwise show max resources
+                              // Helper function to format resource values
+                              function formatResourceValue(amount, resourceId) {
+                                  if (resourceId === 'ram' || resourceId === 'disk') {
+                                      return Math.round(amount / (1024 * 1024 * 1024)) + ' GB';
+                                  }
+                                  return amount;
+                              }
+
+                              // Helper function to get available value for a resource
+                              function getAvailableValue(resourceId, isFreeCompute) {
+                                  if (isFreeCompute === false) {
+                                      // For paid compute, use paid resources (max value)
+                                      const paidResource = selectedEnv.resources.find(pr => pr.id === resourceId);
+                                      if (paidResource) {
+                                          return formatResourceValue(paidResource.max, resourceId);
+                                      }
+                                  } else {
+                                      // For free compute, use free resources (available amount)
+                                      const envResource = selectedEnv.free?.resources.find(fr => fr.id === resourceId);
+                                      if (envResource) {
+                                          return formatResourceValue(envResource.max - envResource.inUse, resourceId);
+                                      }
+                                  }
+                                  return 'N/A';
+                              }
+
+                              // Process resources to show min/max values for paid resources
+                              const paidResourceDetails = selectedEnv.resources.map(r => {
+                                  const minValue = formatResourceValue(r.min, r.id);
+                                  const maxValue = formatResourceValue(r.max, r.id);
+                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Min/Max):</span> ' + minValue + ' / ' + maxValue + '</p>';
+                              }).join('');
+
+                              // Process resources for free tier
+                              const freeResourceDetails = selectedEnv.free.resources.map(r => {
+                                  const maxValue = formatResourceValue(r.max, r.id);
+                                  const availableValue = formatResourceValue(r.max - r.inUse, r.id);
+                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + maxValue + ' / ' + availableValue + '</p>';
+                              }).join('');
+
+                              // Combine resource details based on compute type
                               let resourceDetails = '';
-                              let resourcesLabel = 'Max Resources:';
+                              let resourcesLabel = 'Resources:';
                               
                               if (configResources && configResources.length > 0) {
-                                  // Show selected resources
-                                  resourcesLabel = 'Selected Resources:';
+                                  // Show selected resources in "selected / available" format
+                                  resourcesLabel = 'Resources (SELECTED / AVAILABLE):';
                                   resourceDetails = configResources.map(r => {
-                                      let value = '';
-                                      if (r.id === 'ram' || r.id === 'disk') {
-                                          const gb = Math.round(r.amount / (1024 * 1024 * 1024));
-                                          value = gb + ' GB';
-                                      } else {
-                                          value = r.amount;
-                                      }
-                                      return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + value + '</p>';
+                                      const selectedValue = formatResourceValue(r.amount, r.id);
+                                      const availableValue = getAvailableValue(r.id, isFreeCompute);
+                                      
+                                      return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + selectedValue + ' / ' + availableValue + '</p>';
                                   }).join('');
                                   resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (jobDuration || 'N/A') + ' seconds</p>';
                               } else {
-                                  // Show max resources (existing behavior)
-                                  resourceDetails = selectedEnv.free?.resources.map(r => {
-                                      let value = '';
-                                      if (r.id === 'ram' || r.id === 'disk') {
-                                          const maxGb = Math.round(r.max / (1024 * 1024 * 1024));
-                                          value = maxGb + ' GB';
-                                      } else {
-                                          value = r.max;
-                                      }
-                                      return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Max):</span> ' + value + '</p>';
-                                  }).join('');
-                                  resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (selectedEnv.free?.maxJobDuration || 'N/A') + ' seconds</p>';
+                                  // Show resources based on compute type when no specific resources are selected
+                                  if (isFreeCompute === false) {
+                                      // For paid compute, show paid resources (min/max)
+                                      resourcesLabel = 'Resources (MIN / MAX):';
+                                      resourceDetails = paidResourceDetails;
+                                      resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (jobDuration || 'N/A') + ' seconds</p>';
+                                  } else {
+                                      // For free compute, show free resources (max/available)
+                                      resourcesLabel = 'Resources (MAX / AVAILABLE):';
+                                      resourceDetails = freeResourceDetails;
+                                      resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (selectedEnv.free?.maxJobDuration || 'N/A') + ' seconds</p>';
+                                  }
                               }
 
                               detailsDiv.innerHTML = 
