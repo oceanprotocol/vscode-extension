@@ -130,13 +130,13 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
       vscode.commands.registerCommand(
         'ocean-protocol.stopComputeJob',
-        async () => {
+        async (authToken: string) => {
           if (!savedJobId) {
             vscode.window.showErrorMessage('No active job to stop')
             return
           }
           try {
-            await stopComputeJob(savedNodeUrl, savedJobId, savedSigner)
+            await stopComputeJob(savedNodeUrl, savedJobId, authToken || savedSigner)
             savedJobId = null
             provider.sendMessage({ type: 'jobStopped' })
             vscode.window.showInformationMessage('Job stopped successfully')

@@ -90,9 +90,9 @@ export const getComputeAsset = async (nodeUrl: string, dataset?: string) => {
   }
 }
 
-export async function stopComputeJob(nodeUrl: string, jobId: string, signer: ethers.Wallet | ethers.HDNodeWallet | null) {
+export async function stopComputeJob(nodeUrl: string, jobId: string, signerOrAuthToken: ethers.Wallet | ethers.HDNodeWallet | string | null) {
   try {
-    const computeJob = await ProviderInstance.computeStop(jobId, nodeUrl, signer)
+    const computeJob = await ProviderInstance.computeStop(jobId, nodeUrl, signerOrAuthToken)
     return computeJob
   } catch (e) {
     console.log({ e })

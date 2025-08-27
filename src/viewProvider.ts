@@ -11,7 +11,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView
 
-  constructor() {}
+  constructor() { }
 
   public notifyConfigUpdate(config: SelectedConfig) {
     this.config = config
@@ -145,7 +145,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               )
               break
             case 'stopComputeJob':
-              await vscode.commands.executeCommand('ocean-protocol.stopComputeJob')
+              await vscode.commands.executeCommand('ocean-protocol.stopComputeJob', data.authToken)
               break
             case 'copyToClipboard':
               vscode.env.clipboard.writeText(data.text)
@@ -552,7 +552,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
               if (document.getElementById('stopComputeBtn')) {
                   document.getElementById('stopComputeBtn').addEventListener('click', () => {
-                      vscode.postMessage({ type: 'stopComputeJob' });
+                      const authToken = document.getElementById('authTokenInput').value;
+                      vscode.postMessage({ type: 'stopComputeJob', authToken: authToken });
                   });
               }
 
