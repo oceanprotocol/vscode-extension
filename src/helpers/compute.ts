@@ -1,18 +1,17 @@
 import * as vscode from 'vscode'
-import { Signer } from 'ethers'
 import fs from 'fs'
 import path from 'path'
 import * as tar from 'tar'
 import {
   ComputeAlgorithm,
   ComputeAsset,
-  ComputeJob,
-  FileObjectType,
+  ComputeJob, FileObjectType,
   ProviderInstance
 } from '@oceanprotocol/lib'
 import { PassThrough } from 'stream'
 import { fetchDdoByDid } from './indexer'
-
+import { SelectedConfig } from '../types'
+import { Signer } from 'ethers'
 
 const getContainerConfig = (
   fileExtension: string,
@@ -85,35 +84,28 @@ export const getComputeAsset = async (nodeUrl: string, dataset?: string) => {
   }
 }
 
-export async function stopComputeJob(nodeUrl: string, jobId: string, signer: Signer) {
+export async function stopComputeJob(nodeUrl: string, jobId: string, signerOrAuthToken: Signer | string | null) {
   try {
-    const computeJob = await ProviderInstance.computeStop(jobId, nodeUrl, signer)
+    const computeJob = await ProviderInstance.computeStop(jobId, nodeUrl, signerOrAuthToken)
     return computeJob
   } catch (e) {
-    console.log({ e })
     console.error('Stop compute job error: ', e)
     throw e
   }
 }
 
 export async function computeStart(
+  config: SelectedConfig,
   algorithmContent: string,
-  signer: Signer,
-  nodeUrl: string,
   fileExtension: string,
-  environmentId?: string,
   dataset?: string,
   dockerImage?: string,
-  dockerTag?: string
+  dockerTag?: string,
 ): Promise<ComputeJob> {
   try {
-    if (!environmentId) {
-      throw new Error('No environment ID provided')
-    }
-
     const containerConfig = getContainerConfig(fileExtension, dockerImage, dockerTag)
 
-    const datasets = (await getComputeAsset(nodeUrl, dataset)) as ComputeAsset[]
+    const datasets = (await getComputeAsset(config.nodeUrl, dataset)) as ComputeAsset[]
     const algorithm: ComputeAlgorithm = {
       meta: {
         rawcode: algorithmContent,
@@ -121,12 +113,35 @@ export async function computeStart(
       }
     }
 
+    if (!config.environmentId) {
+      throw new Error('No environment ID provided')
+    }
+
+    // Paid compute job
+    if (!config.isFreeCompute) {
+      console.log('----------> Paid compute job started')
+      const computeJob = await ProviderInstance.computeStart(
+        config.nodeUrl,
+        config.authToken,
+        config.environmentId,
+        datasets,
+        algorithm,
+        Number(config.jobDuration),
+        config.feeToken,
+        config.resources,
+        config.chainId,
+      )
+
+      return Array.isArray(computeJob) ? computeJob[0] : computeJob
+    }
+
     const computeJob = await ProviderInstance.freeComputeStart(
-      nodeUrl,
-      signer,
-      environmentId,
+      config.nodeUrl,
+      config.authToken,
+      config.environmentId,
       datasets,
-      algorithm
+      algorithm,
+      config.resources,
     )
 
     const result = Array.isArray(computeJob) ? computeJob[0] : computeJob
@@ -151,14 +166,13 @@ export async function delay(ms: number): Promise<void> {
 }
 
 export async function checkComputeStatus(
-  nodeUrl: string,
-  consumerAddress: string,
+  config: SelectedConfig,
   jobId: string
 ): Promise<ComputeJob> {
   try {
     const computeStatus = await ProviderInstance.computeStatus(
-      nodeUrl,
-      consumerAddress,
+      config.nodeUrl,
+      config.address,
       jobId
     )
 
@@ -169,20 +183,23 @@ export async function checkComputeStatus(
 }
 
 export async function getComputeResult(
-  signer: Signer,
-  nodeUrl: string,
+  config: SelectedConfig,
   jobId: string,
   index: number = 0
 ): Promise<any> {
   try {
     const computResultUrl = await ProviderInstance.getComputeResultUrl(
-      nodeUrl,
-      signer,
+      config.nodeUrl,
+      config.authToken,
       jobId,
-      index
+      index,
     )
 
-    const response = await fetch(computResultUrl)
+    const response = await fetch(computResultUrl, {
+      headers: {
+        Authorization: config.authToken
+      }
+    })
     const blob = await response.blob()
     const arrayBuffer = await blob.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
@@ -233,17 +250,16 @@ export async function saveResults(
 }
 
 export async function getComputeLogs(
-  nodeUrl: string,
-  signer: Signer,
+  config: SelectedConfig,
   jobId: string,
   outputChannel: vscode.OutputChannel
 ): Promise<void> {
   try {
     outputChannel.show(true)
     const stream = (await ProviderInstance.computeStreamableLogs(
-      nodeUrl,
-      signer,
-      jobId
+      config.nodeUrl,
+      config.authToken,
+      jobId,
     )) as PassThrough
 
     stream.on('data', (chunk) => {

@@ -11,6 +11,7 @@ import { Wallet } from 'ethers'
 import * as fs from 'fs'
 import * as path from 'path'
 import { ComputeEnvironment, ComputeJob, ProviderInstance } from '@oceanprotocol/lib'
+import { SelectedConfig } from '../types'
 
 // Use VS Code test runner syntax
 suite('Ocean Protocol Extension Test Suite', () => {
@@ -54,27 +55,25 @@ suite('Ocean Protocol Extension Test Suite', () => {
   })
 
   test('computeStart should handle JavaScript algorithm correctly', async () => {
-    const mockSigner = new Wallet('0x' + '1'.repeat(64))
     const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'console.log("test")'
 
     sandbox.stub(ProviderInstance, 'getComputeEnvironments').resolves(mockEnvResponse)
     sandbox.stub(ProviderInstance, 'freeComputeStart').resolves(mockComputeResponse)
+    const mockConfig: SelectedConfig = new SelectedConfig({ nodeUrl: mockNodeUrl, environmentId: mockEnvResponse[0].id, isFreeCompute: true });
 
     const result = await computeStart(
+      mockConfig,
       mockAlgorithm,
-      mockSigner,
-      mockNodeUrl,
       'js',
-      mockEnvResponse[0].id
     )
+
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.strictEqual(result.statusText, 'Created')
   })
 
   test('computeStart should handle Python algorithm correctly', async () => {
-    const mockSigner = new Wallet('0x' + '1'.repeat(64))
     const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'print("test")'
 
@@ -83,17 +82,17 @@ suite('Ocean Protocol Extension Test Suite', () => {
       .stub(ProviderInstance, 'freeComputeStart')
       .resolves(mockComputeResponse)
 
+    const mockConfig: SelectedConfig = new SelectedConfig({ nodeUrl: mockNodeUrl, environmentId: mockEnvResponse[0].id, isFreeCompute: true });
+
     const result = await computeStart(
+      mockConfig,
       mockAlgorithm,
-      mockSigner,
-      mockNodeUrl,
       'py',
-      mockEnvResponse[0].id
     )
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.ok(
-      computeStartStub.calledWith(mockNodeUrl, mockSigner, mockEnvResponse[0].id, [], {
+      computeStartStub.calledWith(mockConfig.nodeUrl, mockConfig.authToken, mockConfig.environmentId, [], {
         meta: {
           rawcode: mockAlgorithm,
           container: {
@@ -118,19 +117,21 @@ suite('Ocean Protocol Extension Test Suite', () => {
       statusText: 'Running'
     })
 
-    const status = await checkComputeStatus(mockNodeUrl, mockConsumerAddress, mockJobId)
+    const mockConfig: SelectedConfig = new SelectedConfig({ nodeUrl: mockNodeUrl, environmentId: mockEnvResponse[0].id, isFreeCompute: true });
+
+    const status = await checkComputeStatus(mockConfig, mockJobId)
     assert.strictEqual(status.statusText, 'Running')
   })
 
   test('computeStart should handle missing compute environments', async () => {
-    const mockSigner = new Wallet('0x' + '1'.repeat(64))
     const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'console.log("test")'
+    const mockConfig: SelectedConfig = new SelectedConfig({ nodeUrl: mockNodeUrl, isFreeCompute: true });
 
     sandbox.stub(ProviderInstance, 'getComputeEnvironments').resolves([])
 
     await assert.rejects(
-      computeStart(mockAlgorithm, mockSigner, mockNodeUrl, 'js', undefined),
+      computeStart(mockConfig, mockAlgorithm, 'js'),
       /No environment ID provided/
     )
   })
@@ -194,7 +195,9 @@ suite('Ocean Protocol Extension Test Suite', () => {
       blob: () => Promise.resolve(new Blob([mockResult]))
     } as Response)
 
-    const result = await getComputeResult(mockSigner, mockNodeUrl, mockJobId)
+    const mockConfig: SelectedConfig = new SelectedConfig({ nodeUrl: mockNodeUrl, environmentId: mockEnvResponse[0].id, isFreeCompute: true });
+
+    const result = await getComputeResult(mockConfig, mockJobId)
     assert.deepStrictEqual(result, Buffer.from(mockResult))
   })
 

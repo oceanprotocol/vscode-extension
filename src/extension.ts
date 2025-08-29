@@ -1,6 +1,5 @@
 import * as vscode from 'vscode'
 import { OceanProtocolViewProvider } from './viewProvider'
-import { ethers } from 'ethers'
 import * as fs from 'fs'
 import fetch from 'cross-fetch'
 import {
@@ -16,13 +15,43 @@ import {
   withRetrial
 } from './helpers/compute'
 import { validateDatasetFromInput } from './helpers/validation'
+import { SelectedConfig } from './types'
+import { ethers, Signer } from 'ethers'
+import { ProviderInstance } from '@oceanprotocol/lib'
 
 globalThis.fetch = fetch
 
 const outputChannel = vscode.window.createOutputChannel('Ocean Protocol extension')
+let config: SelectedConfig = new SelectedConfig({ isFreeCompute: true })
+let provider: OceanProtocolViewProvider
+
+vscode.window.registerUriHandler({
+  handleUri(uri: vscode.Uri) {
+    const urlParams = new URLSearchParams(uri.query)
+    const authToken = urlParams.get('authToken')
+    const nodeUrl = urlParams.get('nodeUrl')
+    const isFreeCompute = urlParams.get('isFreeCompute')
+    const environmentId = urlParams.get('environmentId')
+    const feeToken = urlParams.get('feeToken')
+    const jobDuration = urlParams.get('jobDuration')
+    const resources = urlParams.get('resources')
+    const address = urlParams.get('address')
+    const chainId = urlParams.get('chainId')
+    vscode.window.showInformationMessage('Compute job configured successfully!')
+    const isFreeComputeBoolean = isFreeCompute === 'true' ? true : false
+    const chainIdNumber = chainId ? Number(chainId) : undefined
+
+    const resourcesParsed = resources ? SelectedConfig.parseResources(resources) : undefined
+    config.updateFields({ authToken, address, nodeUrl, isFreeCompute: isFreeComputeBoolean, environmentId, feeToken, jobDuration, resources: resourcesParsed, chainId: chainIdNumber })
+    console.log({ config })
+
+    // Update the UI with the new values
+    provider?.notifyConfigUpdate(config)
+  }
+});
 
 export async function activate(context: vscode.ExtensionContext) {
-  let savedSigner: ethers.Wallet | ethers.HDNodeWallet | null = null
+  let savedSigner: Signer | null = null
   let savedJobId: string | null = null
   let savedNodeUrl: string | null = null
 
@@ -32,7 +61,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   try {
     // Create and register the webview provider
-    const provider = new OceanProtocolViewProvider(context.extensionUri)
+    provider = new OceanProtocolViewProvider()
     console.log('Created OceanProtocolViewProvider')
 
     const registration = vscode.window.registerWebviewViewProvider(
@@ -69,7 +98,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // Create a test command to verify the webview is accessible
     let testCommand = vscode.commands.registerCommand('ocean-protocol.test', () => {
       console.log('Test command executed')
-      if (provider.resolveWebviewView) {
+      if (provider?.resolveWebviewView) {
         console.log('Webview is available')
       } else {
         console.log('Webview is not available')
@@ -99,13 +128,13 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
       vscode.commands.registerCommand(
         'ocean-protocol.stopComputeJob',
-        async () => {
+        async (authToken: string) => {
           if (!savedJobId) {
             vscode.window.showErrorMessage('No active job to stop')
             return
           }
           try {
-            await stopComputeJob(savedNodeUrl, savedJobId, savedSigner)
+            await stopComputeJob(savedNodeUrl, savedJobId, authToken || savedSigner)
             savedJobId = null
             provider.sendMessage({ type: 'jobStopped' })
             vscode.window.showInformationMessage('Job stopped successfully')
@@ -115,13 +144,12 @@ export async function activate(context: vscode.ExtensionContext) {
         }
       )
     )
-    // Rest of your existing startComputeJob command registration...
     let startComputeJob = vscode.commands.registerCommand(
       'ocean-protocol.startComputeJob',
       async (
         algorithmPath: string,
         resultsFolderPath: string,
-        privateKey: string | undefined,
+        authToken: string | undefined,
         nodeUrl: string,
         dataset?: string,
         dockerImage?: string,
@@ -133,7 +161,7 @@ export async function activate(context: vscode.ExtensionContext) {
         console.log('Algorithm path:', algorithmPath)
         console.log('Results folder path:', resultsFolderPath)
         console.log('Node URL:', nodeUrl)
-        console.log('Private key:', privateKey)
+        console.log('Auth token:', authToken)
         console.log('Docker image:', dockerImage)
         console.log('Docker tag:', dockerTag)
         console.log('Environment ID:', environmentId)
@@ -141,7 +169,7 @@ export async function activate(context: vscode.ExtensionContext) {
         !algorithmPath && missingParams.push('algorithm path')
         !nodeUrl && missingParams.push('node URL')
 
-        // Save the node URL to know which node to stop the job on
+        // Save the node URL for future use
         savedNodeUrl = nodeUrl
 
         if (missingParams.length > 0) {
@@ -151,6 +179,27 @@ export async function activate(context: vscode.ExtensionContext) {
           return
         }
 
+        let signer: ethers.HDNodeWallet
+        if (!authToken || authToken === '') {
+          try {
+            signer = ethers.Wallet.createRandom()
+            savedSigner = signer
+            console.log('Generated new wallet address:', signer.address)
+            vscode.window.showInformationMessage(
+              `Using generated wallet with address: ${signer.address}`
+            )
+            // Generate new token and register the address in the config
+            authToken = await ProviderInstance.generateAuthToken(signer, nodeUrl)
+            config.updateFields({ address: signer.address })
+          } catch (error) {
+            console.log(error)
+            vscode.window.showErrorMessage('Error generating auth token. Please make sure you selected a valid node')
+            return
+          }
+        }
+
+        // Update back the config with new values from the extension
+        config.updateFields({ authToken, nodeUrl, environmentId })
         provider.sendMessage({ type: 'jobLoading' })
 
         const progressOptions = {
@@ -165,33 +214,17 @@ export async function activate(context: vscode.ExtensionContext) {
             // Initial setup
             progress.report({ message: 'Starting compute job...' })
 
-            // Generate a random wallet if no private key provided
-            const signer = privateKey
-              ? new ethers.Wallet(privateKey)
-              : ethers.Wallet.createRandom()
-
-            // Save the signer for future use
-            savedSigner = signer
-            if (!privateKey) {
-              console.log('Generated new wallet address:', signer.address)
-              vscode.window.showInformationMessage(
-                `Using generated wallet with address: ${signer.address}`
-              )
-            }
-
             const algorithmContent = await fs.promises.readFile(algorithmPath, 'utf8')
 
             // Start compute job
             const fileExtension = algorithmPath.split('.').pop()?.toLowerCase()
             const computeResponse = await computeStart(
+              config,
               algorithmContent,
-              signer,
-              nodeUrl,
               fileExtension,
-              environmentId,
               dataset,
               dockerImage,
-              dockerTag
+              dockerTag,
             )
             console.log('Compute result received:', computeResponse)
             const jobId = computeResponse.jobId
@@ -216,7 +249,7 @@ export async function activate(context: vscode.ExtensionContext) {
             while (true) {
               console.log('Checking job status...')
               const status = await withRetrial(
-                () => checkComputeStatus(nodeUrl, signer.address, jobId),
+                () => checkComputeStatus(config, jobId),
                 progress
               )
               console.log('Job status:', status)
@@ -229,7 +262,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 logStreamStarted = true
                 // Start fetching logs once
                 withRetrial(
-                  () => getComputeLogs(nodeUrl, signer, jobId, computeLogsChannel),
+                  () => getComputeLogs(config, jobId, computeLogsChannel),
                   progress
                 )
               }
@@ -245,7 +278,7 @@ export async function activate(context: vscode.ExtensionContext) {
                   progress.report({ message: 'Retrieving compute results (1/2)...' })
                   outputChannel.appendLine('Retrieving logs...')
                   const logResult = await withRetrial(
-                    () => getComputeResult(signer, nodeUrl, jobId, 0),
+                    () => getComputeResult(config, jobId, 0),
                     progress
                   )
 
@@ -260,8 +293,6 @@ export async function activate(context: vscode.ExtensionContext) {
                   )
                   outputChannel.appendLine(`Logs saved to: ${filePathLogs}`)
 
-                  let filePath2: string | undefined
-
                   try {
                     // Second request (index 1) with new nonce and signature
                     progress.report({
@@ -269,7 +300,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     })
                     outputChannel.appendLine('Requesting the output result...')
                     const outputResult = await withRetrial(
-                      () => getComputeResult(signer, nodeUrl, jobId, 1),
+                      () => getComputeResult(config, jobId, 1),
                       progress
                     )
                     const filePathOutput = await saveOutput(

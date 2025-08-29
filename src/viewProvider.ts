@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import { SelectedConfig } from './types'
 
 export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'oceanProtocolExplorer'
@@ -6,10 +7,21 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   // Get a random node URL from the list
   // private randomNodeUrl = this.nodeUrls[Math.floor(Math.random() * this.nodeUrls.length)]
   private randomNodeUrl = this.nodeUrls[0]
+  private config: SelectedConfig
 
   private _view?: vscode.WebviewView
 
-  constructor(private readonly _extensionUri: vscode.Uri) {}
+  constructor() { }
+
+  public notifyConfigUpdate(config: SelectedConfig) {
+    this.config = config
+    if (this._view?.webview) {
+      this._view.webview.postMessage({
+        type: 'configUpdate',
+        config
+      })
+    }
+  }
 
   public sendMessage(message: any) {
     if (this._view) {
@@ -28,8 +40,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
       this._view = webviewView
 
       webviewView.webview.options = {
-        enableScripts: true,
-        localResourceRoots: [this._extensionUri]
+        enableScripts: true
       }
 
       webviewView.webview.html = this._getHtmlForWebview(webviewView.webview)
@@ -125,7 +136,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 'ocean-protocol.startComputeJob',
                 data.algorithmPath,
                 data.resultsFolderPath,
-                data.privateKey,
+                data.authToken,
                 data.nodeUrl,
                 data.datasetPath,
                 data.dockerImage,
@@ -134,10 +145,18 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               )
               break
             case 'stopComputeJob':
-              await vscode.commands.executeCommand('ocean-protocol.stopComputeJob')
+              await vscode.commands.executeCommand('ocean-protocol.stopComputeJob', data.authToken)
               break
             case 'copyToClipboard':
               vscode.env.clipboard.writeText(data.text)
+              break
+            case 'openBrowser':
+              const appName = vscode.env?.appName || 'vscode'
+              vscode.env.openExternal(
+                vscode.Uri.parse(
+                  `${data.url}?ide=${appName?.toLowerCase()}&isFreeCompute=${this.config?.isFreeCompute || true}&nodeUrl=${data.nodeUrl}`
+                )
+              )
               break
           }
         } catch (error) {
@@ -256,7 +275,28 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border);
           }
           #startComputeBtn {
-            margin: 10px 0;
+            margin: 5px 0;
+          }
+          #configureCompute {
+            background-color: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border: 1px solid var(--vscode-button-border);
+            cursor: pointer;
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            font-size: var(--vscode-font-size);
+            text-decoration: none;
+          }
+          #configureCompute:hover {
+            background-color: var(--vscode-button-secondaryHoverBackground);
+          }
+          #datasetInput {
+            width: 100%; 
+            padding: 8px;
+          }
+          #selectedResultsFolderPath {
+            margin-bottom: 20px;
           }
           #stopComputeBtn {
             margin: 10px 0;
@@ -305,9 +345,21 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 <span class="filePath">Please select a .js or .py file</span>
               </div>
               
-              <button id="startComputeBtn">Start Compute Job</button>
+              <div id="selectedResultsFolderPath" class="selectedFile">
+                <span class="filePrefix">Selected results folder: </span>
+                <span class="filePath">Please select a folder</span>
+              </div>
+              <div></div>
+              <button id="startComputeBtn">Start <strong>FREE</strong> Compute Job</button>
               <button id="stopComputeBtn" style="display: none;">Stop Compute Job</button>
               <div id="errorMessage" class="error-message"></div>
+              <button id="configureCompute">Configure Compute ⚙️</button>
+
+
+              <button id="selectAlgorithmBtn">Select Algorithm File</button>
+
+              <button id="selectResultsFolderBtn">Select Results Folder</button>
+              <input id="datasetInput" placeholder="Dataset URL/IPFS/Arweave/DID" />
           </div>
 
           <div class="section">
@@ -331,21 +383,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                         <div id="environmentDetails" class="environment-details"></div>
                       </div>
 
-                      <label>Algorithm</label>
-                      <button id="selectAlgorithmBtn">Select Algorithm File</button>
-
-                      <label>Results Folder</label>
-                      <button id="selectResultsFolderBtn">Select Results Folder</button>
-                      <div id="selectedResultsFolderPath" class="selectedFile"></div>
-
-                      <div style="display: flex; align-items: baseline; gap: 8px;">
-                        <label for="datasetInput">Dataset URL/IPFS/Arweave/DID</label>
-                        <span id="datasetValidationIcon" style="font-size: 1em; min-width: 20px; line-height: 1;"></span>
-                      </div>
-                      <input id="datasetInput" placeholder="Enter URL, IPFS hash, Arweave ID, or DID" />
-
-                      <label for="privateKeyInput">Private Key</label>
-                      <input id="privateKeyInput" type="password" placeholder="Enter your private key" />
+                      <label for="authTokenInput">Auth Token</label>
+                      <input id="authTokenInput" type="password" placeholder="Enter your auth token" />
                       
                       <label for="dockerImageInput">Docker Image (optional)</label>
                       <input id="dockerImageInput" placeholder="Enter custom Docker image name" />
@@ -365,6 +404,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let selectedEnvironment = null;
               let availableEnvironments = [];
               let currentAutoSelectedFile = null;
+              let configResources = null;
+              let jobDuration = null;
+              let isFreeCompute = true; // Default to free compute
 
               // Helper function to update algorithm display
               function updateAlgorithmDisplay() {
@@ -455,7 +497,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
               if (document.getElementById('startComputeBtn')) {
                   document.getElementById('startComputeBtn').addEventListener('click', () => {
-                      const privateKey = document.getElementById('privateKeyInput').value;
+                      const authToken = document.getElementById('authTokenInput').value;
                       const nodeUrl = document.getElementById('nodeUrlInput').value || "${this.randomNodeUrl}";
                       const dockerImage = document.getElementById('dockerImageInput').value;
                       const dockerTag = document.getElementById('dockerTagInput').value;
@@ -487,9 +529,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       // Start compute job directly
                       vscode.postMessage({ 
                           type: 'startComputeJob',
+                          authToken: authToken,
                           algorithmPath: algorithmPath,
                           resultsFolderPath: selectedResultsFolderPath,
-                          privateKey: privateKey,
                           nodeUrl: nodeUrl,
                           datasetPath: document.getElementById('datasetInput').value || undefined,
                           dockerImage: dockerImage || undefined,
@@ -499,9 +541,20 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   });
               }
 
+              if (document.getElementById('configureCompute')) {
+                  document.getElementById('configureCompute').addEventListener('click', () => {
+                      vscode.postMessage({ 
+                          type: 'openBrowser',
+                          url: 'https://vscode-extension-config-test-page.vercel.app/',
+                          nodeUrl: nodeUrlInput.value || "${this.randomNodeUrl}"
+                      });
+                  });
+              }
+
               if (document.getElementById('stopComputeBtn')) {
                   document.getElementById('stopComputeBtn').addEventListener('click', () => {
-                      vscode.postMessage({ type: 'stopComputeJob' });
+                      const authToken = document.getElementById('authTokenInput').value;
+                      vscode.postMessage({ type: 'stopComputeJob', authToken: authToken });
                   });
               }
 
@@ -547,6 +600,49 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   console.log('Received message:', message);
                   
                   switch (message.type) {
+                      case 'configUpdate':
+                          if (message.config.nodeUrl) {
+                              const nodeUrlInput = document.getElementById('nodeUrlInput');
+                              if (nodeUrlInput) {
+                                  nodeUrlInput.value = message.config.nodeUrl;
+                                  loadEnvironments();
+                              }
+                          }
+                          if (message.config.authToken) {
+                              const authTokenInput = document.getElementById('authTokenInput');
+                              if (authTokenInput) {
+                                  authTokenInput.value = message.config.authToken;
+                              }
+                          }
+                          if (message.config.environmentId) {
+                            const environmentSelect = document.getElementById('environmentSelect');
+                            if (environmentSelect) {
+                              environmentSelect.value = message.config.environmentId;
+                              // Refresh environment details if an environment is selected
+                              if (message.config.environmentId && availableEnvironments.length > 0) {
+                                showEnvDetails(message.config.environmentId);
+                              }
+                            }
+                          }
+                          if (message.config.resources) {
+                            configResources = message.config.resources;
+                            jobDuration = message.config.jobDuration;
+                            // Refresh environment details if an environment is selected
+                            const environmentSelect = document.getElementById('environmentSelect');
+                            if (environmentSelect && environmentSelect.value) {
+                              showEnvDetails(environmentSelect.value);
+                            }
+                          }
+                          if (message.config.isFreeCompute !== undefined) {
+                            isFreeCompute = message.config.isFreeCompute;
+                            const startComputeBtn = document.getElementById('startComputeBtn');
+                            if (startComputeBtn) {
+                              startComputeBtn.innerHTML = message.config.isFreeCompute === true 
+                                ? 'Start <strong>FREE</strong> Compute Job'
+                                : 'Start <strong>PAID</strong> Compute Job';
+                            }
+                          }
+                          break;
                       case 'fileSelected':
                           if (message.elementId === 'selectedDatasetPath') {
                               selectedDatasetPath = message.filePath;
@@ -568,7 +664,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           break;
                       case 'resultsFolder':
                           selectedResultsFolderPath = message.path;
-                          document.getElementById('selectedResultsFolderPath').textContent = message.path;
+                          const resultsElement = document.getElementById('selectedResultsFolderPath');
+                          resultsElement.innerHTML = '<span class="filePrefix">Selected results folder: </span><span class="filePath">' + message.path + '</span>';
                           break;
                       case 'datasetValidationResult':
                         const validationIcon = document.getElementById('datasetValidationIcon');
@@ -631,34 +728,74 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                                   ? selectedEnv.id.substring(0, 6) + '...' + selectedEnv.id.substring(selectedEnv.id.length - 4)
                                   : selectedEnv.id;
 
+                              // Helper function to format resource values
+                              function formatResourceValue(amount, resourceId) {
+                                  if (resourceId === 'ram' || resourceId === 'disk') {
+                                      return Math.round(amount / (1024 * 1024 * 1024)) + ' GB';
+                                  }
+                                  return amount;
+                              }
+
+                              // Helper function to get available value for a resource
+                              function getAvailableValue(resourceId, isFreeCompute) {
+                                  if (isFreeCompute === false) {
+                                      // For paid compute, use paid resources (max value)
+                                      const paidResource = selectedEnv.resources.find(pr => pr.id === resourceId);
+                                      if (paidResource) {
+                                          return formatResourceValue(paidResource.max, resourceId);
+                                      }
+                                  } else {
+                                      // For free compute, use free resources (available amount)
+                                      const envResource = selectedEnv.free?.resources.find(fr => fr.id === resourceId);
+                                      if (envResource) {
+                                          return formatResourceValue(envResource.max - envResource.inUse, resourceId);
+                                      }
+                                  }
+                                  return 'N/A';
+                              }
+
                               // Process resources to show min/max values for paid resources
                               const paidResourceDetails = selectedEnv.resources.map(r => {
-                                  let value = '';
-                                  if (r.id === 'ram' || r.id === 'disk') {
-                                      const minGb = Math.round(r.min / (1024 * 1024 * 1024));
-                                      const maxGb = Math.round(r.max / (1024 * 1024 * 1024));
-                                      value = minGb + '/' + maxGb + ' GB';
-                                  } else {
-                                      value = r.min + '/' + r.max;
-                                  }
-                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Min/Max):</span> ' + value + '</p>';
+                                  const minValue = formatResourceValue(r.min, r.id);
+                                  const maxValue = formatResourceValue(r.max, r.id);
+                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Min/Max):</span> ' + minValue + ' / ' + maxValue + '</p>';
                               }).join('');
 
                               // Process resources for free tier
                               const freeResourceDetails = selectedEnv.free.resources.map(r => {
-                                  let maxValue = '';
-                                  let availableValue = '';
-                                  if (r.id === 'ram' || r.id === 'disk') {
-                                      const maxGb = Math.round(r.max / (1024 * 1024 * 1024));
-                                      const availableGb = Math.round((r.max - r.inUse) / (1024 * 1024 * 1024));
-                                      maxValue = maxGb + ' GB';
-                                      availableValue = availableGb + ' GB';
-                                  } else {
-                                      maxValue = r.max;
-                                      availableValue = r.max - r.inUse;
-                                  }
+                                  const maxValue = formatResourceValue(r.max, r.id);
+                                  const availableValue = formatResourceValue(r.max - r.inUse, r.id);
                                   return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + maxValue + ' / ' + availableValue + '</p>';
                               }).join('');
+
+                              // Combine resource details based on compute type
+                              let resourceDetails = '';
+                              let resourcesLabel = 'Resources:';
+                              
+                              if (configResources && configResources.length > 0) {
+                                  // Show selected resources in "selected / available" format
+                                  resourcesLabel = 'Resources (SELECTED / AVAILABLE):';
+                                  resourceDetails = configResources.map(r => {
+                                      const selectedValue = formatResourceValue(r.amount, r.id);
+                                      const availableValue = getAvailableValue(r.id, isFreeCompute);
+                                      
+                                      return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + selectedValue + ' / ' + availableValue + '</p>';
+                                  }).join('');
+                                  resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (jobDuration || 'N/A') + ' seconds</p>';
+                              } else {
+                                  // Show resources based on compute type when no specific resources are selected
+                                  if (isFreeCompute === false) {
+                                      // For paid compute, show paid resources (min/max)
+                                      resourcesLabel = 'Resources (MIN / MAX):';
+                                      resourceDetails = paidResourceDetails;
+                                      resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (jobDuration || 'N/A') + ' seconds</p>';
+                                  } else {
+                                      // For free compute, show free resources (max/available)
+                                      resourcesLabel = 'Resources (MAX / AVAILABLE):';
+                                      resourceDetails = freeResourceDetails;
+                                      resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (selectedEnv.free?.maxJobDuration || 'N/A') + ' seconds</p>';
+                                  }
+                              }
 
                               detailsDiv.innerHTML = 
                                   '<p><span class="label">Environment ID:</span> ' + truncatedId + '</p>' +
@@ -676,10 +813,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                                   'style="padding: 2px 8px; margin: 0; width: auto; min-width: 60px; font-size: 0.9em;">Copy</button>' +
                                   '</div>' +
                                   '</div>' +
-                                  '<p><span class="label">Free Resources (MAX/AVAILABLE):</span></p>' +
+                                  '<p><span class="label">' + resourcesLabel + '</span></p>' +
                                   '<div style="margin-left: 8px;">' + 
-                                  freeResourceDetails +
-                                  '<p style="margin: 4px 0;"><span class="label">Max Job Duration:</span> ' + selectedEnv.free.maxJobDuration + ' seconds</p>' +
+                                  resourceDetails +
                                   '</div>';
                               detailsDiv.style.display = 'block';
 
