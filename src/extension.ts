@@ -229,7 +229,7 @@ export async function activate(context: vscode.ExtensionContext) {
             const directoryContents = await listDirectoryContents(algorithmDir)
             let additionalDockerFiles: { [key: string]: string } = {}
 
-            // Get additional docker files, do not resend the Dockerfile and the algorithm file
+            // Map additional docker files
             directoryContents.forEach(async (file) => {
               if (file !== 'Dockerfile') {
                 additionalDockerFiles[file] = await checkAndReadFile(algorithmDir, file)
