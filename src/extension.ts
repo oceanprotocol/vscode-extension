@@ -289,15 +289,23 @@ export async function activate(context: vscode.ExtensionContext) {
 
               if (status.statusText === 'Job finished') {
                 try {
-                  // First request (index 0)
                   console.log('Generating signature for request...')
                   progress.report({ message: 'Generating signature for request...' })
                   outputChannel.appendLine('Generating signature for request...')
+                  const resultsLength = status.results.length
+                  const archive = status.results.find(result => result.filename.includes('.tar'))
+                  const resultsWithoutArchive = status.results.filter(result => result.index !== archive?.index)
 
-                  progress.report({ message: 'Retrieving compute results (1/3)...' })
-                  const filePathImageLogs = await getAndSaveLogs(config, jobId, 0, 'image-logs', resultsFolderPath, progress)
-                  progress.report({ message: 'Retrieving compute results (2/3)...' })
-                  const filePathOutputLogs = await getAndSaveLogs(config, jobId, 1, 'output-logs', resultsFolderPath, progress)
+                  for (const result of resultsWithoutArchive) {
+                    progress.report({ message: `Retrieving compute results (${result.index + 1}/${resultsLength})...` })
+                    outputChannel.appendLine(`Retrieving compute results (${result.index + 1}/${resultsLength})...`)
+                    const filePathLogs = await getAndSaveLogs(config, jobId, result.index, result.filename, resultsFolderPath, progress)
+
+                    // Open log files in editor
+                    const uri = vscode.Uri.file(filePathLogs)
+                    const document = await vscode.workspace.openTextDocument(uri)
+                    await vscode.window.showTextDocument(document, { preview: false })
+                  }
 
                   try {
                     progress.report({
@@ -305,7 +313,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     })
                     outputChannel.appendLine('Requesting the output result...')
                     const outputResult = await withRetrial(
-                      () => getComputeResult(config, jobId, 2),
+                      () => getComputeResult(config, jobId, archive?.index),
                       progress
                     )
                     const filePathOutput = await saveOutput(
@@ -328,17 +336,6 @@ export async function activate(context: vscode.ExtensionContext) {
                     vscode.window.showErrorMessage('Error saving the output result')
                   }
 
-                  // Open log files in editor
-                  const uri1 = vscode.Uri.file(filePathImageLogs)
-                  const uri2 = vscode.Uri.file(filePathOutputLogs)
-                  const [document1, document2] = await Promise.all([
-                    vscode.workspace.openTextDocument(uri1),
-                    vscode.workspace.openTextDocument(uri2)
-                  ])
-                  await Promise.all([
-                    vscode.window.showTextDocument(document1, { preview: false }),
-                    vscode.window.showTextDocument(document2, { preview: false })
-                  ])
                   break
                 } catch (error) {
                   console.error('Error retrieving results:', error)
