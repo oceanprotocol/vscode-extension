@@ -48,21 +48,21 @@ const getContainerConfig = (
   switch (fileExtension) {
     case 'py':
       return {
-        entrypoint: 'python $ALGO',
         image: 'oceanprotocol/c2d_examples',
         tag: 'py-general',
+        entrypoint: 'python $ALGO',
         dockerfile,
         additionalDockerFiles,
         checksum: ''
       }
     case 'js':
       return {
-        entrypoint: 'node $ALGO',
         image: 'oceanprotocol/c2d_examples',
         tag: 'js-general',
-        checksum: '',
+        entrypoint: 'node $ALGO',
         dockerfile,
         additionalDockerFiles,
+        checksum: ''
       }
     default:
       throw new Error('File extension not supported')
