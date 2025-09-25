@@ -1,5 +1,8 @@
 import * as vscode from 'vscode'
+import * as fs from 'fs'
+import * as path from 'path'
 import { SelectedConfig } from './types'
+import { algoPy, dockerfilePy, requirementsPy } from './helpers/project-data'
 
 export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'oceanProtocolExplorer'
@@ -26,6 +29,48 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public sendMessage(message: any) {
     if (this._view) {
       this._view.webview.postMessage(message)
+    }
+  }
+
+  private async closeOldProjectTabs() {
+    try {
+      const openEditors = vscode.window.tabGroups.all.flatMap(group => group.tabs)
+      const projectFileNames = ['algo.py', 'Dockerfile', 'requirements.txt']
+
+      for (const tab of openEditors) {
+        if (tab.input instanceof vscode.TabInputText) {
+          const fileName = path.basename(tab.input.uri.fsPath)
+          if (projectFileNames.includes(fileName)) {
+            await vscode.window.tabGroups.close(tab)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error closing old project tabs:', error)
+    }
+  }
+
+  private async openProjectFiles(projectPath: string) {
+    try {
+      const algoPath = path.join(projectPath, 'algo.py')
+      const dockerfilePath = path.join(projectPath, 'Dockerfile')
+      const requirementsPath = path.join(projectPath, 'requirements.txt')
+
+      const algoExists = await fs.promises.access(algoPath).then(() => true).catch(() => false)
+      const dockerfileExists = await fs.promises.access(dockerfilePath).then(() => true).catch(() => false)
+      const requirementsExists = await fs.promises.access(requirementsPath).then(() => true).catch(() => false)
+
+      if (algoExists) {
+        await vscode.window.showTextDocument(vscode.Uri.file(algoPath), { preview: false })
+      }
+      if (dockerfileExists) {
+        await vscode.window.showTextDocument(vscode.Uri.file(dockerfilePath), { preview: false })
+      }
+      if (requirementsExists) {
+        await vscode.window.showTextDocument(vscode.Uri.file(requirementsPath), { preview: false })
+      }
+    } catch (error) {
+      console.error('Error opening project files:', error)
     }
   }
 
@@ -80,53 +125,72 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 })
               }
               break
-            case 'openFilePicker':
-              const options: vscode.OpenDialogOptions = {
-                canSelectMany: false,
-                openLabel: 'Select',
-                defaultUri: vscode.workspace.workspaceFolders?.[0]?.uri,
-                filters: {
-                  'Algorithm Files': ['js', 'py'],
-                  'Dataset Files': ['json']
-                }
-              }
-
-              if (data.elementId === 'selectedDatasetPath') {
-                options.filters = {
-                  'Dataset Files': ['json']
-                }
-                options.openLabel = 'Select Dataset'
-              } else if (data.elementId === 'selectedAlgorithmPath') {
-                options.filters = {
-                  'Algorithm Files': ['js', 'py']
-                }
-                options.openLabel = 'Select Algorithm'
-              }
-
-              const fileUri = await vscode.window.showOpenDialog(options)
-              if (fileUri && fileUri[0]) {
-                webviewView.webview.postMessage({
-                  type: 'fileSelected',
-                  filePath: fileUri[0].fsPath,
-                  elementId: data.elementId
-                })
-              }
-              break
-            case 'selectResultsFolder': {
-              console.log('Opening folder picker')
+            case 'selectProjectFolder': {
               const folderUri = await vscode.window.showOpenDialog({
                 canSelectFiles: false,
                 canSelectFolders: true,
                 canSelectMany: false,
-                openLabel: 'Select Results Folder'
+                openLabel: 'Select Project Folder'
               })
 
               if (folderUri && folderUri[0]) {
-                console.log('Selected folder:', folderUri[0].fsPath)
+                await this.closeOldProjectTabs()
+                await this.openProjectFiles(folderUri[0].fsPath)
+
                 webviewView.webview.postMessage({
-                  type: 'resultsFolder',
+                  type: 'projectFolder',
                   path: folderUri[0].fsPath
                 })
+              }
+              break
+            }
+            case 'createNewProjectFolder': {
+              const folderUri = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: 'Select Parent Directory'
+              })
+
+              if (folderUri && folderUri[0]) {
+                const projectName = await vscode.window.showInputBox({
+                  prompt: 'Enter project folder name',
+                  placeHolder: 'new-compute-job',
+                  value: 'new-compute-job'
+                })
+
+                if (projectName) {
+                  const projectPath = path.join(folderUri[0].fsPath, projectName)
+
+                  try {
+                    await fs.promises.mkdir(projectPath, { recursive: true })
+
+                    const dockerfileContent = dockerfilePy
+                    await fs.promises.writeFile(path.join(projectPath, 'Dockerfile'), dockerfileContent)
+
+                    const requirementsContent = requirementsPy
+                    await fs.promises.writeFile(path.join(projectPath, 'requirements.txt'), requirementsContent)
+
+                    const algoContent = algoPy
+                    await fs.promises.writeFile(path.join(projectPath, 'algo.py'), algoContent)
+
+                    const resultsPath = path.join(projectPath, 'results')
+                    await fs.promises.mkdir(resultsPath, { recursive: true })
+
+                    await this.closeOldProjectTabs()
+                    await this.openProjectFiles(projectPath)
+
+                    webviewView.webview.postMessage({
+                      type: 'projectCreated',
+                      projectPath: projectPath,
+                      algorithmPath: path.join(projectPath, 'algo.py'),
+                      resultsPath: resultsPath
+                    })
+                  } catch (error) {
+                    console.error('Error creating project:', error)
+                    vscode.window.showErrorMessage(`Failed to create project: ${error}`)
+                  }
+                }
               }
               break
             }
@@ -230,9 +294,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             display: block;
             color: var(--vscode-descriptionForeground);
           }
-          #selectedAlgorithmPath {
-            margin: 15px 0;
-            padding: 5px 0;
+          #selectedProjectPath {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
           }
           .currentFile {
             margin-top: 5px;
@@ -295,9 +362,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             width: 100%; 
             padding: 8px;
           }
-          #selectedResultsFolderPath {
-            margin-bottom: 20px;
-          }
           #stopComputeBtn {
             margin: 10px 0;
           }
@@ -340,25 +404,18 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
     </head>
     <body>
           <div class="container">
-              <div id="selectedAlgorithmPath" class="selectedFile">
-                <span class="filePrefix">Selected algorithm: </span>
-                <span class="filePath">Please select a .js or .py file</span>
-              </div>
-              
-              <div id="selectedResultsFolderPath" class="selectedFile">
-                <span class="filePrefix">Selected results folder: </span>
-                <span class="filePath">Please select a folder</span>
+              <div id="selectedProjectPath" class="selectedFile">
+                <span class="filePrefix">Selected project folder: </span>
+                <span class="filePath">Please create or select a project folder</span>
               </div>
               <div></div>
               <button id="startComputeBtn">Start <strong>FREE</strong> Compute Job</button>
               <button id="stopComputeBtn" style="display: none;">Stop Compute Job</button>
               <div id="errorMessage" class="error-message"></div>
+              <button id="createNewProjectBtn">Create New Project Folder</button>
+
+              <button id="selectProjectFolderBtn">Select Project Folder</button>
               <button id="configureCompute">Configure Compute ⚙️</button>
-
-
-              <button id="selectAlgorithmBtn">Select Algorithm File</button>
-
-              <button id="selectResultsFolderBtn">Select Results Folder</button>
               <input id="datasetInput" placeholder="Dataset URL/IPFS/Arweave/DID" />
           </div>
 
@@ -397,30 +454,14 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
           <script>
               const vscode = acquireVsCodeApi();
-              let selectedFilePath = '';
+              let selectedProjectPath = '';
               let selectedAlgorithmPath = '';
               let selectedResultsFolderPath = '';
-              let isUsingDefaultAlgorithm = false;
-              let selectedEnvironment = null;
               let availableEnvironments = [];
-              let currentAutoSelectedFile = null;
               let configResources = null;
               let jobDuration = null;
               let isFreeCompute = true; // Default to free compute
 
-              // Helper function to update algorithm display
-              function updateAlgorithmDisplay() {
-                  const element = document.getElementById('selectedAlgorithmPath');
-                  
-                  if (currentAutoSelectedFile) {
-                      element.innerHTML = '<span class="filePrefix">Current file (auto-selected): </span><span class="filePath">' + currentAutoSelectedFile + '</span>';
-                  } else if (selectedAlgorithmPath) {
-                      const prefix = isUsingDefaultAlgorithm ? 'Current algorithm file: ' : 'Selected algorithm: ';
-                      element.innerHTML = '<span class="filePrefix">' + prefix + '</span><span class="filePath">' + selectedAlgorithmPath + '</span>';
-                  } else {
-                      element.innerHTML = '<span class="filePrefix">Algorithm: </span><span class="filePath">Please open a .js or .py file or select manually</span>';
-                  }
-              }
 
               const environmentDetails = document.getElementById('environmentDetails');
               const nodeUrlInput = document.getElementById('nodeUrlInput');
@@ -436,21 +477,20 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               // Initialize only the setup section toggle
               document.getElementById('setupHeader').addEventListener('click', () => toggleSection('setup'));
 
-              if (document.getElementById('selectAlgorithmBtn')) {
-                  document.getElementById('selectAlgorithmBtn').addEventListener('click', () => {
-                      console.log('Algorithm button clicked');
+              if (document.getElementById('createNewProjectBtn')) {
+                  document.getElementById('createNewProjectBtn').addEventListener('click', () => {
+                      console.log('Create new project button clicked');
                       vscode.postMessage({ 
-                          type: 'openFilePicker',
-                          elementId: 'selectedAlgorithmPath'
+                          type: 'createNewProjectFolder'
                       });
                   });
               }
 
-              if (document.getElementById('selectResultsFolderBtn')) {
-                  document.getElementById('selectResultsFolderBtn').addEventListener('click', () => {
-                      console.log('Results folder button clicked');
+              if (document.getElementById('selectProjectFolderBtn')) {
+                  document.getElementById('selectProjectFolderBtn').addEventListener('click', () => {
+                      console.log('Select project folder button clicked');
                       vscode.postMessage({
-                          type: 'selectResultsFolder' 
+                          type: 'selectProjectFolder' 
                       });
                   });
               }
@@ -503,22 +543,17 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       const dockerTag = document.getElementById('dockerTagInput').value;
                       const errorMessage = document.getElementById('errorMessage');
                       
-                      if (!selectedResultsFolderPath) {
-                          errorMessage.textContent = 'Please select a results folder';
+                      if (!selectedProjectPath) {
+                          errorMessage.textContent = 'Please create or select a project folder';
                           errorMessage.style.display = 'block';
                           return;
                       }
 
-                      // Determine algorithm path using auto-selection priority
-                      let algorithmPath = null;
-                      if (currentAutoSelectedFile) {
-                          algorithmPath = currentAutoSelectedFile;
-                      } else if (selectedAlgorithmPath) {
-                          algorithmPath = selectedAlgorithmPath;
-                      }
+                      let algorithmPath = selectedAlgorithmPath;
+                      let resultsFolderPath = selectedResultsFolderPath;
                       
-                      if (!algorithmPath) {
-                          errorMessage.textContent = 'Please open a .js or .py file or manually select an algorithm';
+                      if (!algorithmPath || !resultsFolderPath) {
+                          errorMessage.textContent = 'Project folder must contain algo.py and results folder';
                           errorMessage.style.display = 'block';
                           return;
                       }
@@ -531,7 +566,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           type: 'startComputeJob',
                           authToken: authToken,
                           algorithmPath: algorithmPath,
-                          resultsFolderPath: selectedResultsFolderPath,
+                          resultsFolderPath: resultsFolderPath,
                           nodeUrl: nodeUrl,
                           datasetPath: document.getElementById('datasetInput').value || undefined,
                           dockerImage: dockerImage || undefined,
@@ -589,11 +624,32 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   });
               }
               
-              // Disable start button initially until node URL is validated
+              // Listen for node URL input changes
+              if (document.getElementById('nodeUrlInput')) {
+                  document.getElementById('nodeUrlInput').addEventListener('input', () => {
+                      checkStartButtonState();
+                  });
+              }
+              
+              // Disable start button initially until node URL is validated and project is selected
               disableStartButton();
               
               // Load environments on page load
               loadEnvironments();
+              
+              function checkStartButtonState() {
+                  const hasProject = selectedProjectPath && selectedProjectPath.trim() !== '';
+                  const hasEnvironments = availableEnvironments && availableEnvironments.length > 0;
+                  const nodeUrl = document.getElementById('nodeUrlInput').value;
+                  
+                  if (hasProject && hasEnvironments && nodeUrl) {
+                      document.getElementById('startComputeBtn').disabled = false;
+                      document.getElementById('startComputeBtn').style.opacity = '1';
+                  } else {
+                      document.getElementById('startComputeBtn').disabled = true;
+                      document.getElementById('startComputeBtn').style.opacity = '0.8';
+                  }
+              }
 
               window.addEventListener('message', event => {
                   const message = event.data;
@@ -643,29 +699,25 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                             }
                           }
                           break;
-                      case 'fileSelected':
-                          if (message.elementId === 'selectedDatasetPath') {
-                              selectedDatasetPath = message.filePath;
-                              const element = document.getElementById('selectedDatasetPath');
-                              element.innerHTML = '<span class="filePrefix">Selected dataset: </span><span class="filePath">' + message.filePath + '</span>';
-                          } else if (message.elementId === 'selectedAlgorithmPath') {
-                              selectedAlgorithmPath = message.filePath;
-                              isUsingDefaultAlgorithm = message.isDefault || false;
-                              // Manual selection overrides auto-selection
-                              currentAutoSelectedFile = null;
-                              updateAlgorithmDisplay();
-                          } else {
-                              selectedFilePath = message.filePath;
-                              document.getElementById('selectedFilePath').textContent = 'Selected file: ' + message.filePath;
-                          }
+                      case 'projectFolder':
+                          selectedProjectPath = message.path;
+                          const projectElement = document.getElementById('selectedProjectPath');
+                          projectElement.innerHTML = '<span class="filePrefix">Selected project folder: </span><span class="filePath">' + message.path + '</span>';
+                          
+                          selectedAlgorithmPath = message.path + '/algo.py';
+                          selectedResultsFolderPath = message.path + '/results';
+                          
+                          checkStartButtonState();
                           break;
-                      case 'nodeId':
-                          document.getElementById('nodeIdDisplay').textContent = message.nodeId;
-                          break;
-                      case 'resultsFolder':
-                          selectedResultsFolderPath = message.path;
-                          const resultsElement = document.getElementById('selectedResultsFolderPath');
-                          resultsElement.innerHTML = '<span class="filePrefix">Selected results folder: </span><span class="filePath">' + message.path + '</span>';
+                      case 'projectCreated':
+                          selectedProjectPath = message.projectPath;
+                          selectedAlgorithmPath = message.algorithmPath;
+                          selectedResultsFolderPath = message.resultsPath;
+                          
+                          const projectElementCreated = document.getElementById('selectedProjectPath');
+                          projectElementCreated.innerHTML = '<span class="filePrefix">Selected project folder: </span><span class="filePath">' + message.projectPath + '</span>';
+                          
+                          checkStartButtonState();
                           break;
                       case 'datasetValidationResult':
                         const validationIcon = document.getElementById('datasetValidationIcon');
@@ -711,9 +763,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           select.disabled = false;
                           document.getElementById('environmentDetails').style.display = 'none';
                           
-                          // Enable start button when environments are loaded successfully
-                          document.getElementById('startComputeBtn').disabled = false;
-                          document.getElementById('startComputeBtn').style.opacity = '1';
+                          checkStartButtonState();
 
                           function showEnvDetails(envId) {
                               const detailsDiv = document.getElementById('environmentDetails');
@@ -844,13 +894,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           });
                           break;
 
-                      case 'activeEditorChanged':
-                          // Only update if we have a valid algorithm file, otherwise keep the last one
-                          if (message.filePath) {
-                              currentAutoSelectedFile = message.filePath;
-                          }
-                          updateAlgorithmDisplay();
-                          break;
                       case 'jobLoading':
                           disableStartButton();
                           break;
