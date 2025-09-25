@@ -25,8 +25,8 @@ const getContainerConfig = (
 ): ExtendedMetadataAlgorithm['container'] => {
   if (dockerImage && dockerTag) {
     return {
-      image: dockerImage,
-      tag: dockerTag,
+      image: '',
+      tag: '',
       entrypoint: fileExtension === 'py' ? 'python $ALGO' : 'node $ALGO',
       dockerfile,
       additionalDockerFiles,
