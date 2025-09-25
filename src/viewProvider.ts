@@ -363,7 +363,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             padding: 8px;
           }
           #stopComputeBtn {
-            margin: 10px 0;
+            margin: 5px 0;
           }
           .environment-section {
             margin: 15px 0;
