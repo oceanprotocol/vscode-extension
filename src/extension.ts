@@ -287,7 +287,17 @@ export async function activate(context: vscode.ExtensionContext) {
                 )
               }
 
-              if (status.statusText === 'Job finished') {
+              if (
+                status.statusText.toLowerCase().includes('error') ||
+                status.statusText.toLowerCase().includes('failed')
+              ) {
+                // Reset job state and notify webview on failure
+                savedJobId = null
+                provider.sendMessage({ type: 'jobStopped' })
+                throw new Error(`Job failed with status: ${status.statusText}`)
+              }
+
+              if (status.dateFinished) {
                 try {
                   console.log('Generating signature for request...')
                   progress.report({ message: 'Generating signature for request...' })
@@ -342,17 +352,6 @@ export async function activate(context: vscode.ExtensionContext) {
                   throw error
                 }
               }
-
-              if (
-                status.statusText.toLowerCase().includes('error') ||
-                status.statusText.toLowerCase().includes('failed')
-              ) {
-                // Reset job state and notify webview on failure
-                savedJobId = null
-                provider.sendMessage({ type: 'jobStopped' })
-                throw new Error(`Job failed with status: ${status.statusText}`)
-              }
-
               await delay(5000) // Wait 5 seconds before checking again
             }
           })
@@ -364,7 +363,7 @@ export async function activate(context: vscode.ExtensionContext) {
           provider.sendMessage({ type: 'jobStopped' })
 
           if (error instanceof Error && error.message) {
-            vscode.window.showErrorMessage(`Compute job failed: ${error.message}`)
+            vscode.window.showErrorMessage(error.message)
           } else {
             vscode.window.showErrorMessage('Something went wrong. Please try again.')
           }
