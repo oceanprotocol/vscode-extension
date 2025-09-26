@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import * as fs from 'fs'
 import * as path from 'path'
 import { SelectedConfig } from './types'
-import { algoPy, dockerfilePy, requirementsPy } from './helpers/project-data'
+import { Language, getAvailableLanguages, getLanguageTemplates } from './helpers/project-data'
 
 export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'oceanProtocolExplorer'
@@ -35,7 +35,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   private async closeOldProjectTabs() {
     try {
       const openEditors = vscode.window.tabGroups.all.flatMap(group => group.tabs)
-      const projectFileNames = ['algo.py', 'Dockerfile', 'requirements.txt']
+      const projectFileNames = ['algo.py', 'algo.js', 'Dockerfile', 'requirements.txt', 'package.json']
 
       for (const tab of openEditors) {
         if (tab.input instanceof vscode.TabInputText) {
@@ -52,23 +52,27 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
   private async openProjectFiles(projectPath: string) {
     try {
-      const algoPath = path.join(projectPath, 'algo.py')
-      const dockerfilePath = path.join(projectPath, 'Dockerfile')
-      const requirementsPath = path.join(projectPath, 'requirements.txt')
+      const projectFiles = [
+        'Dockerfile',
+        'algo.py',
+        'requirements.txt',
+        'algo.js',
+        'package.json'
+      ]
 
-      const algoExists = await fs.promises.access(algoPath).then(() => true).catch(() => false)
-      const dockerfileExists = await fs.promises.access(dockerfilePath).then(() => true).catch(() => false)
-      const requirementsExists = await fs.promises.access(requirementsPath).then(() => true).catch(() => false)
+      const fileChecks = projectFiles.map(async (fileName) => {
+        const filePath = path.join(projectPath, fileName)
+        const exists = await fs.promises.access(filePath).then(() => true).catch(() => false)
+        return { fileName, filePath, exists }
+      })
 
-      if (algoExists) {
-        await vscode.window.showTextDocument(vscode.Uri.file(algoPath), { preview: false })
-      }
-      if (dockerfileExists) {
-        await vscode.window.showTextDocument(vscode.Uri.file(dockerfilePath), { preview: false })
-      }
-      if (requirementsExists) {
-        await vscode.window.showTextDocument(vscode.Uri.file(requirementsPath), { preview: false })
-      }
+      const fileResults = await Promise.all(fileChecks)
+
+      const openPromises = fileResults
+        .filter(file => file.exists)
+        .map(file => vscode.window.showTextDocument(vscode.Uri.file(file.filePath), { preview: false }))
+
+      await Promise.all(openPromises)
     } catch (error) {
       console.error('Error opening project files:', error)
     }
@@ -160,35 +164,45 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 })
 
                 if (projectName) {
-                  const projectPath = path.join(folderUri[0].fsPath, projectName)
+                  // Show language selection dialog
+                  const availableLanguages = getAvailableLanguages()
+                  const language = await vscode.window.showQuickPick(
+                    availableLanguages,
+                    {
+                      placeHolder: 'Select preferred language',
+                      title: 'Choose Language'
+                    }
+                  )
 
-                  try {
-                    await fs.promises.mkdir(projectPath, { recursive: true })
+                  if (language) {
+                    const projectPath = path.join(folderUri[0].fsPath, projectName)
 
-                    const dockerfileContent = dockerfilePy
-                    await fs.promises.writeFile(path.join(projectPath, 'Dockerfile'), dockerfileContent)
+                    try {
+                      await fs.promises.mkdir(projectPath, { recursive: true })
 
-                    const requirementsContent = requirementsPy
-                    await fs.promises.writeFile(path.join(projectPath, 'requirements.txt'), requirementsContent)
+                      const templates = getLanguageTemplates(language as Language, projectName)
 
-                    const algoContent = algoPy
-                    await fs.promises.writeFile(path.join(projectPath, 'algo.py'), algoContent)
+                      await fs.promises.writeFile(path.join(projectPath, 'Dockerfile'), templates.dockerfile)
+                      await fs.promises.writeFile(path.join(projectPath, templates.dependenciesFileName), templates.dependencies)
+                      await fs.promises.writeFile(path.join(projectPath, templates.algorithmFileName), templates.algorithm)
 
-                    const resultsPath = path.join(projectPath, 'results')
-                    await fs.promises.mkdir(resultsPath, { recursive: true })
+                      const resultsPath = path.join(projectPath, 'results')
+                      await fs.promises.mkdir(resultsPath, { recursive: true })
 
-                    await this.closeOldProjectTabs()
-                    await this.openProjectFiles(projectPath)
+                      await this.closeOldProjectTabs()
+                      await this.openProjectFiles(projectPath)
 
-                    webviewView.webview.postMessage({
-                      type: 'projectCreated',
-                      projectPath: projectPath,
-                      algorithmPath: path.join(projectPath, 'algo.py'),
-                      resultsPath: resultsPath
-                    })
-                  } catch (error) {
-                    console.error('Error creating project:', error)
-                    vscode.window.showErrorMessage(`Failed to create project: ${error}`)
+                      webviewView.webview.postMessage({
+                        type: 'projectCreated',
+                        projectPath: projectPath,
+                        algorithmPath: path.join(projectPath, templates.algorithmFileName),
+                        resultsPath: resultsPath,
+                        language: language
+                      })
+                    } catch (error) {
+                      console.error('Error creating project:', error)
+                      vscode.window.showErrorMessage(`Failed to create project: ${error}`)
+                    }
                   }
                 }
               }
@@ -719,7 +733,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           selectedResultsFolderPath = message.resultsPath;
                           
                           const projectElementCreated = document.getElementById('selectedProjectPath');
-                          projectElementCreated.innerHTML = '<span class="filePrefix">Selected project folder: </span><span class="filePath">' + message.projectPath + '</span>';
+                          const languageInfo = message.language ? ' (' + message.language + ')' : '';
+                          projectElementCreated.innerHTML = '<span class="filePrefix">Selected project folder: </span><span class="filePath">' + message.projectPath + languageInfo + '</span>';
                           
                           checkStartButtonState();
                           break;

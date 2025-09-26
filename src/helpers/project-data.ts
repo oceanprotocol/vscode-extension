@@ -38,3 +38,89 @@ numpy>=1.21.0
 pandas>=1.3.0
 requests>=2.25.0
 `
+
+export const dockerfileJs = `
+FROM node:22 as builder
+
+WORKDIR /usr/app
+COPY package*.json ./
+RUN npm install && npm cache clean --force
+RUN apt-get update 
+COPY . .
+
+FROM node:22
+COPY --from=builder /usr/app/ /
+`
+
+export const algoJs = `
+const fs = require('fs');
+const path = require('path');
+
+function main() {
+    console.log("Hello world 🌊");
+    
+    const result = { message: "Algorithm executed successfully" };
+    
+    const outputsDir = path.join('./data/outputs');
+    console.log('Outputs directory:', outputsDir);
+    if (!fs.existsSync(outputsDir)) {
+        fs.mkdirSync(outputsDir, { recursive: true });
+    }
+    
+    fs.writeFileSync(path.join(outputsDir, 'result.json'), JSON.stringify(result, null, 2));
+    console.log("Algorithm completed!");
+}
+
+if (require.main === module) {
+    main();
+}
+`
+
+export const packageJsonJs = `
+{
+  "name": "new-compute-job",
+  "version": "1.0.0",
+  "description": "New compute job",
+  "main": "algo.js",
+  "scripts": {
+    "start": "node algo.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.7",
+    "bignumber.js": "^9.3.0",
+    "ethers": "^6.14.0"
+  }
+}
+`
+
+export enum Language {
+    PYTHON = 'Python',
+    JAVASCRIPT = 'JavaScript'
+}
+
+export function getAvailableLanguages(): string[] {
+    return Object.values(Language)
+}
+
+export function getLanguageTemplates(language: Language, projectName: string) {
+    switch (language) {
+        case Language.PYTHON:
+            return {
+                dockerfile: dockerfilePy,
+                algorithm: algoPy,
+                dependencies: requirementsPy,
+                algorithmFileName: 'algo.py',
+                dependenciesFileName: 'requirements.txt'
+            }
+        case Language.JAVASCRIPT:
+            return {
+                dockerfile: dockerfileJs,
+                algorithm: algoJs,
+                dependencies: packageJsonJs,
+                algorithmFileName: 'algo.js',
+                dependenciesFileName: 'package.json'
+            }
+        default:
+            throw new Error(`Unsupported language: ${language}`)
+    }
+}
