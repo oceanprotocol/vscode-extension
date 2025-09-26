@@ -443,6 +443,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       <label for="authTokenInput">Auth Token</label>
                       <input id="authTokenInput" type="password" placeholder="Enter your auth token" />
                       
+                      <div style="margin: 5px 0; font-size: 0.85em; color: var(--vscode-descriptionForeground); font-style: italic;">
+                        *Dockerfile in project root takes priority
+                      </div>
+                      
                       <label for="dockerImageInput">Docker Image (optional)</label>
                       <input id="dockerImageInput" placeholder="Enter custom Docker image name" />
 
