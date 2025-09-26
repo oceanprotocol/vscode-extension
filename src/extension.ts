@@ -80,22 +80,6 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(registration)
     console.log('Added registration to subscriptions')
 
-    // Listen for active editor changes
-    context.subscriptions.push(
-      vscode.window.onDidChangeActiveTextEditor((editor) => {
-        let filePath = null
-        if (editor && editor.document.uri.scheme === 'file') {
-          const fileExtension = editor.document.uri.fsPath.split('.').pop()?.toLowerCase()
-          if (fileExtension === 'js' || fileExtension === 'py') {
-            filePath = editor.document.uri.fsPath
-          }
-        }
-        provider.sendMessage({
-          type: 'activeEditorChanged',
-          filePath: filePath
-        })
-      })
-    )
 
     // Create a test command to verify the webview is accessible
     let testCommand = vscode.commands.registerCommand('ocean-protocol.test', () => {
