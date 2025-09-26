@@ -1,6 +1,7 @@
 import * as vscode from 'vscode'
 import { OceanProtocolViewProvider } from './viewProvider'
 import * as fs from 'fs'
+import * as path from 'path'
 import fetch from 'cross-fetch'
 import {
   checkComputeStatus,
@@ -18,6 +19,7 @@ import { validateDatasetFromInput } from './helpers/validation'
 import { SelectedConfig } from './types'
 import { ethers, Signer } from 'ethers'
 import { ProviderInstance } from '@oceanprotocol/lib'
+import { checkAndReadFile, listDirectoryContents } from './helpers/path'
 
 globalThis.fetch = fetch
 
@@ -218,6 +220,22 @@ export async function activate(context: vscode.ExtensionContext) {
 
             // Start compute job
             const fileExtension = algorithmPath.split('.').pop()?.toLowerCase()
+            const algorithmDir = path.dirname(algorithmPath)
+
+            // Get dockerfile
+            const dockerfile = await checkAndReadFile(algorithmDir, 'Dockerfile')
+
+            // Get additional docker files
+            const directoryContents = await listDirectoryContents(algorithmDir)
+            let additionalDockerFiles: { [key: string]: string } = {}
+
+            // Map additional docker files
+            directoryContents.forEach(async (file) => {
+              if (file !== 'Dockerfile') {
+                additionalDockerFiles[file] = await checkAndReadFile(algorithmDir, file)
+              }
+            })
+
             const computeResponse = await computeStart(
               config,
               algorithmContent,
@@ -225,6 +243,8 @@ export async function activate(context: vscode.ExtensionContext) {
               dataset,
               dockerImage,
               dockerTag,
+              dockerfile,
+              additionalDockerFiles
             )
             console.log('Compute result received:', computeResponse)
             const jobId = computeResponse.jobId
@@ -279,38 +299,31 @@ export async function activate(context: vscode.ExtensionContext) {
 
               if (status.dateFinished) {
                 try {
-                  // First request (index 0)
-                  console.log('Generating signature for logs request...')
-                  progress.report({ message: 'Generating signature for logs request...' })
-                  outputChannel.appendLine('Generating signature for logs request...')
+                  console.log('Generating signature for request...')
+                  progress.report({ message: 'Generating signature for request...' })
+                  outputChannel.appendLine('Generating signature for request...')
+                  const resultsLength = status.results.length
+                  const archive = status.results.find(result => result.filename.includes('.tar'))
+                  const resultsWithoutArchive = status.results.filter(result => result.index !== archive?.index)
 
-                  // Retrieve first result (index 0)
-                  progress.report({ message: 'Retrieving compute results (1/2)...' })
-                  outputChannel.appendLine('Retrieving logs...')
-                  const logResult = await withRetrial(
-                    () => getComputeResult(config, jobId, 0),
-                    progress
-                  )
+                  for (const result of resultsWithoutArchive) {
+                    progress.report({ message: `Retrieving compute results (${result.index + 1}/${resultsLength})...` })
+                    outputChannel.appendLine(`Retrieving compute results (${result.index + 1}/${resultsLength})...`)
+                    const filePathLogs = await getAndSaveLogs(config, jobId, result.index, result.filename, resultsFolderPath, progress)
 
-                  // Save first result
-                  progress.report({ message: 'Saving first result...' })
-                  outputChannel.appendLine('Saving first result...')
-                  console.log('Saving first result to folder path:', resultsFolderPath)
-                  const filePathLogs = await saveResults(
-                    logResult,
-                    resultsFolderPath,
-                    'result-logs'
-                  )
-                  outputChannel.appendLine(`Logs saved to: ${filePathLogs}`)
+                    // Open log files in editor
+                    const uri = vscode.Uri.file(filePathLogs)
+                    const document = await vscode.workspace.openTextDocument(uri)
+                    await vscode.window.showTextDocument(document, { preview: false })
+                  }
 
                   try {
-                    // Second request (index 1) with new nonce and signature
                     progress.report({
                       message: 'Requesting the output result...'
                     })
                     outputChannel.appendLine('Requesting the output result...')
                     const outputResult = await withRetrial(
-                      () => getComputeResult(config, jobId, 1),
+                      () => getComputeResult(config, jobId, archive?.index),
                       progress
                     )
                     const filePathOutput = await saveOutput(
@@ -332,11 +345,6 @@ export async function activate(context: vscode.ExtensionContext) {
                     outputChannel.appendLine('Error saving the output result')
                     vscode.window.showErrorMessage('Error saving the output result')
                   }
-
-                  // Open log files in editor
-                  const uri1 = vscode.Uri.file(filePathLogs)
-                  const document1 = await vscode.workspace.openTextDocument(uri1)
-                  await vscode.window.showTextDocument(document1, { preview: false })
 
                   break
                 } catch (error) {
@@ -373,4 +381,21 @@ export async function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
   console.log('Ocean Protocol extension is being deactivated')
   outputChannel.appendLine('Ocean Protocol extension is being deactivated')
+}
+
+async function getAndSaveLogs(config: SelectedConfig, jobId: string, index: number, fileName: string, resultsFolderPath: string, progress: vscode.Progress<{ message?: string }>) {
+  const imageResult = await withRetrial(
+    () => getComputeResult(config, jobId, index),
+    progress
+  )
+
+  progress.report({ message: `Saving ${fileName}...` })
+  outputChannel.appendLine(`Saving ${fileName}...`)
+  const filePathLogs = await saveResults(
+    imageResult,
+    resultsFolderPath,
+    fileName
+  )
+  outputChannel.appendLine(`${fileName} saved to: ${filePathLogs}`)
+  return filePathLogs
 }

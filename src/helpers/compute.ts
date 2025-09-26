@@ -12,32 +12,57 @@ import { PassThrough } from 'stream'
 import { fetchDdoByDid } from './indexer'
 import { SelectedConfig } from '../types'
 import { Signer } from 'ethers'
+import { ExtendedMetadataAlgorithm } from '@oceanprotocol/lib'
 
 const getContainerConfig = (
   fileExtension: string,
   dockerImage?: string,
-  dockerTag?: string
-) => {
+  dockerTag?: string,
+  dockerfile?: string,
+  additionalDockerFiles?: {
+    [key: string]: string
+  }
+): ExtendedMetadataAlgorithm['container'] => {
+  if (dockerfile) {
+    return {
+      image: '',
+      tag: '',
+      entrypoint: fileExtension === 'py' ? 'python $ALGO' : 'node $ALGO',
+      dockerfile,
+      additionalDockerFiles,
+      checksum: '',
+    }
+  }
+
   if (dockerImage && dockerTag) {
     return {
       image: dockerImage,
       tag: dockerTag,
-      entrypoint: fileExtension === 'py' ? 'python $ALGO' : 'node $ALGO'
+      entrypoint: fileExtension === 'py' ? 'python $ALGO' : 'node $ALGO',
+      dockerfile,
+      additionalDockerFiles,
+      checksum: '',
     }
   }
 
   switch (fileExtension) {
     case 'py':
       return {
-        entrypoint: 'python $ALGO',
         image: 'oceanprotocol/c2d_examples',
-        tag: 'py-general'
+        tag: 'py-general',
+        entrypoint: 'python $ALGO',
+        dockerfile,
+        additionalDockerFiles,
+        checksum: ''
       }
     case 'js':
       return {
-        entrypoint: 'node $ALGO',
         image: 'oceanprotocol/c2d_examples',
-        tag: 'js-general'
+        tag: 'js-general',
+        entrypoint: 'node $ALGO',
+        dockerfile,
+        additionalDockerFiles,
+        checksum: ''
       }
     default:
       throw new Error('File extension not supported')
@@ -101,15 +126,18 @@ export async function computeStart(
   dataset?: string,
   dockerImage?: string,
   dockerTag?: string,
+  dockerfile?: string,
+  additionalDockerFiles?: {
+    [key: string]: string
+  }
 ): Promise<ComputeJob> {
   try {
-    const containerConfig = getContainerConfig(fileExtension, dockerImage, dockerTag)
-
+    const container = getContainerConfig(fileExtension, dockerImage, dockerTag, dockerfile, additionalDockerFiles)
     const datasets = (await getComputeAsset(config.nodeUrl, dataset)) as ComputeAsset[]
     const algorithm: ComputeAlgorithm = {
       meta: {
         rawcode: algorithmContent,
-        container: { ...containerConfig, checksum: '' }
+        container
       }
     }
 

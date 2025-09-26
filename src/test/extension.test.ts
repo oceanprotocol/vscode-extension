@@ -92,17 +92,16 @@ suite('Ocean Protocol Extension Test Suite', () => {
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.ok(
-      computeStartStub.calledWith(mockConfig.nodeUrl, mockConfig.authToken, mockConfig.environmentId, [], {
+      computeStartStub.calledWith(mockConfig.nodeUrl, mockConfig.authToken, mockConfig.environmentId, [], sinon.match({
         meta: {
           rawcode: mockAlgorithm,
-          container: {
+          container: sinon.match({
             entrypoint: 'python $ALGO',
             image: 'oceanprotocol/c2d_examples',
             tag: 'py-general',
-            checksum: ''
-          }
+          })
         }
-      })
+      }))
     )
   })
 
