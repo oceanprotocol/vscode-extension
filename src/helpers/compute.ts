@@ -303,7 +303,6 @@ export async function getComputeLogs(
     })
   } catch (error) {
     console.error('Error fetching compute logs:', error)
-    throw error
   }
 }
 

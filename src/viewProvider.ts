@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import * as fs from 'fs'
 import * as path from 'path'
 import { SelectedConfig } from './types'
-import { Language, getAvailableLanguages, getLanguageTemplates } from './helpers/project-data'
+import { Language, getAvailableLanguages, getLanguageTemplates, detectProjectType } from './helpers/project-data'
 
 export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'oceanProtocolExplorer'
@@ -49,6 +49,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
       console.error('Error closing old project tabs:', error)
     }
   }
+
 
   private async openProjectFiles(projectPath: string) {
     try {
@@ -141,9 +142,14 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 await this.closeOldProjectTabs()
                 await this.openProjectFiles(folderUri[0].fsPath)
 
+                const projectType = await detectProjectType(folderUri[0].fsPath)
+                const algorithmFileName = getLanguageTemplates(projectType).algorithmFileName
+
                 webviewView.webview.postMessage({
                   type: 'projectFolder',
-                  path: folderUri[0].fsPath
+                  path: folderUri[0].fsPath,
+                  projectType: projectType,
+                  algorithmFileName: algorithmFileName
                 })
               }
               break
@@ -180,7 +186,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     try {
                       await fs.promises.mkdir(projectPath, { recursive: true })
 
-                      const templates = getLanguageTemplates(language as Language, projectName)
+                      const templates = getLanguageTemplates(language as Language)
 
                       await fs.promises.writeFile(path.join(projectPath, 'Dockerfile'), templates.dockerfile)
                       await fs.promises.writeFile(path.join(projectPath, templates.dependenciesFileName), templates.dependencies)
@@ -571,7 +577,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       let resultsFolderPath = selectedResultsFolderPath;
                       
                       if (!algorithmPath || !resultsFolderPath) {
-                          errorMessage.textContent = 'Project folder must contain algo.py and results folder';
+                          errorMessage.textContent = 'Project folder must contain an algorithm file and results folder';
                           errorMessage.style.display = 'block';
                           return;
                       }
@@ -720,9 +726,11 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       case 'projectFolder':
                           selectedProjectPath = message.path;
                           const projectElement = document.getElementById('selectedProjectPath');
-                          projectElement.innerHTML = '<span class="filePrefix">Selected project folder: </span><span class="filePath">' + message.path + '</span>';
+                          const projectType = message.projectType;
+                          const typeInfo = projectType ? ' (' + projectType + ')' : '';
+                          projectElement.innerHTML = '<span class="filePrefix">Selected project folder: </span><span class="filePath">' + message.path + typeInfo + '</span>';
                           
-                          selectedAlgorithmPath = message.path + '/algo.py';
+                          selectedAlgorithmPath = message.path + '/' + message.algorithmFileName;
                           selectedResultsFolderPath = message.path + '/results';
                           
                           checkStartButtonState();

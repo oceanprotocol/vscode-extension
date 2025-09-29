@@ -1,3 +1,6 @@
+import * as fs from 'fs'
+import * as path from 'path'
+
 export const dockerfilePy = `
 FROM ubuntu:24.04
 
@@ -102,7 +105,7 @@ export function getAvailableLanguages(): string[] {
     return Object.values(Language)
 }
 
-export function getLanguageTemplates(language: Language, projectName: string) {
+export function getLanguageTemplates(language: Language) {
     switch (language) {
         case Language.PYTHON:
             return {
@@ -124,3 +127,27 @@ export function getLanguageTemplates(language: Language, projectName: string) {
             throw new Error(`Unsupported language: ${language}`)
     }
 }
+
+export async function detectProjectType(projectPath: string): Promise<Language> {
+    try {
+        const availableLanguages = getAvailableLanguages()
+
+        const languageChecks = availableLanguages.map(async (language) => {
+            const templates = getLanguageTemplates(language as Language)
+            const algorithmFileName = templates.algorithmFileName
+            const algorithmPath = path.join(projectPath, algorithmFileName)
+
+            const exists = await fs.promises.access(algorithmPath).then(() => true).catch(() => false)
+            return { language: language as Language, exists }
+        })
+
+        const results = await Promise.all(languageChecks)
+        const foundLanguage = results.find(result => result.exists)
+
+        return foundLanguage ? foundLanguage.language : Language.PYTHON
+    } catch (error) {
+        console.error('Error detecting project type:', error)
+        return Language.PYTHON
+    }
+}
+
