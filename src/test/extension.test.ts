@@ -226,9 +226,11 @@ suite('Ocean Protocol Extension Test Suite', () => {
       const content = await fs.promises.readFile(filePath, 'utf8')
       assert.strictEqual(content, JSON.stringify(mockResults))
 
-      // Clean up
-      await fs.promises.unlink(filePath)
-      await fs.promises.rmdir(mockFolderPath)
+      const pathParts = filePath.split(path.sep)
+      const dateFolderName = pathParts[pathParts.length - 2]
+      assert.ok(dateFolderName.startsWith('results-'), 'File should be in a folder with a date')
+
+      await fs.promises.rmdir(mockFolderPath, { recursive: true })
     } catch (error) {
       // Clean up in case of failure
       if (fs.existsSync(mockFolderPath)) {
