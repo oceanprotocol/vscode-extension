@@ -246,7 +246,9 @@ export async function saveResults(
 ): Promise<string> {
   try {
     // Use provided destination folder or default to './results'
-    const resultsDir = destinationFolder || path.join(process.cwd(), 'results')
+    const baseDir = destinationFolder || path.join(process.cwd(), 'results')
+    const dateStr = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-')
+    const resultsDir = path.join(baseDir, `results-${dateStr}`)
 
     // Ensure results directory exists
     if (!fs.existsSync(resultsDir)) {
@@ -254,8 +256,7 @@ export async function saveResults(
       await fs.promises.mkdir(resultsDir, { recursive: true })
     }
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const fileName = `${prefix}-${timestamp}.txt`
+    const fileName = `${prefix}.txt`
     const filePath = path.join(resultsDir, fileName)
 
     console.log('Saving results to:', filePath)
@@ -303,7 +304,6 @@ export async function getComputeLogs(
     })
   } catch (error) {
     console.error('Error fetching compute logs:', error)
-    throw error
   }
 }
 
@@ -321,11 +321,11 @@ export async function saveOutput(
 ): Promise<string> {
   try {
     // Use provided destination folder or default to './results'
-    const resultsDir = destinationFolder || path.join(process.cwd(), 'results')
+    const baseDir = destinationFolder || path.join(process.cwd(), 'results')
+    const dateStr = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-')
+    const resultsDir = path.join(baseDir, `results-${dateStr}`)
 
-    // Create timestamp for unique filename
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const fileName = `${prefix}_${timestamp}.tar`
+    const fileName = `${prefix}.tar`
     console.log('File name:', fileName)
     const filePath = path.join(resultsDir, fileName)
     console.log('File path:', filePath)
@@ -341,7 +341,7 @@ export async function saveOutput(
     console.log(`Tar file saved to: ${filePath}`)
 
     // Create extraction directory
-    const extractDir = path.join(destinationFolder, `${prefix}_${timestamp}_extracted`)
+    const extractDir = path.join(resultsDir, `${prefix}_extracted`)
     await fs.promises.mkdir(extractDir, { recursive: true })
 
     // Extract the tar contents
