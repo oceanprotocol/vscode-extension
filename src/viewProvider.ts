@@ -808,7 +808,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                               // Helper function to format resource values
                               function formatResourceValue(amount, resourceId) {
                                   if (resourceId === 'ram' || resourceId === 'disk') {
-                                      return Math.round(amount / (1024 * 1024 * 1024)) + ' GB';
+                                      return Math.round(amount) + ' GB';
                                   }
                                   return amount;
                               }
