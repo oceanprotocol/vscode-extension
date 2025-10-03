@@ -48,7 +48,7 @@ Run **Compute-to-Data jobs** directly from VS Code.
 
 ## 🛠️ Troubleshooting
 
-- ❌ Job not running → check Node/RPC URL.
+- ❌ Job not running → check Node URL.
 - ❌ Compute environment fails → adjust Node URL.
 - Always check **extension logs** in Output.
 
