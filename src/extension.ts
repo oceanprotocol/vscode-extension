@@ -381,7 +381,7 @@ async function handleFailureLogsRetrieval(
   computeLogsChannel: vscode.OutputChannel,
   progress: vscode.Progress<{ message?: string }>
 ) {
-  if (!status.results || status.results.length === 0) return
+  if (status.results?.length < 1) return
 
   computeLogsChannel.appendLine(`Job failed with status: ${status.statusText}\n`)
   const resultsWithoutArchive = status.results.filter(result => !result.filename.includes('.tar'))
