@@ -56,18 +56,17 @@ Run **Compute-to-Data jobs** directly from VS Code.
 
 ## 🔄 Workflow Summary
 
-| Step | Action                                                        |
-| ---- | ------------------------------------------------------------- |
-| 1    | Open algorithm file (`.py` or `.js`)                          |
-| 2    | Configure node, wallet, dataset, output folder in Ocean panel |
-| 3    | Click **Start Compute Job**                                   |
-| 4    | Monitor logs & job status                                     |
-| 5    | Results open automatically in VS Code                         |
+| Step | Action                                       |
+| ---- | -------------------------------------------- |
+| 1    | Open algorithm file (`.py` or `.js`)         |
+| 2    | Configure node, output folder in Ocean panel |
+| 3    | Click **Start Compute Job**                  |
+| 4    | Monitor logs & job status                    |
+| 5    | Results open automatically in VS Code        |
 
 ---
 
 ## 📚 Resources
 
 - [Ocean Protocol Docs](https://docs.oceanprotocol.com/developers/vscode)
-- [Ocean Blog – Free Compute-to-Data](https://blog.oceanprotocol.com/free-compute-to-data-with-ocean-nodes-vscode-extension-1f8385cb077c)
 - [GitHub Repo](https://github.com/oceanprotocol/vscode-extension)
