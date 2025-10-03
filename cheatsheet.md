@@ -28,11 +28,11 @@ Run **Compute-to-Data jobs** directly from VS Code.
 
 1. Open an **algorithm file** (`.js` or `.py`).
 2. (Optional) Select:
-   - Dataset file (`.json`)
-   - Results folder
-3. In the **Ocean panel**, click **Start Compute Job**.
-4. Watch logs & job status in the **Output panel**.
-5. When finished, results file opens automatically in VS Code.
+   - Dataset file
+3. Select **Results folder**
+4. In the **Ocean panel**, click **Start Compute Job**.
+5. Watch logs & job status in the **Output panel**.
+6. When finished, results file opens automatically in VS Code.
 
 ---
 
@@ -49,8 +49,7 @@ Run **Compute-to-Data jobs** directly from VS Code.
 ## 🛠️ Troubleshooting
 
 - ❌ Job not running → check Node/RPC URL.
-- ❌ Dataset not found → ensure dataset `.json` path is valid.
-- ❌ Compute environment fails → adjust Docker image settings.
+- ❌ Compute environment fails → adjust Node URL.
 - Always check **extension logs** in Output.
 
 ---
