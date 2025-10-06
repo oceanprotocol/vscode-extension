@@ -249,17 +249,16 @@ export async function saveResults(
     const baseDir = destinationFolder || path.join(process.cwd(), 'results')
     const dateStr = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-')
     const resultsDir = path.join(baseDir, `results-${dateStr}`)
+    const logsDir = path.join(resultsDir, 'logs')
 
-    // Ensure results directory exists
-    if (!fs.existsSync(resultsDir)) {
-      console.log('Creating results directory at:', resultsDir)
-      await fs.promises.mkdir(resultsDir, { recursive: true })
+    // Ensure logs directory exists
+    if (!fs.existsSync(logsDir)) {
+      console.log('Creating logs directory at:', logsDir)
+      await fs.promises.mkdir(logsDir, { recursive: true })
     }
 
     const fileName = `${prefix}.txt`
-    const filePath = path.join(resultsDir, fileName)
-
-    console.log('Saving results to:', filePath)
+    const filePath = path.join(logsDir, fileName)
 
     // Write the file
     await fs.promises.writeFile(filePath, results, 'utf-8')

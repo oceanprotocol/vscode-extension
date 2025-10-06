@@ -275,7 +275,12 @@ export async function activate(context: vscode.ExtensionContext) {
                 status.statusText.toLowerCase().includes('error') ||
                 status.statusText.toLowerCase().includes('failed')
               ) {
-                // Reset job state and notify webview on failure
+                try {
+                  await handleFailureLogsRetrieval(config, jobId, status, resultsFolderPath, computeLogsChannel, progress)
+                } catch (retrievalError) {
+                  console.error('Error retrieving logs on failure:', retrievalError)
+                }
+
                 savedJobId = null
                 provider.sendMessage({ type: 'jobStopped' })
                 throw new Error(`Job failed with status: ${status.statusText}`)
@@ -290,15 +295,16 @@ export async function activate(context: vscode.ExtensionContext) {
                   const archive = status.results.find(result => result.filename.includes('.tar'))
                   const resultsWithoutArchive = status.results.filter(result => result.index !== archive?.index)
 
+                  computeLogsChannel.clear()
                   for (const result of resultsWithoutArchive) {
                     progress.report({ message: `Retrieving compute results (${result.index + 1}/${resultsLength})...` })
                     outputChannel.appendLine(`Retrieving compute results (${result.index + 1}/${resultsLength})...`)
                     const filePathLogs = await getAndSaveLogs(config, jobId, result.index, result.filename, resultsFolderPath, progress)
 
-                    // Open log files in editor
-                    const uri = vscode.Uri.file(filePathLogs)
-                    const document = await vscode.workspace.openTextDocument(uri)
-                    await vscode.window.showTextDocument(document, { preview: false })
+                    if (result.filename.toLowerCase().includes('algorithm')) {
+                      const logContent = await fs.promises.readFile(filePathLogs, 'utf-8')
+                      computeLogsChannel.appendLine(logContent)
+                    }
                   }
 
                   try {
@@ -367,6 +373,35 @@ export function deactivate() {
   outputChannel.appendLine('Ocean Protocol extension is being deactivated')
 }
 
+async function handleFailureLogsRetrieval(
+  config: SelectedConfig,
+  jobId: string,
+  status: any,
+  resultsFolderPath: string,
+  computeLogsChannel: vscode.OutputChannel,
+  progress: vscode.Progress<{ message?: string }>
+) {
+  if (!status.results || status.results.length === 0) {
+    return
+  }
+
+  computeLogsChannel.appendLine(`Job failed with status: ${status.statusText}\n`)
+  const resultsWithoutArchive = status.results.filter(result => !result.filename.includes('.tar'))
+
+  for (const result of resultsWithoutArchive) {
+    try {
+      const filePathLogs = await getAndSaveLogs(config, jobId, result.index, result.filename, resultsFolderPath, progress)
+
+      const logContent = await fs.promises.readFile(filePathLogs, 'utf-8')
+      computeLogsChannel.appendLine(`\n=== ${result.filename} ===\n${logContent}`)
+    } catch (logError) {
+      console.error('Could not retrieve log:', logError)
+    }
+  }
+
+  computeLogsChannel.show(true)
+}
+
 async function getAndSaveLogs(config: SelectedConfig, jobId: string, index: number, fileName: string, resultsFolderPath: string, progress: vscode.Progress<{ message?: string }>) {
   const imageResult = await withRetrial(
     () => getComputeResult(config, jobId, index),
@@ -374,7 +409,6 @@ async function getAndSaveLogs(config: SelectedConfig, jobId: string, index: numb
   )
 
   progress.report({ message: `Saving ${fileName}...` })
-  outputChannel.appendLine(`Saving ${fileName}...`)
   const filePathLogs = await saveResults(
     imageResult,
     resultsFolderPath,
