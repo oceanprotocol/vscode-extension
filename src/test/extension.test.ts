@@ -227,7 +227,9 @@ suite('Ocean Protocol Extension Test Suite', () => {
       assert.strictEqual(content, JSON.stringify(mockResults))
 
       const pathParts = filePath.split(path.sep)
-      const dateFolderName = pathParts[pathParts.length - 2]
+      const logsFolderName = pathParts[pathParts.length - 2]
+      const dateFolderName = pathParts[pathParts.length - 3]
+      assert.strictEqual(logsFolderName, 'logs', 'File should be in logs folder')
       assert.ok(dateFolderName.startsWith('results-'), 'File should be in a folder with a date')
 
       await fs.promises.rmdir(mockFolderPath, { recursive: true })
