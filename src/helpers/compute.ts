@@ -34,11 +34,11 @@ const getContainerConfig = (
     }
   }
 
-  if (dockerImage && dockerTag) {
+  if (dockerImage) {
     return {
       image: dockerImage,
-      tag: dockerTag,
-      entrypoint: fileExtension === 'py' ? 'python $ALGO' : 'node $ALGO',
+      tag: dockerTag || 'latest',
+      entrypoint: fileExtension === 'py' ? 'python $ALGO' : fileExtension === 'js' ? 'node $ALGO' : '',
       dockerfile,
       additionalDockerFiles,
       checksum: '',
@@ -65,7 +65,7 @@ const getContainerConfig = (
         checksum: ''
       }
     default:
-      throw new Error('File extension not supported')
+      throw new Error('Cannot start job. Do you have a .py/.js file or a docker image in Setup section?')
   }
 }
 
@@ -129,6 +129,9 @@ export async function computeStart(
   dockerfile?: string,
   additionalDockerFiles?: {
     [key: string]: string
+  },
+  envVars?: {
+    [key: string]: string
   }
 ): Promise<ComputeJob> {
   try {
@@ -138,7 +141,8 @@ export async function computeStart(
       meta: {
         rawcode: algorithmContent,
         container
-      }
+      },
+      envs: envVars
     }
 
     if (!config.environmentId) {

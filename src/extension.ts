@@ -220,6 +220,20 @@ export async function activate(context: vscode.ExtensionContext) {
               }
             })
 
+            const envContent = await checkAndReadFile(algorithmDir, '.env')
+            const envVars: Record<string, string> = {}
+            if (envContent) {
+              envContent.split('\n').forEach(line => {
+                const trimmed = line.trim()
+                if (trimmed && !trimmed.startsWith('#')) {
+                  const idx = trimmed.indexOf('=')
+                  if (idx > 0) {
+                    envVars[trimmed.substring(0, idx).trim()] = trimmed.substring(idx + 1).trim()
+                  }
+                }
+              })
+            }
+
             const computeResponse = await computeStart(
               config,
               algorithmContent,
@@ -228,7 +242,8 @@ export async function activate(context: vscode.ExtensionContext) {
               dockerImage,
               dockerTag,
               dockerfile,
-              additionalDockerFiles
+              additionalDockerFiles,
+              envVars
             )
             console.log('Compute result received:', computeResponse)
             const jobId = computeResponse.jobId
@@ -269,6 +284,16 @@ export async function activate(context: vscode.ExtensionContext) {
                   () => getComputeLogs(config, jobId, computeLogsChannel),
                   progress
                 )
+              }
+
+              if (status?.terminationDetails?.OOMKilled === true) {
+                const errorMessage = `Job failed: Out of memory. Exit code: ${status?.terminationDetails?.exitCode}`
+                vscode.window.showErrorMessage(errorMessage)
+                computeLogsChannel.appendLine(errorMessage)
+                savedJobId = null
+                provider.sendMessage({ type: 'jobStopped' })
+
+                return;
               }
 
               if (

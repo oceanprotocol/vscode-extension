@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import * as fs from 'fs'
 import * as path from 'path'
 import { SelectedConfig } from './types'
-import { Language, getAvailableLanguages, getLanguageTemplates, detectProjectType } from './helpers/project-data'
+import { Language, getAvailableLanguages, getLanguageTemplates, detectProjectType, envTemplate, projectFileNames } from './helpers/project-data'
 
 export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'oceanProtocolExplorer'
@@ -35,7 +35,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   private async closeOldProjectTabs() {
     try {
       const openEditors = vscode.window.tabGroups.all.flatMap(group => group.tabs)
-      const projectFileNames = ['algo.py', 'algo.js', 'Dockerfile', 'requirements.txt', 'package.json']
+
 
       for (const tab of openEditors) {
         if (tab.input instanceof vscode.TabInputText) {
@@ -53,15 +53,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
   private async openProjectFiles(projectPath: string) {
     try {
-      const projectFiles = [
-        'Dockerfile',
-        'algo.py',
-        'requirements.txt',
-        'algo.js',
-        'package.json'
-      ]
 
-      const fileChecks = projectFiles.map(async (fileName) => {
+      const fileChecks = projectFileNames.map(async (fileName) => {
         const filePath = path.join(projectPath, fileName)
         const exists = await fs.promises.access(filePath).then(() => true).catch(() => false)
         return { fileName, filePath, exists }
@@ -188,9 +181,15 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
                       const templates = getLanguageTemplates(language as Language)
 
-                      await fs.promises.writeFile(path.join(projectPath, 'Dockerfile'), templates.dockerfile)
-                      await fs.promises.writeFile(path.join(projectPath, templates.dependenciesFileName), templates.dependencies)
+                      if (templates.dockerfile) {
+                        await fs.promises.writeFile(path.join(projectPath, 'Dockerfile'), templates.dockerfile)
+                      }
+                      if (templates.dependencies && templates.dependenciesFileName) {
+                        await fs.promises.writeFile(path.join(projectPath, templates.dependenciesFileName), templates.dependencies)
+                      }
                       await fs.promises.writeFile(path.join(projectPath, templates.algorithmFileName), templates.algorithm)
+
+                      await fs.promises.writeFile(path.join(projectPath, '.env'), envTemplate)
 
                       const resultsPath = path.join(projectPath, 'results')
                       await fs.promises.mkdir(resultsPath, { recursive: true })
