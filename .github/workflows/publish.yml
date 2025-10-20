@@ -5,24 +5,42 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  publish-vscode-marketplace:
     runs-on: ubuntu-latest
-    env:
-      VSCE_PAT: ${{ secrets.VSCE_PAT }}
     steps:
       - uses: actions/checkout@v3
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20.16.0'
+          node-version: "20.16.0"
 
-      # Only run publish step when pushing to main (not on PRs)
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build
+
       - name: Publish to VS Code Marketplace
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          npm ci
-          # Extract version from package.json to use in the vsix filename
-          VERSION=$(node -p "require('./package.json').version")
-          npm run build
-          npx vsce publish -p ${{ secrets.VSCE_PAT }}
+        run: npx vsce publish -p ${{ secrets.VSCE_PAT }}
+
+  publish-open-vsx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20.16.0"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Publish to Open VSX Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: npx ovsx publish -p ${{ secrets.OVSX_PAT }}
