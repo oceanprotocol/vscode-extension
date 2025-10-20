@@ -1,6 +1,16 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
+export const projectFileNames = [
+    '.env',
+    'algo.py',
+    'algo.js',
+    'Dockerfile',
+    'requirements.txt',
+    'package.json',
+    'algo.placeholder',
+]
+
 export const dockerfilePy = `
 FROM ubuntu:24.04
 
@@ -96,9 +106,25 @@ export const packageJsonJs = `
 }
 `
 
+export const algoPlaceholder = `
+# This is a placeholder algorithm file. No changes are needed here.
+# You need to setup the 'Docker image' and 'Docker tag' in the Setup section.
+# Example:
+# Docker image: oceanprotocol/c2d_examples
+# Docker tag: py-general
+`
+
+export const envTemplate = `# Environment variables for compute job
+# Add your environment variables here (one per line)
+# Example:
+# API_KEY=your_api_key_here
+# DEBUG=true
+`
+
 export enum Language {
     PYTHON = 'Python',
-    JAVASCRIPT = 'JavaScript'
+    JAVASCRIPT = 'JavaScript',
+    DOCKER_IMAGE = 'Docker Image'
 }
 
 export function getAvailableLanguages(): string[] {
@@ -122,6 +148,14 @@ export function getLanguageTemplates(language: Language) {
                 dependencies: packageJsonJs,
                 algorithmFileName: 'algo.js',
                 dependenciesFileName: 'package.json'
+            }
+        case Language.DOCKER_IMAGE:
+            return {
+                dockerfile: null,
+                algorithm: algoPlaceholder,
+                dependencies: null,
+                algorithmFileName: 'algo.placeholder',
+                dependenciesFileName: null
             }
         default:
             throw new Error(`Unsupported language: ${language}`)
