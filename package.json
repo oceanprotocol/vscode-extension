@@ -59,7 +59,9 @@
     "pretest": "npm run compile-tests",
     "posttest": "npm run lint",
     "build": "npx vsce package",
-    "publish": "npx vsce publish"
+    "publish": "npx vsce publish",
+    "publish:ovsx": "npx ovsx publish",
+    "publish:all": "npm run publish && npm run publish:ovsx"
   },
   "devDependencies": {
     "@types/chai": "^5.0.0",
