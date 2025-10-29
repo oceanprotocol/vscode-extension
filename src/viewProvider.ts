@@ -445,9 +445,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               <div id="setup" class="section-content">
                   <div class="container">
 
-                      <label for="peerIdInput">Peer ID (including port)</label>
+                      <label for="peerIdInput">Peer ID</label>
                       <div style="display: flex; align-items: center; gap: 4px;">
-                        <input id="peerIdInput" placeholder="Enter compute environment ID" value="${this.randomPeerId}" style="flex: 1;" />
+                        <input id="peerIdInput" placeholder="Enter peer ID" value="${this.randomPeerId}" style="flex: 1;" />
                         <button id="validateNodeBtn" style="padding: 2px 8px; font-size: 0.75em; width: 50px; height: 30px; flex-shrink: 0; box-sizing: border-box;">Check</button>
                       </div>
 
@@ -654,7 +654,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   });
               }
               
-              // Disable start button initially until node URL is validated and project is selected
+              // Disable start button initially until node is validated and project is selected
               disableStartButton();
               
               // Load environments on page load
