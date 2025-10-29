@@ -1,6 +1,8 @@
-export const fetchDdoByDid = async (nodeUrl: string, did: string) => {
+import { directNodeCommand } from "./direct-command"
+
+export const fetchDdoByDid = async (peerId: string, did: string) => {
   try {
-    const response = await fetch(`${nodeUrl}/api/aquarius/assets/metadata/${did}`)
+    const response = await directNodeCommand('findDDO', peerId, { did })
     const data = await response.json()
     return data
   } catch (error) {
