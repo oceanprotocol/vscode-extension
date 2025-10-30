@@ -140,7 +140,6 @@ export async function computeStart(
   }
 ): Promise<ComputeJob> {
   try {
-    console.log({ authToken: config.authToken })
     const container = getContainerConfig(fileExtension, dockerImage, dockerTag, dockerfile, additionalDockerFiles)
     const datasets = (await getComputeAsset(config.peerId, dataset)) as ComputeAsset[]
     const algorithm: ComputeAlgorithm = {
@@ -211,7 +210,6 @@ export async function computeStart(
     const result = await computeJob.json()
     return Array.isArray(result) ? result[0] : result
   } catch (e) {
-    console.log({ e })
     console.error('Free start compute error: ', e)
     if (e.response) {
       console.error('Error response data:', e.response.data)
