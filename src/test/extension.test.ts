@@ -7,14 +7,17 @@ import {
   getComputeResult,
   saveResults
 } from '../helpers/compute'
-import { Wallet } from 'ethers'
 import * as fs from 'fs'
 import * as path from 'path'
-import { ComputeEnvironment, ComputeJob, ProviderInstance } from '@oceanprotocol/lib'
+import { ComputeEnvironment, ComputeJob } from '@oceanprotocol/lib'
 import { SelectedConfig } from '../types'
+import * as directCommand from '../helpers/direct-command'
 
 // Use VS Code test runner syntax
 suite('Ocean Protocol Extension Test Suite', () => {
+  const mockAuthToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZGRyZXNzIjoiMHgxMjM0NTY3ODkwYWJjZGVmIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
+  const mockPeerId = '16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJaBcmbNtpbT3QYxYOpB'
+
   const mockEnvResponse: ComputeEnvironment[] = [
     {
       id: 'mock-environment-id',
@@ -37,6 +40,34 @@ suite('Ocean Protocol Extension Test Suite', () => {
   }
   let sandbox: sinon.SinonSandbox
   let outputChannel: vscode.OutputChannel
+  let directCommandStub: sinon.SinonStub
+
+  const setupDirectCommandStub = (customHandlers?: Record<string, any>) => {
+    directCommandStub = sandbox.stub(directCommand, 'directNodeCommand').callsFake(async (command: string) => {
+      if (customHandlers && customHandlers[command]) {
+        return customHandlers[command]
+      }
+
+      switch (command) {
+        case 'nonce':
+          return { json: async () => 1 } as Response
+        case 'freeStartCompute':
+          return { json: async () => mockComputeResponse } as Response
+        case 'getComputeStatus':
+          return { json: async () => mockComputeResponse } as Response
+        case 'getComputeResult':
+          return {
+            headers: {
+              get: (key: string) => key === 'Content-Type' ? 'application/octet-stream' : null
+            },
+            blob: async () => new Blob(['hello'])
+          } as Response
+        default:
+          return {} as Response
+      }
+    })
+    return directCommandStub
+  }
 
   setup(() => {
     sandbox = sinon.createSandbox()
@@ -55,12 +86,16 @@ suite('Ocean Protocol Extension Test Suite', () => {
   })
 
   test('computeStart should handle JavaScript algorithm correctly', async () => {
-    const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'console.log("test")'
 
-    sandbox.stub(ProviderInstance, 'getComputeEnvironments').resolves(mockEnvResponse)
-    sandbox.stub(ProviderInstance, 'freeComputeStart').resolves(mockComputeResponse)
-    const mockConfig: SelectedConfig = new SelectedConfig({ nodeUrl: mockNodeUrl, environmentId: mockEnvResponse[0].id, isFreeCompute: true });
+    setupDirectCommandStub()
+
+    const mockConfig: SelectedConfig = new SelectedConfig({
+      peerId: mockPeerId,
+      environmentId: mockEnvResponse[0].id,
+      isFreeCompute: true,
+      authToken: mockAuthToken
+    });
 
     const result = await computeStart(
       mockConfig,
@@ -68,21 +103,21 @@ suite('Ocean Protocol Extension Test Suite', () => {
       'js',
     )
 
-
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.strictEqual(result.statusText, 'Created')
   })
 
   test('computeStart should handle Python algorithm correctly', async () => {
-    const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'print("test")'
 
-    sandbox.stub(ProviderInstance, 'getComputeEnvironments').resolves(mockEnvResponse)
-    const computeStartStub = sandbox
-      .stub(ProviderInstance, 'freeComputeStart')
-      .resolves(mockComputeResponse)
+    setupDirectCommandStub()
 
-    const mockConfig: SelectedConfig = new SelectedConfig({ nodeUrl: mockNodeUrl, environmentId: mockEnvResponse[0].id, isFreeCompute: true });
+    const mockConfig: SelectedConfig = new SelectedConfig({
+      peerId: mockPeerId,
+      environmentId: mockEnvResponse[0].id,
+      isFreeCompute: true,
+      authToken: mockAuthToken
+    });
 
     const result = await computeStart(
       mockConfig,
@@ -92,42 +127,52 @@ suite('Ocean Protocol Extension Test Suite', () => {
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.ok(
-      computeStartStub.calledWith(mockConfig.nodeUrl, mockConfig.authToken, mockConfig.environmentId, [], sinon.match({
-        meta: {
-          rawcode: mockAlgorithm,
-          container: sinon.match({
-            entrypoint: 'python $ALGO',
-            image: 'oceanprotocol/c2d_examples',
-            tag: 'py-general',
-          })
-        }
+      directCommandStub.calledWith('freeStartCompute', mockConfig.peerId, sinon.match({
+        algorithm: sinon.match({
+          meta: {
+            rawcode: mockAlgorithm,
+            container: sinon.match({
+              entrypoint: 'python $ALGO',
+              image: 'oceanprotocol/c2d_examples',
+              tag: 'py-general',
+            })
+          }
+        })
       }))
     )
   })
 
   test('checkComputeStatus should return correct status', async () => {
-    const mockNodeUrl = 'http://test-node:8001'
     const mockJobId = 'test-job-id'
-    const mockConsumerAddress = '0x123'
 
-    sandbox.stub(ProviderInstance, 'computeStatus').resolves({
-      ...mockComputeResponse,
-      status: 1,
-      statusText: 'Running'
+    setupDirectCommandStub({
+      'getComputeStatus': {
+        json: async () => ({
+          ...mockComputeResponse,
+          status: 1,
+          statusText: 'Running'
+        })
+      } as Response
     })
 
-    const mockConfig: SelectedConfig = new SelectedConfig({ nodeUrl: mockNodeUrl, environmentId: mockEnvResponse[0].id, isFreeCompute: true });
+    const mockConfig: SelectedConfig = new SelectedConfig({
+      peerId: mockPeerId,
+      environmentId: mockEnvResponse[0].id,
+      isFreeCompute: true,
+      authToken: mockAuthToken
+    });
 
     const status = await checkComputeStatus(mockConfig, mockJobId)
     assert.strictEqual(status.statusText, 'Running')
   })
 
   test('computeStart should handle missing compute environments', async () => {
-    const mockNodeUrl = 'http://test-node:8001'
     const mockAlgorithm = 'console.log("test")'
-    const mockConfig: SelectedConfig = new SelectedConfig({ nodeUrl: mockNodeUrl, isFreeCompute: true });
-
-    sandbox.stub(ProviderInstance, 'getComputeEnvironments').resolves([])
+    const mockConfig: SelectedConfig = new SelectedConfig({
+      peerId: mockPeerId,
+      isFreeCompute: true,
+      authToken: mockAuthToken
+    });
 
     await assert.rejects(
       computeStart(mockConfig, mockAlgorithm, 'js'),
@@ -136,7 +181,6 @@ suite('Ocean Protocol Extension Test Suite', () => {
   })
 
   // test('getComputeLogs should handle successful log streaming', async () => {
-  //   const mockNodeUrl = 'http://test-node:8001'
   //   const mockJobId = 'test-job-id'
   //   const mockConsumerAddress = '0x123'
   //   const mockSignature = '0xabc'
@@ -155,7 +199,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
 
   //   // Start the log streaming
   //   const logPromise = getComputeLogs(
-  //     mockNodeUrl,
+  //     mockPeerId,
   //     mockJobId,
   //     mockConsumerAddress,
   //     mockNonce,
@@ -173,7 +217,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
   //   assert.ok(fetchStub.calledOnce)
   //   assert.ok(
   //     fetchStub.calledWith(
-  //       `${mockNodeUrl}/directCommand`,
+  //       `${mockPeerId}/directCommand`,
   //       sinon.match({
   //         method: 'POST',
   //         body: sinon.match.string
@@ -183,18 +227,24 @@ suite('Ocean Protocol Extension Test Suite', () => {
   // })
 
   test('getComputeResult should handle successful result retrieval', async () => {
-    const mockNodeUrl = 'http://test-node:8001'
     const mockJobId = 'test-job-id'
-    const mockSigner = new Wallet('0x' + '1'.repeat(64))
-    const mockResponse = 'http://dummy-node-url.com'
     const mockResult = 'hello'
 
-    sandbox.stub(ProviderInstance, 'getComputeResultUrl').resolves(mockResponse)
-    sandbox.stub(global, 'fetch').resolves({
-      blob: () => Promise.resolve(new Blob([mockResult]))
-    } as Response)
+    setupDirectCommandStub({
+      'getComputeResult': {
+        headers: {
+          get: (key: string) => key === 'Content-Type' ? 'application/octet-stream' : null
+        },
+        blob: async () => new Blob([mockResult])
+      } as Response
+    })
 
-    const mockConfig: SelectedConfig = new SelectedConfig({ nodeUrl: mockNodeUrl, environmentId: mockEnvResponse[0].id, isFreeCompute: true });
+    const mockConfig: SelectedConfig = new SelectedConfig({
+      peerId: mockPeerId,
+      environmentId: mockEnvResponse[0].id,
+      isFreeCompute: true,
+      authToken: mockAuthToken
+    });
 
     const result = await getComputeResult(mockConfig, mockJobId)
     assert.deepStrictEqual(result, Buffer.from(mockResult))
@@ -243,7 +293,6 @@ suite('Ocean Protocol Extension Test Suite', () => {
   })
 
   // test('getComputeLogs should handle failed response', async () => {
-  //   const mockNodeUrl = 'http://test-node:8001'
   //   const mockJobId = 'test-job-id'
 
   //   const fetchStub = sandbox.stub().resolves({
@@ -252,7 +301,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
   //   }) as sinon.SinonStub
   //   global.fetch = fetchStub
 
-  //   await getComputeLogs(mockNodeUrl, mockJobId, '0x123', 123, '0xabc', outputChannel)
+  //   await getComputeLogs(mockPeerId, mockJobId, '0x123', 123, '0xabc', outputChannel)
 
   //   assert.ok(fetchStub.calledOnce)
   // })

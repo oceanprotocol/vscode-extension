@@ -44,7 +44,7 @@ Run **Compute-to-Data jobs** directly from VS Code.
 ## 🛠️ Troubleshooting
 
 - ❌ Job cannot start → check node status. (Under the **Setup** dropdown, press the **Check** button)
-- ❌ Job not running → check Node URL.
+- ❌ Job not running → check peer ID.
 - ❌ Not enough funds → use **Configure Compute** to change your compute settings.
 - Always check **extension logs** in Output. Logs are also saved in your project folder under the `logs` folder.
 

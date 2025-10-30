@@ -7,6 +7,7 @@ import {
   checkComputeStatus,
   computeStart,
   delay,
+  generateAuthToken,
   getComputeEnvironments,
   getComputeLogs,
   getComputeResult,
@@ -18,7 +19,6 @@ import {
 import { validateDatasetFromInput } from './helpers/validation'
 import { SelectedConfig } from './types'
 import { ethers, Signer } from 'ethers'
-import { ProviderInstance } from '@oceanprotocol/lib'
 import { checkAndReadFile, listDirectoryContents } from './helpers/path'
 
 globalThis.fetch = fetch
@@ -31,7 +31,7 @@ vscode.window.registerUriHandler({
   handleUri(uri: vscode.Uri) {
     const urlParams = new URLSearchParams(uri.query)
     const authToken = urlParams.get('authToken')
-    const nodeUrl = urlParams.get('nodeUrl')
+    const peerId = urlParams.get('peerId')
     const isFreeCompute = urlParams.get('isFreeCompute')
     const environmentId = urlParams.get('environmentId')
     const feeToken = urlParams.get('feeToken')
@@ -44,7 +44,7 @@ vscode.window.registerUriHandler({
     const chainIdNumber = chainId ? Number(chainId) : undefined
 
     const resourcesParsed = resources ? SelectedConfig.parseResources(resources) : undefined
-    config.updateFields({ authToken, address, nodeUrl, isFreeCompute: isFreeComputeBoolean, environmentId, feeToken, jobDuration, resources: resourcesParsed, chainId: chainIdNumber })
+    config.updateFields({ authToken, address, peerId, isFreeCompute: isFreeComputeBoolean, environmentId, feeToken, jobDuration, resources: resourcesParsed, chainId: chainIdNumber })
     console.log({ config })
 
     // Update the UI with the new values
@@ -55,7 +55,7 @@ vscode.window.registerUriHandler({
 export async function activate(context: vscode.ExtensionContext) {
   let savedSigner: Signer | null = null
   let savedJobId: string | null = null
-  let savedNodeUrl: string | null = null
+  let savedPeerId: string | null = null
 
   outputChannel.show()
   outputChannel.appendLine('Ocean Protocol extension is now active!')
@@ -96,8 +96,8 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
       vscode.commands.registerCommand(
         'ocean-protocol.getEnvironments',
-        async (nodeUrl: string) => {
-          return await getComputeEnvironments(nodeUrl)
+        async (peerId: string) => {
+          return await getComputeEnvironments(peerId)
         }
       )
     )
@@ -105,8 +105,8 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
       vscode.commands.registerCommand(
         'ocean-protocol.validateDataset',
-        async (nodeUrl: string, input: string) => {
-          return await validateDatasetFromInput(nodeUrl, input)
+        async (peerId: string, input: string) => {
+          return await validateDatasetFromInput(peerId, input)
         }
       )
     )
@@ -120,7 +120,7 @@ export async function activate(context: vscode.ExtensionContext) {
             return
           }
           try {
-            await stopComputeJob(savedNodeUrl, savedJobId, authToken || savedSigner)
+            await stopComputeJob(savedPeerId, savedJobId, authToken || savedSigner)
             savedJobId = null
             provider.sendMessage({ type: 'jobStopped' })
             vscode.window.showInformationMessage('Job stopped successfully')
@@ -136,7 +136,7 @@ export async function activate(context: vscode.ExtensionContext) {
         algorithmPath: string,
         resultsFolderPath: string,
         authToken: string | undefined,
-        nodeUrl: string,
+        peerId: string,
         dataset?: string,
         dockerImage?: string,
         dockerTag?: string,
@@ -146,17 +146,17 @@ export async function activate(context: vscode.ExtensionContext) {
         console.log('Dataset:', dataset)
         console.log('Algorithm path:', algorithmPath)
         console.log('Results folder path:', resultsFolderPath)
-        console.log('Node URL:', nodeUrl)
+        console.log('Peer ID:', peerId)
         console.log('Auth token:', authToken)
         console.log('Docker image:', dockerImage)
         console.log('Docker tag:', dockerTag)
         console.log('Environment ID:', environmentId)
         const missingParams = []
         !algorithmPath && missingParams.push('algorithm path')
-        !nodeUrl && missingParams.push('node URL')
+        !peerId && missingParams.push('peer ID')
 
-        // Save the node URL for future use
-        savedNodeUrl = nodeUrl
+        // Save the peer ID for future use
+        savedPeerId = peerId
 
         if (missingParams.length > 0) {
           vscode.window.showErrorMessage(
@@ -175,7 +175,7 @@ export async function activate(context: vscode.ExtensionContext) {
               `Using generated wallet with address: ${signer.address}`
             )
             // Generate new token and register the address in the config
-            authToken = await ProviderInstance.generateAuthToken(signer, nodeUrl)
+            authToken = await generateAuthToken(peerId, signer)
             config.updateFields({ address: signer.address })
           } catch (error) {
             console.log(error)
@@ -185,7 +185,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }
 
         // Update back the config with new values from the extension
-        config.updateFields({ authToken, nodeUrl, environmentId })
+        config.updateFields({ authToken, peerId, environmentId })
         provider.sendMessage({ type: 'jobLoading' })
 
         const progressOptions = {
