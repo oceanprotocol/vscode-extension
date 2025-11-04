@@ -50,20 +50,15 @@ suite('Ocean Protocol Extension Test Suite', () => {
 
       switch (command) {
         case 'nonce':
-          return { json: async () => 1 } as Response
+          return 1
         case 'freeStartCompute':
-          return { json: async () => mockComputeResponse } as Response
+          return mockComputeResponse
         case 'getComputeStatus':
-          return { json: async () => mockComputeResponse } as Response
+          return mockComputeResponse
         case 'getComputeResult':
-          return {
-            headers: {
-              get: (key: string) => key === 'Content-Type' ? 'application/octet-stream' : null
-            },
-            blob: async () => new Blob(['hello'])
-          } as Response
+          return Buffer.from('hello')
         default:
-          return {} as Response
+          return {}
       }
     })
     return directCommandStub
@@ -147,12 +142,10 @@ suite('Ocean Protocol Extension Test Suite', () => {
 
     setupDirectCommandStub({
       'getComputeStatus': {
-        json: async () => ({
-          ...mockComputeResponse,
-          status: 1,
-          statusText: 'Running'
-        })
-      } as Response
+        ...mockComputeResponse,
+        status: 1,
+        statusText: 'Running'
+      }
     })
 
     const mockConfig: SelectedConfig = new SelectedConfig({
@@ -231,12 +224,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     const mockResult = 'hello'
 
     setupDirectCommandStub({
-      'getComputeResult': {
-        headers: {
-          get: (key: string) => key === 'Content-Type' ? 'application/octet-stream' : null
-        },
-        blob: async () => new Blob([mockResult])
-      } as Response
+      'getComputeResult': Buffer.from(mockResult)
     })
 
     const mockConfig: SelectedConfig = new SelectedConfig({
