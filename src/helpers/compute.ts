@@ -112,8 +112,7 @@ export const getComputeAsset = async (peerId: string, dataset?: string) => {
 export async function stopComputeJob(peerId: string, jobId: string, signerOrAuthToken: Signer | string | null) {
   try {
     const consumerAddress = await getConsumerAddress(signerOrAuthToken)
-    const nonceResponse = await directNodeCommand('nonce', peerId, { address: consumerAddress })
-    const nonce = await nonceResponse.json()
+    const nonce = await directNodeCommand('nonce', peerId, { address: consumerAddress })
     const signature = await getSignature(signerOrAuthToken, consumerAddress + (jobId || ''))
 
     const computeJob = await directNodeCommand('stopCompute', peerId, { jobId, consumerAddress, nonce, signature }, signerOrAuthToken)
@@ -158,8 +157,7 @@ export async function computeStart(
     if (!config.isFreeCompute) {
       console.log('----------> Paid compute job started')
       const consumerAddress = await getConsumerAddress(config.authToken)
-      const nonceResponse = await directNodeCommand('nonce', config.peerId, { address: consumerAddress })
-      const nonce = await nonceResponse.json()
+      const nonce = await directNodeCommand('nonce', config.peerId, { address: consumerAddress })
       const incrementedNonce = (nonce + 1).toString()
 
       let signatureMessage = consumerAddress
@@ -187,13 +185,11 @@ export async function computeStart(
         signature
       }, config.authToken)
 
-      const result = await computeJob.json()
-      return Array.isArray(result) ? result[0] : result
+      return Array.isArray(computeJob) ? computeJob[0] : computeJob
     }
 
     const consumerAddress = await getConsumerAddress(config.authToken)
-    const nonceResponse = await directNodeCommand('nonce', config.peerId, { address: consumerAddress })
-    const nonce = await nonceResponse.json()
+    const nonce = await directNodeCommand('nonce', config.peerId, { address: consumerAddress })
     const incrementedNonce = (nonce + 1).toString()
     const signature = await getSignature(config.authToken, consumerAddress + incrementedNonce)
     const computeJob = await directNodeCommand('freeStartCompute', config.peerId, {
@@ -207,8 +203,7 @@ export async function computeStart(
       signature,
     }, config.authToken)
 
-    const result = await computeJob.json()
-    return Array.isArray(result) ? result[0] : result
+    return Array.isArray(computeJob) ? computeJob[0] : computeJob
   } catch (e) {
     console.error('Free start compute error: ', e)
     if (e.response) {
@@ -234,8 +229,7 @@ export async function checkComputeStatus(
 ): Promise<ComputeJob> {
   try {
     const computeStatus = await directNodeCommand('getComputeStatus', config.peerId, { jobId }, config.authToken)
-    const result = await computeStatus.json()
-    return Array.isArray(result) ? result[0] : result
+    return Array.isArray(computeStatus) ? computeStatus[0] : computeStatus
   } catch (error) {
     throw new Error('Failed to check compute status')
   }
@@ -247,16 +241,10 @@ export async function getComputeResult(
   index: number = 0
 ): Promise<any> {
   try {
-    const computeResult = await directNodeCommand('getComputeResult', config.peerId, { jobId, index }, config.authToken)
+    const consumerAddress = await getConsumerAddress(config.authToken)
+    const computeResult = await directNodeCommand('getComputeResult', config.peerId, { jobId, index, consumerAddress }, config.authToken)
 
-    if (computeResult.headers?.get('Content-Type')?.includes('application/octet-stream')) {
-      const blob = await computeResult.blob()
-      const arrayBuffer = await blob.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
-      return buffer
-    }
-
-    return await computeResult.text()
+    return computeResult
   } catch (error) {
     console.error('Error getting compute result:', error)
     throw error
@@ -387,18 +375,15 @@ export async function saveOutput(
 
 export async function getComputeEnvironments(peerId: string) {
   const environments = await directNodeCommand('getComputeEnvironments', peerId, {})
-  const result = await environments.json()
-  if (!result || result.length === 0) {
+  if (!environments || environments.length === 0) {
     throw new Error('No compute environments available')
   }
-
-  return result
+  return environments
 }
 
 export async function generateAuthToken(peerId: string, signer: Signer) {
   const consumerAddress = await signer.getAddress()
-  const nonceResponse = await directNodeCommand('nonce', peerId, { address: consumerAddress })
-  const nonce = await nonceResponse.json()
+  const nonce = await directNodeCommand('nonce', peerId, { address: consumerAddress })
   const incrementedNonce = (nonce + 1).toString()
   const signature = await getSignature(signer, consumerAddress + incrementedNonce)
   const response = await directNodeCommand('createAuthToken', peerId, {
@@ -406,9 +391,7 @@ export async function generateAuthToken(peerId: string, signer: Signer) {
     signature,
     nonce: incrementedNonce
   })
-  const data = await response.json()
-  const token = data.token;
-  return token
+  return response.token;
 }
 
 export async function withRetrial<T>(

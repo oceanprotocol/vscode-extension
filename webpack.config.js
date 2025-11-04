@@ -6,6 +6,7 @@ module.exports = {
   target: 'node', // Ensure the code is compiled for Node.js
   mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
   entry: './src/extension.ts', // Your entry file
+  devtool: 'source-map',
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'extension.js',

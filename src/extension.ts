@@ -357,8 +357,8 @@ export async function activate(context: vscode.ExtensionContext) {
                     outputChannel.appendLine('Compute job completed successfully!')
                   } catch (error) {
                     console.log('No second result available:', error)
+                    progress.report({ message: 'Error saving the output result' })
                     outputChannel.appendLine('Error saving the output result')
-                    vscode.window.showErrorMessage('Error saving the output result')
                   }
 
                   break
