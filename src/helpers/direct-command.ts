@@ -20,7 +20,6 @@ export const directNodeCommand = async (command: string, peerId: string, body: a
                 authorization,
                 ...body
             }),
-            signal: AbortSignal.timeout(15000)
         });
 
         if (!response.ok && response.status >= 500) {
