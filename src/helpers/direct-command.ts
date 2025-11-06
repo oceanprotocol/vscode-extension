@@ -37,21 +37,27 @@ export const directNodeCommand = async (command: string, peerId: string, body: a
             return buffer
         }
 
-        // If connection is not established, retry
-        const copyRequestText = await response.clone().text();
-        if (copyRequestText.includes('Cannot connect to peer') && retrialNumber < MAX_RETRIAL_NUMBER) {
-            console.log('Could not resolve peer connection, retrying...');
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            return await directNodeCommand(command, peerId, body, signerOrAuthToken, retrialNumber + 1);
-        }
-
         if (response.headers?.get('Content-Type')?.includes('text/plain')) {
             const responseText = await response.text();
+
+            // If connection is not established, retry
+            if (responseText.includes('Cannot connect to peer') && retrialNumber < MAX_RETRIAL_NUMBER) {
+                console.log('Could not resolve peer connection, retrying...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return await directNodeCommand(command, peerId, body, signerOrAuthToken, retrialNumber + 1);
+            }
+
             console.log('responseText:', responseText);
             return responseText;
         }
 
         const text = await response.text();
+        if (text.includes('Cannot connect to peer') && retrialNumber < MAX_RETRIAL_NUMBER) {
+            console.log('Could not resolve peer connection, retrying...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return await directNodeCommand(command, peerId, body, signerOrAuthToken, retrialNumber + 1);
+        }
+
         try {
             const json = JSON.parse(text);
             return json;
