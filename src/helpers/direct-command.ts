@@ -26,6 +26,15 @@ export const directNodeCommand = async (command: string, peerId: string, body: a
             throw new Error(`Gateway node error: ${response.status}`);
         }
 
+        if (response.status === 400) {
+            const msg = await response.text();
+            if (msg) {
+                throw new Error(msg);
+            }
+
+            throw new Error(`Error 400, bad request`);
+        }
+
         // this method requires streams, so we return the response directly
         if (command === 'getComputeStreamableLogs') {
             return response;
