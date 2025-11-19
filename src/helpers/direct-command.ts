@@ -1,11 +1,12 @@
 import { Signer } from "ethers";
 import { getAuthorization } from "./auth";
+import { PROTOCOL_COMMANDS } from "../enum";
 
 export const NODE_URL = 'https://compute1.oceanprotocol.com:443'
 
 const MAX_RETRIAL_NUMBER = 5;
 
-export const directNodeCommand = async (command: string, peerId: string, body: any, signerOrAuthToken?: Signer | string | null, retrialNumber: number = 0): Promise<any> => {
+export const directNodeCommand = async (command: PROTOCOL_COMMANDS, peerId: string, body: any, signerOrAuthToken?: Signer | string | null, retrialNumber: number = 0): Promise<any> => {
     try {
         const authorization = getAuthorization(signerOrAuthToken)
         const response = await fetch(`${NODE_URL}/directCommand`, {
@@ -36,7 +37,7 @@ export const directNodeCommand = async (command: string, peerId: string, body: a
         }
 
         // this method requires streams, so we return the response directly
-        if (command === 'getComputeStreamableLogs') {
+        if (command === PROTOCOL_COMMANDS.COMPUTE_GET_STREAMABLE_LOGS) {
             return response;
         }
 

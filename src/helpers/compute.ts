@@ -13,6 +13,7 @@ import { Signer } from 'ethers'
 import { ExtendedMetadataAlgorithm } from '@oceanprotocol/lib'
 import { directNodeCommand } from './direct-command'
 import { getConsumerAddress, getSignature } from './auth'
+import { PROTOCOL_COMMANDS } from '../enum'
 
 const getContainerConfig = (
   fileExtension: string,
@@ -112,10 +113,10 @@ export const getComputeAsset = async (peerId: string, dataset?: string) => {
 export async function stopComputeJob(peerId: string, jobId: string, signerOrAuthToken: Signer | string | null) {
   try {
     const consumerAddress = await getConsumerAddress(signerOrAuthToken)
-    const nonce = await directNodeCommand('nonce', peerId, { address: consumerAddress })
+    const nonce = await directNodeCommand(PROTOCOL_COMMANDS.NONCE, peerId, { address: consumerAddress })
     const signature = await getSignature(signerOrAuthToken, consumerAddress + (jobId || ''))
 
-    const computeJob = await directNodeCommand('stopCompute', peerId, { jobId, consumerAddress, nonce, signature }, signerOrAuthToken)
+    const computeJob = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_STOP, peerId, { jobId, consumerAddress, nonce, signature }, signerOrAuthToken)
     return computeJob
   } catch (e) {
     console.error('Stop compute job error: ', e)
@@ -157,7 +158,7 @@ export async function computeStart(
     if (!config.isFreeCompute) {
       console.log('----------> Paid compute job started')
       const consumerAddress = await getConsumerAddress(config.authToken)
-      const nonce = await directNodeCommand('nonce', config.peerId, { address: consumerAddress })
+      const nonce = await directNodeCommand(PROTOCOL_COMMANDS.NONCE, config.peerId, { address: consumerAddress })
       const incrementedNonce = (nonce + 1).toString()
 
       let signatureMessage = consumerAddress
@@ -165,19 +166,18 @@ export async function computeStart(
       signatureMessage += incrementedNonce
 
       const signature = await getSignature(config.authToken, signatureMessage)
-      const computeJob = await directNodeCommand('startCompute', config.peerId, {
+      const computeJob = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_START, config.peerId, {
         environment: config.environmentId,
         datasets,
         dataset: datasets[0],
         algorithm,
-        maxJobDuration: config.jobDuration,
+        maxJobDuration: Number(config.jobDuration),
         feeToken: config.feeToken,
         resources: config.resources,
         chainId: config.chainId,
         payment: {
           chainId: config.chainId,
           token: config.feeToken,
-          maxJobDuration: config.jobDuration,
           resources: config.resources,
         },
         consumerAddress,
@@ -189,10 +189,10 @@ export async function computeStart(
     }
 
     const consumerAddress = await getConsumerAddress(config.authToken)
-    const nonce = await directNodeCommand('nonce', config.peerId, { address: consumerAddress })
+    const nonce = await directNodeCommand(PROTOCOL_COMMANDS.NONCE, config.peerId, { address: consumerAddress })
     const incrementedNonce = (nonce + 1).toString()
     const signature = await getSignature(config.authToken, consumerAddress + incrementedNonce)
-    const computeJob = await directNodeCommand('freeStartCompute', config.peerId, {
+    const computeJob = await directNodeCommand(PROTOCOL_COMMANDS.FREE_COMPUTE_START, config.peerId, {
       environment: config.environmentId,
       datasets,
       dataset: datasets[0],
@@ -228,7 +228,7 @@ export async function checkComputeStatus(
   jobId: string
 ): Promise<ComputeJob> {
   try {
-    const computeStatus = await directNodeCommand('getComputeStatus', config.peerId, { jobId }, config.authToken)
+    const computeStatus = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_GET_STATUS, config.peerId, { jobId }, config.authToken)
     return Array.isArray(computeStatus) ? computeStatus[0] : computeStatus
   } catch (error) {
     throw new Error('Failed to check compute status')
@@ -242,7 +242,7 @@ export async function getComputeResult(
 ): Promise<any> {
   try {
     const consumerAddress = await getConsumerAddress(config.authToken)
-    const computeResult = await directNodeCommand('getComputeResult', config.peerId, { jobId, index, consumerAddress }, config.authToken)
+    const computeResult = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_GET_RESULT, config.peerId, { jobId, index, consumerAddress }, config.authToken)
 
     return computeResult
   } catch (error) {
@@ -296,7 +296,7 @@ export async function getComputeLogs(
 ): Promise<void> {
   try {
     outputChannel.show(true)
-    const logs = await directNodeCommand('getComputeStreamableLogs', config.peerId, { jobId }, config.authToken)
+    const logs = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_GET_STREAMABLE_LOGS, config.peerId, { jobId }, config.authToken)
     const stream = (logs.body) as any
 
     stream.on('data', (chunk) => {
@@ -374,7 +374,7 @@ export async function saveOutput(
 }
 
 export async function getComputeEnvironments(peerId: string) {
-  const environments = await directNodeCommand('getComputeEnvironments', peerId, {})
+  const environments = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_GET_ENVIRONMENTS, peerId, {})
   if (!environments || environments.length === 0) {
     throw new Error('No compute environments available')
   }
@@ -383,10 +383,10 @@ export async function getComputeEnvironments(peerId: string) {
 
 export async function generateAuthToken(peerId: string, signer: Signer) {
   const consumerAddress = await signer.getAddress()
-  const nonce = await directNodeCommand('nonce', peerId, { address: consumerAddress })
+  const nonce = await directNodeCommand(PROTOCOL_COMMANDS.NONCE, peerId, { address: consumerAddress })
   const incrementedNonce = (nonce + 1).toString()
   const signature = await getSignature(signer, consumerAddress + incrementedNonce)
-  const response = await directNodeCommand('createAuthToken', peerId, {
+  const response = await directNodeCommand(PROTOCOL_COMMANDS.CREATE_AUTH_TOKEN, peerId, {
     address: consumerAddress,
     signature,
     nonce: incrementedNonce
