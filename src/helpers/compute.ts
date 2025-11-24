@@ -5,14 +5,15 @@ import * as tar from 'tar'
 import {
   ComputeAlgorithm,
   ComputeAsset,
-  ComputeJob, FileObjectType,
-  ProviderInstance
+  ComputeJob, FileObjectType
 } from '@oceanprotocol/lib'
-import { PassThrough } from 'stream'
 import { fetchDdoByDid } from './indexer'
 import { SelectedConfig } from '../types'
 import { Signer } from 'ethers'
 import { ExtendedMetadataAlgorithm } from '@oceanprotocol/lib'
+import { directNodeCommand } from './direct-command'
+import { getConsumerAddress, getSignature } from './auth'
+import { PROTOCOL_COMMANDS } from '../enum'
 
 const getContainerConfig = (
   fileExtension: string,
@@ -69,7 +70,7 @@ const getContainerConfig = (
   }
 }
 
-export const getComputeAsset = async (nodeUrl: string, dataset?: string) => {
+export const getComputeAsset = async (peerId: string, dataset?: string) => {
   try {
     if (!dataset) {
       return []
@@ -77,7 +78,7 @@ export const getComputeAsset = async (nodeUrl: string, dataset?: string) => {
 
     const isDatasetDid = dataset?.startsWith('did:')
     if (isDatasetDid) {
-      const ddo = await fetchDdoByDid(nodeUrl, dataset)
+      const ddo = await fetchDdoByDid(peerId, dataset)
       return [{ documentId: dataset, serviceId: ddo.services[0].id }]
     }
 
@@ -109,9 +110,13 @@ export const getComputeAsset = async (nodeUrl: string, dataset?: string) => {
   }
 }
 
-export async function stopComputeJob(nodeUrl: string, jobId: string, signerOrAuthToken: Signer | string | null) {
+export async function stopComputeJob(peerId: string, jobId: string, signerOrAuthToken: Signer | string | null) {
   try {
-    const computeJob = await ProviderInstance.computeStop(jobId, nodeUrl, signerOrAuthToken)
+    const consumerAddress = await getConsumerAddress(signerOrAuthToken)
+    const nonce = await directNodeCommand(PROTOCOL_COMMANDS.NONCE, peerId, { address: consumerAddress })
+    const signature = await getSignature(signerOrAuthToken, consumerAddress + (jobId || ''))
+
+    const computeJob = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_STOP, peerId, { jobId, consumerAddress, nonce, signature }, signerOrAuthToken)
     return computeJob
   } catch (e) {
     console.error('Stop compute job error: ', e)
@@ -136,7 +141,7 @@ export async function computeStart(
 ): Promise<ComputeJob> {
   try {
     const container = getContainerConfig(fileExtension, dockerImage, dockerTag, dockerfile, additionalDockerFiles)
-    const datasets = (await getComputeAsset(config.nodeUrl, dataset)) as ComputeAsset[]
+    const datasets = (await getComputeAsset(config.peerId, dataset)) as ComputeAsset[]
     const algorithm: ComputeAlgorithm = {
       meta: {
         rawcode: algorithmContent,
@@ -152,32 +157,53 @@ export async function computeStart(
     // Paid compute job
     if (!config.isFreeCompute) {
       console.log('----------> Paid compute job started')
-      const computeJob = await ProviderInstance.computeStart(
-        config.nodeUrl,
-        config.authToken,
-        config.environmentId,
+      const consumerAddress = await getConsumerAddress(config.authToken)
+      const nonce = await directNodeCommand(PROTOCOL_COMMANDS.NONCE, config.peerId, { address: consumerAddress })
+      const incrementedNonce = (nonce + 1).toString()
+
+      let signatureMessage = consumerAddress
+      signatureMessage += datasets[0]?.documentId
+      signatureMessage += incrementedNonce
+
+      const signature = await getSignature(config.authToken, signatureMessage)
+      const computeJob = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_START, config.peerId, {
+        environment: config.environmentId,
         datasets,
+        dataset: datasets[0],
         algorithm,
-        Number(config.jobDuration),
-        config.feeToken,
-        config.resources,
-        config.chainId,
-      )
+        maxJobDuration: Number(config.jobDuration),
+        feeToken: config.feeToken,
+        resources: config.resources,
+        chainId: config.chainId,
+        payment: {
+          chainId: config.chainId,
+          token: config.feeToken,
+          resources: config.resources,
+        },
+        consumerAddress,
+        nonce: incrementedNonce,
+        signature
+      }, config.authToken)
 
       return Array.isArray(computeJob) ? computeJob[0] : computeJob
     }
 
-    const computeJob = await ProviderInstance.freeComputeStart(
-      config.nodeUrl,
-      config.authToken,
-      config.environmentId,
+    const consumerAddress = await getConsumerAddress(config.authToken)
+    const nonce = await directNodeCommand(PROTOCOL_COMMANDS.NONCE, config.peerId, { address: consumerAddress })
+    const incrementedNonce = (nonce + 1).toString()
+    const signature = await getSignature(config.authToken, consumerAddress + incrementedNonce)
+    const computeJob = await directNodeCommand(PROTOCOL_COMMANDS.FREE_COMPUTE_START, config.peerId, {
+      environment: config.environmentId,
       datasets,
+      dataset: datasets[0],
       algorithm,
-      config.resources,
-    )
+      resources: config.resources,
+      consumerAddress,
+      nonce: incrementedNonce,
+      signature,
+    }, config.authToken)
 
-    const result = Array.isArray(computeJob) ? computeJob[0] : computeJob
-    return result
+    return Array.isArray(computeJob) ? computeJob[0] : computeJob
   } catch (e) {
     console.error('Free start compute error: ', e)
     if (e.response) {
@@ -202,12 +228,7 @@ export async function checkComputeStatus(
   jobId: string
 ): Promise<ComputeJob> {
   try {
-    const computeStatus = await ProviderInstance.computeStatus(
-      config.nodeUrl,
-      config.address,
-      jobId
-    )
-
+    const computeStatus = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_GET_STATUS, config.peerId, { jobId }, config.authToken)
     return Array.isArray(computeStatus) ? computeStatus[0] : computeStatus
   } catch (error) {
     throw new Error('Failed to check compute status')
@@ -220,23 +241,10 @@ export async function getComputeResult(
   index: number = 0
 ): Promise<any> {
   try {
-    const computResultUrl = await ProviderInstance.getComputeResultUrl(
-      config.nodeUrl,
-      config.authToken,
-      jobId,
-      index,
-    )
+    const consumerAddress = await getConsumerAddress(config.authToken)
+    const computeResult = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_GET_RESULT, config.peerId, { jobId, index, consumerAddress }, config.authToken)
 
-    const response = await fetch(computResultUrl, {
-      headers: {
-        Authorization: config.authToken
-      }
-    })
-    const blob = await response.blob()
-    const arrayBuffer = await blob.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-
-    return buffer
+    return computeResult
   } catch (error) {
     console.error('Error getting compute result:', error)
     throw error
@@ -288,11 +296,8 @@ export async function getComputeLogs(
 ): Promise<void> {
   try {
     outputChannel.show(true)
-    const stream = (await ProviderInstance.computeStreamableLogs(
-      config.nodeUrl,
-      config.authToken,
-      jobId,
-    )) as PassThrough
+    const logs = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_GET_STREAMABLE_LOGS, config.peerId, { jobId }, config.authToken)
+    const stream = (logs.body) as any
 
     stream.on('data', (chunk) => {
       const text = chunk.toString('utf8')
@@ -368,13 +373,25 @@ export async function saveOutput(
   }
 }
 
-export async function getComputeEnvironments(nodeUrl: string) {
-  const environments = await ProviderInstance.getComputeEnvironments(nodeUrl)
+export async function getComputeEnvironments(peerId: string) {
+  const environments = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_GET_ENVIRONMENTS, peerId, {})
   if (!environments || environments.length === 0) {
     throw new Error('No compute environments available')
   }
-
   return environments
+}
+
+export async function generateAuthToken(peerId: string, signer: Signer) {
+  const consumerAddress = await signer.getAddress()
+  const nonce = await directNodeCommand(PROTOCOL_COMMANDS.NONCE, peerId, { address: consumerAddress })
+  const incrementedNonce = (nonce + 1).toString()
+  const signature = await getSignature(signer, consumerAddress + incrementedNonce)
+  const response = await directNodeCommand(PROTOCOL_COMMANDS.CREATE_AUTH_TOKEN, peerId, {
+    address: consumerAddress,
+    signature,
+    nonce: incrementedNonce
+  })
+  return response.token;
 }
 
 export async function withRetrial<T>(

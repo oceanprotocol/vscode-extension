@@ -68,7 +68,7 @@ The extension adds a dedicated Ocean Protocol section to the activity bar. Here 
 
 - **Custom Docker Image/Tag**: Use your own docker image and tag (only if no Dockerfile is provided in your project folder)
 - **Auth Token**: Auto-generated when you configure your compute settings
-- **Custom Compute Node**: Enter your own node URL or use the default Ocean Protocol node
+- **Custom Compute Node**: Enter your peer ID or use the default Ocean Protocol node
 - **Compute Resources**: Free compute uses minimal resources. View available resources under the Setup dropdown
 - **Paid Compute**: Upgrade from free to paid compute for more computational power
 - **Node Status Check**: Use the Check button under Setup dropdown to verify node availability
@@ -78,7 +78,7 @@ The extension adds a dedicated Ocean Protocol section to the activity bar. Here 
 ## Troubleshooting
 
 - **Job cannot start** → Check node status (under Setup dropdown, press the Check button)
-- **Job not running** → Verify your Node URL in Configure Compute
+- **Job not running** → Verify your peer ID in Configure Compute
 - **Not enough funds** → Use Configure Compute to adjust your settings or switch to free compute
 - **General issues** → Check extension logs in the Output console. Logs are also saved in your project folder under `logs/`
 

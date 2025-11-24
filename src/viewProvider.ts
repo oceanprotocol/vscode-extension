@@ -6,10 +6,10 @@ import { Language, getAvailableLanguages, getLanguageTemplates, detectProjectTyp
 
 export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'oceanProtocolExplorer'
-  private nodeUrls = require('./node-urls.json')
-  // Get a random node URL from the list
-  // private randomNodeUrl = this.nodeUrls[Math.floor(Math.random() * this.nodeUrls.length)]
-  private randomNodeUrl = this.nodeUrls[0]
+  private peerIds = require('./peer-ids.json')
+  // Get a random peer ID from the list
+  // private randomPeerId = this.peerIds[Math.floor(Math.random() * this.peerIds.length)]
+  private randomPeerId = this.peerIds[0]
   private config: SelectedConfig
 
   private _view?: vscode.WebviewView
@@ -96,7 +96,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             case 'validateDatasetFromInput':
               const isValid = await vscode.commands.executeCommand(
                 'ocean-protocol.validateDataset',
-                data.nodeUrl,
+                data.peerId,
                 data.input
               )
               webviewView.webview.postMessage({
@@ -108,7 +108,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               try {
                 const environments = await vscode.commands.executeCommand(
                   'ocean-protocol.getEnvironments',
-                  data.nodeUrl
+                  data.peerId
                 )
                 webviewView.webview.postMessage({
                   type: 'environmentsLoaded',
@@ -220,7 +220,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 data.algorithmPath,
                 data.resultsFolderPath,
                 data.authToken,
-                data.nodeUrl,
+                data.peerId,
                 data.datasetPath,
                 data.dockerImage,
                 data.dockerTag,
@@ -237,7 +237,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               const appName = vscode.env?.appName || 'vscode'
               vscode.env.openExternal(
                 vscode.Uri.parse(
-                  `${data.url}?ide=${appName?.toLowerCase()}&isFreeCompute=${this.config?.isFreeCompute || true}&nodeUrl=${data.nodeUrl}`
+                  `${data.url}?ide=${appName?.toLowerCase()}&isFreeCompute=${this.config?.isFreeCompute || true}&peerId=${data.peerId}`
                 )
               )
               break
@@ -445,9 +445,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               <div id="setup" class="section-content">
                   <div class="container">
 
-                      <label for="nodeUrlInput">Node URL (including port)</label>
+                      <label for="peerIdInput">Peer ID</label>
                       <div style="display: flex; align-items: center; gap: 4px;">
-                        <input id="nodeUrlInput" placeholder="Enter compute environment ID" value="${this.randomNodeUrl}" style="flex: 1;" />
+                        <input id="peerIdInput" placeholder="Enter peer ID" value="${this.randomPeerId}" style="flex: 1;" />
                         <button id="validateNodeBtn" style="padding: 2px 8px; font-size: 0.75em; width: 50px; height: 30px; flex-shrink: 0; box-sizing: border-box;">Check</button>
                       </div>
 
@@ -487,7 +487,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
 
               const environmentDetails = document.getElementById('environmentDetails');
-              const nodeUrlInput = document.getElementById('nodeUrlInput');
+              const peerIdInput = document.getElementById('peerIdInput');
               const select = document.getElementById('environmentSelect');
 
               function toggleSection(sectionId) {
@@ -522,7 +522,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 document.getElementById('datasetInput').addEventListener('input', (e) => {
                   const input = e.target.value.trim();
                   const validationIcon = document.getElementById('datasetValidationIcon');
-                  const nodeUrl = document.getElementById('nodeUrlInput').value;
+                  const peerId = document.getElementById('peerIdInput').value;
                   
                   if (!input) {
                     validationIcon.textContent = '';
@@ -533,7 +533,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   console.log('Dataset input changed:', input);
                   vscode.postMessage({
                     type: 'validateDatasetFromInput',
-                    nodeUrl: nodeUrl,
+                    peerId: peerId,
                     input: input
                   });
                 });
@@ -561,7 +561,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               if (document.getElementById('startComputeBtn')) {
                   document.getElementById('startComputeBtn').addEventListener('click', () => {
                       const authToken = document.getElementById('authTokenInput').value;
-                      const nodeUrl = document.getElementById('nodeUrlInput').value || "${this.randomNodeUrl}";
+                      const peerId = document.getElementById('peerIdInput').value || "${this.randomPeerId}";
                       const dockerImage = document.getElementById('dockerImageInput').value;
                       const dockerTag = document.getElementById('dockerTagInput').value;
                       const errorMessage = document.getElementById('errorMessage');
@@ -590,7 +590,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           authToken: authToken,
                           algorithmPath: algorithmPath,
                           resultsFolderPath: resultsFolderPath,
-                          nodeUrl: nodeUrl,
+                          peerId: peerId,
                           datasetPath: document.getElementById('datasetInput').value || undefined,
                           dockerImage: dockerImage || undefined,
                           dockerTag: dockerTag || undefined,
@@ -604,7 +604,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       vscode.postMessage({ 
                           type: 'openBrowser',
                           url: 'https://vscode-extension-config-test-page.vercel.app/',
-                          nodeUrl: nodeUrlInput.value || "${this.randomNodeUrl}"
+                          peerId: peerIdInput.value || "${this.randomPeerId}"
                       });
                   });
               }
@@ -617,8 +617,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               }
 
               async function loadEnvironments() {
-                const nodeUrl = nodeUrlInput.value;
-                if (!nodeUrl) {
+                const peerId = peerIdInput.value;
+                if (!peerId) {
                   disableStartButton();
                   return;
                 }
@@ -630,7 +630,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 try {
                   vscode.postMessage({
                     type: 'getEnvironments',
-                    nodeUrl: nodeUrl
+                    peerId: peerId
                   });
                 } catch (error) {
                   console.error('Error loading environments:', error);
@@ -647,14 +647,14 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   });
               }
               
-              // Listen for node URL input changes
-              if (document.getElementById('nodeUrlInput')) {
-                  document.getElementById('nodeUrlInput').addEventListener('input', () => {
+              // Listen for peer ID input changes
+              if (document.getElementById('peerIdInput')) {
+                  document.getElementById('peerIdInput').addEventListener('input', () => {
                       checkStartButtonState();
                   });
               }
               
-              // Disable start button initially until node URL is validated and project is selected
+              // Disable start button initially until node is validated and project is selected
               disableStartButton();
               
               // Load environments on page load
@@ -663,9 +663,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               function checkStartButtonState() {
                   const hasProject = selectedProjectPath && selectedProjectPath.trim() !== '';
                   const hasEnvironments = availableEnvironments && availableEnvironments.length > 0;
-                  const nodeUrl = document.getElementById('nodeUrlInput').value;
+                  const peerId = document.getElementById('peerIdInput').value;
                   
-                  if (hasProject && hasEnvironments && nodeUrl) {
+                  if (hasProject && hasEnvironments && peerId) {
                       document.getElementById('startComputeBtn').disabled = false;
                       document.getElementById('startComputeBtn').style.opacity = '1';
                   } else {
@@ -680,10 +680,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   
                   switch (message.type) {
                       case 'configUpdate':
-                          if (message.config.nodeUrl) {
-                              const nodeUrlInput = document.getElementById('nodeUrlInput');
-                              if (nodeUrlInput) {
-                                  nodeUrlInput.value = message.config.nodeUrl;
+                          if (message.config.peerId) {
+                              const peerIdInput = document.getElementById('peerIdInput');
+                              if (peerIdInput) {
+                                  peerIdInput.value = message.config.peerId;
                                   loadEnvironments();
                               }
                           }
