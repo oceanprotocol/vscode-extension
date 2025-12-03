@@ -1,7 +1,7 @@
 import { fetchDdoByDid } from './indexer'
 
 export const validateDatasetFromInput = async (
-  nodeUrl: string,
+  peerId: string,
   input: string
 ): Promise<boolean> => {
   try {
@@ -16,7 +16,7 @@ export const validateDatasetFromInput = async (
     }
 
     if (input.startsWith('did:')) {
-      const ddo = await fetchDdoByDid(nodeUrl, input)
+      const ddo = await fetchDdoByDid(peerId, input)
       return ddo !== null
     }
 
