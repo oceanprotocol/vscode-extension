@@ -2,19 +2,24 @@ import * as vscode from 'vscode'
 import * as fs from 'fs'
 import * as path from 'path'
 import { SelectedConfig } from './types'
-import { Language, getAvailableLanguages, getLanguageTemplates, detectProjectType, envTemplate, projectFileNames } from './helpers/project-data'
+import {
+  Language,
+  getAvailableLanguages,
+  getLanguageTemplates,
+  detectProjectType,
+  envTemplate,
+  projectFileNames
+} from './helpers/project-data'
+import { DEFAULT_PEER_ID } from './helpers/p2p'
 
 export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'oceanProtocolExplorer'
-  private peerIds = require('./peer-ids.json')
-  // Get a random peer ID from the list
-  // private randomPeerId = this.peerIds[Math.floor(Math.random() * this.peerIds.length)]
-  private randomPeerId = this.peerIds[0]
+  private defaultPeerId = DEFAULT_PEER_ID
   private config: SelectedConfig
 
   private _view?: vscode.WebviewView
 
-  constructor() { }
+  constructor() {}
 
   public notifyConfigUpdate(config: SelectedConfig) {
     this.config = config
@@ -34,8 +39,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
   private async closeOldProjectTabs() {
     try {
-      const openEditors = vscode.window.tabGroups.all.flatMap(group => group.tabs)
-
+      const openEditors = vscode.window.tabGroups.all.flatMap((group) => group.tabs)
 
       for (const tab of openEditors) {
         if (tab.input instanceof vscode.TabInputText) {
@@ -50,21 +54,26 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-
   private async openProjectFiles(projectPath: string) {
     try {
-
       const fileChecks = projectFileNames.map(async (fileName) => {
         const filePath = path.join(projectPath, fileName)
-        const exists = await fs.promises.access(filePath).then(() => true).catch(() => false)
+        const exists = await fs.promises
+          .access(filePath)
+          .then(() => true)
+          .catch(() => false)
         return { fileName, filePath, exists }
       })
 
       const fileResults = await Promise.all(fileChecks)
 
       const openPromises = fileResults
-        .filter(file => file.exists)
-        .map(file => vscode.window.showTextDocument(vscode.Uri.file(file.filePath), { preview: false }))
+        .filter((file) => file.exists)
+        .map((file) =>
+          vscode.window.showTextDocument(vscode.Uri.file(file.filePath), {
+            preview: false
+          })
+        )
 
       await Promise.all(openPromises)
     } catch (error) {
@@ -136,7 +145,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 await this.openProjectFiles(folderUri[0].fsPath)
 
                 const projectType = await detectProjectType(folderUri[0].fsPath)
-                const algorithmFileName = getLanguageTemplates(projectType).algorithmFileName
+                const algorithmFileName =
+                  getLanguageTemplates(projectType).algorithmFileName
 
                 webviewView.webview.postMessage({
                   type: 'projectFolder',
@@ -165,13 +175,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 if (projectName) {
                   // Show language selection dialog
                   const availableLanguages = getAvailableLanguages()
-                  const language = await vscode.window.showQuickPick(
-                    availableLanguages,
-                    {
-                      placeHolder: 'Select preferred language',
-                      title: 'Choose Language'
-                    }
-                  )
+                  const language = await vscode.window.showQuickPick(availableLanguages, {
+                    placeHolder: 'Select preferred language',
+                    title: 'Choose Language'
+                  })
 
                   if (language) {
                     const projectPath = path.join(folderUri[0].fsPath, projectName)
@@ -182,14 +189,26 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       const templates = getLanguageTemplates(language as Language)
 
                       if (templates.dockerfile) {
-                        await fs.promises.writeFile(path.join(projectPath, 'Dockerfile'), templates.dockerfile)
+                        await fs.promises.writeFile(
+                          path.join(projectPath, 'Dockerfile'),
+                          templates.dockerfile
+                        )
                       }
                       if (templates.dependencies && templates.dependenciesFileName) {
-                        await fs.promises.writeFile(path.join(projectPath, templates.dependenciesFileName), templates.dependencies)
+                        await fs.promises.writeFile(
+                          path.join(projectPath, templates.dependenciesFileName),
+                          templates.dependencies
+                        )
                       }
-                      await fs.promises.writeFile(path.join(projectPath, templates.algorithmFileName), templates.algorithm)
+                      await fs.promises.writeFile(
+                        path.join(projectPath, templates.algorithmFileName),
+                        templates.algorithm
+                      )
 
-                      await fs.promises.writeFile(path.join(projectPath, '.env'), envTemplate)
+                      await fs.promises.writeFile(
+                        path.join(projectPath, '.env'),
+                        envTemplate
+                      )
 
                       const resultsPath = path.join(projectPath, 'results')
                       await fs.promises.mkdir(resultsPath, { recursive: true })
@@ -200,7 +219,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       webviewView.webview.postMessage({
                         type: 'projectCreated',
                         projectPath: projectPath,
-                        algorithmPath: path.join(projectPath, templates.algorithmFileName),
+                        algorithmPath: path.join(
+                          projectPath,
+                          templates.algorithmFileName
+                        ),
                         resultsPath: resultsPath,
                         language: language
                       })
@@ -228,7 +250,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               )
               break
             case 'stopComputeJob':
-              await vscode.commands.executeCommand('ocean-protocol.stopComputeJob', data.authToken)
+              await vscode.commands.executeCommand(
+                'ocean-protocol.stopComputeJob',
+                data.authToken
+              )
               break
             case 'copyToClipboard':
               vscode.env.clipboard.writeText(data.text)
@@ -447,7 +472,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
                       <label for="peerIdInput">Peer ID</label>
                       <div style="display: flex; align-items: center; gap: 4px;">
-                        <input id="peerIdInput" placeholder="Enter peer ID" value="${this.randomPeerId}" style="flex: 1;" />
+                        <input id="peerIdInput" placeholder="Enter peer ID" value="${this.defaultPeerId}" style="flex: 1;" />
                         <button id="validateNodeBtn" style="padding: 2px 8px; font-size: 0.75em; width: 50px; height: 30px; flex-shrink: 0; box-sizing: border-box;">Check</button>
                       </div>
 
@@ -561,7 +586,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               if (document.getElementById('startComputeBtn')) {
                   document.getElementById('startComputeBtn').addEventListener('click', () => {
                       const authToken = document.getElementById('authTokenInput').value;
-                      const peerId = document.getElementById('peerIdInput').value || "${this.randomPeerId}";
+                      const peerId = document.getElementById('peerIdInput').value || "${this.defaultPeerId}";
                       const dockerImage = document.getElementById('dockerImageInput').value;
                       const dockerTag = document.getElementById('dockerTagInput').value;
                       const errorMessage = document.getElementById('errorMessage');
@@ -604,7 +629,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       vscode.postMessage({ 
                           type: 'openBrowser',
                           url: 'https://vscode-extension-config-test-page.vercel.app/',
-                          peerId: peerIdInput.value || "${this.randomPeerId}"
+                          peerId: peerIdInput.value || "${this.defaultPeerId}"
                       });
                   });
               }

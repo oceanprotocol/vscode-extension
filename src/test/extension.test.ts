@@ -11,11 +11,12 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { ComputeEnvironment, ComputeJob } from '@oceanprotocol/lib'
 import { SelectedConfig } from '../types'
-import * as directCommand from '../helpers/direct-command'
+import * as directCommand from '../helpers/p2p'
 
 // Use VS Code test runner syntax
 suite('Ocean Protocol Extension Test Suite', () => {
-  const mockAuthToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZGRyZXNzIjoiMHgxMjM0NTY3ODkwYWJjZGVmIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
+  const mockAuthToken =
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZGRyZXNzIjoiMHgxMjM0NTY3ODkwYWJjZGVmIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
   const mockPeerId = '16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJaBcmbNtpbT3QYxYOpB'
 
   const mockEnvResponse: ComputeEnvironment[] = [
@@ -43,24 +44,26 @@ suite('Ocean Protocol Extension Test Suite', () => {
   let directCommandStub: sinon.SinonStub
 
   const setupDirectCommandStub = (customHandlers?: Record<string, any>) => {
-    directCommandStub = sandbox.stub(directCommand, 'directNodeCommand').callsFake(async (command: string) => {
-      if (customHandlers && customHandlers[command]) {
-        return customHandlers[command]
-      }
+    directCommandStub = sandbox
+      .stub(directCommand, 'P2PCommand')
+      .callsFake(async (command: string) => {
+        if (customHandlers && customHandlers[command]) {
+          return customHandlers[command]
+        }
 
-      switch (command) {
-        case 'nonce':
-          return 1
-        case 'freeStartCompute':
-          return mockComputeResponse
-        case 'getComputeStatus':
-          return mockComputeResponse
-        case 'getComputeResult':
-          return Buffer.from('hello')
-        default:
-          return {}
-      }
-    })
+        switch (command) {
+          case 'nonce':
+            return 1
+          case 'freeStartCompute':
+            return mockComputeResponse
+          case 'getComputeStatus':
+            return mockComputeResponse
+          case 'getComputeResult':
+            return Buffer.from('hello')
+          default:
+            return {}
+        }
+      })
     return directCommandStub
   }
 
@@ -90,13 +93,9 @@ suite('Ocean Protocol Extension Test Suite', () => {
       environmentId: mockEnvResponse[0].id,
       isFreeCompute: true,
       authToken: mockAuthToken
-    });
+    })
 
-    const result = await computeStart(
-      mockConfig,
-      mockAlgorithm,
-      'js',
-    )
+    const result = await computeStart(mockConfig, mockAlgorithm, 'js')
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.strictEqual(result.statusText, 'Created')
@@ -112,28 +111,28 @@ suite('Ocean Protocol Extension Test Suite', () => {
       environmentId: mockEnvResponse[0].id,
       isFreeCompute: true,
       authToken: mockAuthToken
-    });
+    })
 
-    const result = await computeStart(
-      mockConfig,
-      mockAlgorithm,
-      'py',
-    )
+    const result = await computeStart(mockConfig, mockAlgorithm, 'py')
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.ok(
-      directCommandStub.calledWith('freeStartCompute', mockConfig.peerId, sinon.match({
-        algorithm: sinon.match({
-          meta: {
-            rawcode: mockAlgorithm,
-            container: sinon.match({
-              entrypoint: 'python $ALGO',
-              image: 'oceanprotocol/c2d_examples',
-              tag: 'py-general',
-            })
-          }
+      directCommandStub.calledWith(
+        'freeStartCompute',
+        mockConfig.peerId,
+        sinon.match({
+          algorithm: sinon.match({
+            meta: {
+              rawcode: mockAlgorithm,
+              container: sinon.match({
+                entrypoint: 'python $ALGO',
+                image: 'oceanprotocol/c2d_examples',
+                tag: 'py-general'
+              })
+            }
+          })
         })
-      }))
+      )
     )
   })
 
@@ -141,7 +140,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     const mockJobId = 'test-job-id'
 
     setupDirectCommandStub({
-      'getComputeStatus': {
+      getComputeStatus: {
         ...mockComputeResponse,
         status: 1,
         statusText: 'Running'
@@ -153,7 +152,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
       environmentId: mockEnvResponse[0].id,
       isFreeCompute: true,
       authToken: mockAuthToken
-    });
+    })
 
     const status = await checkComputeStatus(mockConfig, mockJobId)
     assert.strictEqual(status.statusText, 'Running')
@@ -165,7 +164,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
       peerId: mockPeerId,
       isFreeCompute: true,
       authToken: mockAuthToken
-    });
+    })
 
     await assert.rejects(
       computeStart(mockConfig, mockAlgorithm, 'js'),
@@ -224,7 +223,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     const mockResult = 'hello'
 
     setupDirectCommandStub({
-      'getComputeResult': Buffer.from(mockResult)
+      getComputeResult: Buffer.from(mockResult)
     })
 
     const mockConfig: SelectedConfig = new SelectedConfig({
@@ -232,7 +231,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
       environmentId: mockEnvResponse[0].id,
       isFreeCompute: true,
       authToken: mockAuthToken
-    });
+    })
 
     const result = await getComputeResult(mockConfig, mockJobId)
     assert.deepStrictEqual(result, Buffer.from(mockResult))
@@ -268,7 +267,10 @@ suite('Ocean Protocol Extension Test Suite', () => {
       const logsFolderName = pathParts[pathParts.length - 2]
       const dateFolderName = pathParts[pathParts.length - 3]
       assert.strictEqual(logsFolderName, 'logs', 'File should be in logs folder')
-      assert.ok(dateFolderName.startsWith('results-'), 'File should be in a folder with a date')
+      assert.ok(
+        dateFolderName.startsWith('results-'),
+        'File should be in a folder with a date'
+      )
 
       await fs.promises.rmdir(mockFolderPath, { recursive: true })
     } catch (error) {

@@ -43,14 +43,26 @@ vscode.window.registerUriHandler({
     const isFreeComputeBoolean = isFreeCompute === 'true' ? true : false
     const chainIdNumber = chainId ? Number(chainId) : undefined
 
-    const resourcesParsed = resources ? SelectedConfig.parseResources(resources) : undefined
-    config.updateFields({ authToken, address, peerId, isFreeCompute: isFreeComputeBoolean, environmentId, feeToken, jobDuration, resources: resourcesParsed, chainId: chainIdNumber })
+    const resourcesParsed = resources
+      ? SelectedConfig.parseResources(resources)
+      : undefined
+    config.updateFields({
+      authToken,
+      address,
+      peerId,
+      isFreeCompute: isFreeComputeBoolean,
+      environmentId,
+      feeToken,
+      jobDuration,
+      resources: resourcesParsed,
+      chainId: chainIdNumber
+    })
     console.log({ config })
 
     // Update the UI with the new values
     provider?.notifyConfigUpdate(config)
   }
-});
+})
 
 export async function activate(context: vscode.ExtensionContext) {
   let savedSigner: Signer | null = null
@@ -79,7 +91,6 @@ export async function activate(context: vscode.ExtensionContext) {
     // Add to subscriptions
     context.subscriptions.push(registration)
     console.log('Added registration to subscriptions')
-
 
     // Create a test command to verify the webview is accessible
     let testCommand = vscode.commands.registerCommand('ocean-protocol.test', () => {
@@ -179,7 +190,9 @@ export async function activate(context: vscode.ExtensionContext) {
             config.updateFields({ address: signer.address })
           } catch (error) {
             console.log(error)
-            vscode.window.showErrorMessage('Error generating auth token. Please make sure you selected a valid node')
+            vscode.window.showErrorMessage(
+              'Error generating auth token. Please make sure you selected a valid node'
+            )
             return
           }
         }
@@ -223,12 +236,14 @@ export async function activate(context: vscode.ExtensionContext) {
             const envContent = await checkAndReadFile(algorithmDir, '.env')
             const envVars: Record<string, string> = {}
             if (envContent) {
-              envContent.split('\n').forEach(line => {
+              envContent.split('\n').forEach((line) => {
                 const trimmed = line.trim()
                 if (trimmed && !trimmed.startsWith('#')) {
                   const idx = trimmed.indexOf('=')
                   if (idx > 0) {
-                    envVars[trimmed.substring(0, idx).trim()] = trimmed.substring(idx + 1).trim()
+                    envVars[trimmed.substring(0, idx).trim()] = trimmed
+                      .substring(idx + 1)
+                      .trim()
                   }
                 }
               })
@@ -280,10 +295,12 @@ export async function activate(context: vscode.ExtensionContext) {
               if (status.statusText.includes('Running algorithm') && !logStreamStarted) {
                 logStreamStarted = true
                 // Start fetching logs once
-                withRetrial(
-                  () => getComputeLogs(config, jobId, computeLogsChannel),
-                  progress
-                )
+                getComputeLogs(config, jobId, computeLogsChannel)
+                  .catch((err) => console.log('Log stream disconnected', err))
+                  .finally(() => {
+                    // Reset the flag so we can reconnect if the job is still running
+                    logStreamStarted = false
+                  })
               }
 
               if (status?.terminationDetails?.OOMKilled === true) {
@@ -293,7 +310,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 savedJobId = null
                 provider.sendMessage({ type: 'jobStopped' })
 
-                return;
+                return
               }
 
               if (
@@ -301,7 +318,14 @@ export async function activate(context: vscode.ExtensionContext) {
                 status.statusText.toLowerCase().includes('failed')
               ) {
                 try {
-                  await handleFailureLogsRetrieval(config, jobId, status, resultsFolderPath, computeLogsChannel, progress)
+                  await handleFailureLogsRetrieval(
+                    config,
+                    jobId,
+                    status,
+                    resultsFolderPath,
+                    computeLogsChannel,
+                    progress
+                  )
                 } catch (retrievalError) {
                   console.error('Error retrieving logs on failure:', retrievalError)
                 }
@@ -317,14 +341,29 @@ export async function activate(context: vscode.ExtensionContext) {
                   progress.report({ message: 'Generating signature for request...' })
                   outputChannel.appendLine('Generating signature for request...')
                   const resultsLength = status.results.length
-                  const archive = status.results.find(result => result.filename.includes('.tar'))
-                  const resultsWithoutArchive = status.results.filter(result => result.index !== archive?.index)
+                  const archive = status.results.find((result) =>
+                    result.filename.includes('.tar')
+                  )
+                  const resultsWithoutArchive = status.results.filter(
+                    (result) => result.index !== archive?.index
+                  )
 
                   computeLogsChannel.clear()
                   for (const result of resultsWithoutArchive) {
-                    progress.report({ message: `Retrieving compute results (${result.index + 1}/${resultsLength})...` })
-                    outputChannel.appendLine(`Retrieving compute results (${result.index + 1}/${resultsLength})...`)
-                    const filePathLogs = await getAndSaveLogs(config, jobId, result.index, result.filename, resultsFolderPath, progress)
+                    progress.report({
+                      message: `Retrieving compute results (${result.index + 1}/${resultsLength})...`
+                    })
+                    outputChannel.appendLine(
+                      `Retrieving compute results (${result.index + 1}/${resultsLength})...`
+                    )
+                    const filePathLogs = await getAndSaveLogs(
+                      config,
+                      jobId,
+                      result.index,
+                      result.filename,
+                      resultsFolderPath,
+                      progress
+                    )
 
                     if (result.filename.toLowerCase().includes('algorithm')) {
                       const logContent = await fs.promises.readFile(filePathLogs, 'utf-8')
@@ -411,11 +450,20 @@ async function handleFailureLogsRetrieval(
   }
 
   computeLogsChannel.appendLine(`Job failed with status: ${status.statusText}\n`)
-  const resultsWithoutArchive = status.results.filter(result => !result.filename.includes('.tar'))
+  const resultsWithoutArchive = status.results.filter(
+    (result) => !result.filename.includes('.tar')
+  )
 
   for (const result of resultsWithoutArchive) {
     try {
-      const filePathLogs = await getAndSaveLogs(config, jobId, result.index, result.filename, resultsFolderPath, progress)
+      const filePathLogs = await getAndSaveLogs(
+        config,
+        jobId,
+        result.index,
+        result.filename,
+        resultsFolderPath,
+        progress
+      )
 
       const logContent = await fs.promises.readFile(filePathLogs, 'utf-8')
       computeLogsChannel.appendLine(`\n=== ${result.filename} ===\n${logContent}`)
@@ -427,18 +475,21 @@ async function handleFailureLogsRetrieval(
   computeLogsChannel.show(true)
 }
 
-async function getAndSaveLogs(config: SelectedConfig, jobId: string, index: number, fileName: string, resultsFolderPath: string, progress: vscode.Progress<{ message?: string }>) {
+async function getAndSaveLogs(
+  config: SelectedConfig,
+  jobId: string,
+  index: number,
+  fileName: string,
+  resultsFolderPath: string,
+  progress: vscode.Progress<{ message?: string }>
+) {
   const imageResult = await withRetrial(
     () => getComputeResult(config, jobId, index),
     progress
   )
 
   progress.report({ message: `Saving ${fileName}...` })
-  const filePathLogs = await saveResults(
-    imageResult,
-    resultsFolderPath,
-    fileName
-  )
+  const filePathLogs = await saveResults(imageResult, resultsFolderPath, fileName)
   outputChannel.appendLine(`${fileName} saved to: ${filePathLogs}`)
   return filePathLogs
 }
