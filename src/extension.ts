@@ -132,11 +132,12 @@ export async function activate(context: vscode.ExtensionContext) {
           }
           try {
             await stopComputeJob(savedPeerId, savedJobId, authToken || savedSigner)
-            savedJobId = null
-            provider.sendMessage({ type: 'jobStopped' })
             vscode.window.showInformationMessage('Job stopped successfully')
           } catch (error) {
             vscode.window.showErrorMessage('Failed to stop job')
+          } finally {
+            savedJobId = null
+            provider.sendMessage({ type: 'jobStopped' })
           }
         }
       )
