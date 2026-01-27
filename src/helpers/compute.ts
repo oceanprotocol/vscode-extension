@@ -369,7 +369,9 @@ export async function getComputeLogs(
         // Filter out the HTTP status message
         if (text.includes('"httpStatus":') && text.includes('200')) {
           const cleanText = text.replace(/\{"httpStatus":\s*200[^}]*\}/g, '').trim()
-          if (cleanText) outputChannel.append(cleanText)
+          if (cleanText) {
+            outputChannel.append(cleanText)
+          }
         } else {
           outputChannel.append(text)
         }

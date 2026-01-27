@@ -11,7 +11,8 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { ComputeEnvironment, ComputeJob } from '@oceanprotocol/lib'
 import { SelectedConfig } from '../types'
-import * as directCommand from '../helpers/p2p'
+// p2p is mocked in run.test.ts; use require() so we get the raw mock and can stub P2PCommand
+const P2PCommand = require('../helpers/p2p') as typeof import('../helpers/p2p')
 
 // Use VS Code test runner syntax
 suite('Ocean Protocol Extension Test Suite', () => {
@@ -45,7 +46,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
 
   const setupDirectCommandStub = (customHandlers?: Record<string, any>) => {
     directCommandStub = sandbox
-      .stub(directCommand, 'P2PCommand')
+      .stub(P2PCommand, 'P2PCommand')
       .callsFake(async (command: string) => {
         if (customHandlers && customHandlers[command]) {
           return customHandlers[command]

@@ -26,7 +26,9 @@ const RETRY_DELAY_MS = 1000
 let libp2pNode: Libp2p | null = null
 
 async function getOrCreateLibp2pNode(): Promise<Libp2p> {
-  if (libp2pNode) return libp2pNode
+  if (libp2pNode) {
+    return libp2pNode
+  }
 
   libp2pNode = await createLibp2p({
     addresses: { listen: [] },
@@ -45,6 +47,7 @@ async function getOrCreateLibp2pNode(): Promise<Libp2p> {
     }
   })
   await libp2pNode.start()
+
   return libp2pNode
 }
 
@@ -56,7 +59,7 @@ async function* remainingChunks(
   it: AsyncIterator<Uint8Array | { subarray(): Uint8Array }>
 ): AsyncGenerator<Uint8Array> {
   let next = await it.next()
-  while (!next.done && next.value != null) {
+  while (!next.done && next.value !== null) {
     yield toBytes(next.value)
     next = await it.next()
   }
@@ -92,7 +95,7 @@ export async function P2PCommand(
 
     const it = stream[Symbol.asyncIterator]()
     const { done, value } = await it.next()
-    const firstChunk = value != null ? toBytes(value) : null
+    const firstChunk = value !== null ? toBytes(value) : null
 
     if (done || !firstChunk?.length) {
       throw new Error('Gateway node error: no response from peer')
@@ -109,7 +112,10 @@ export async function P2PCommand(
     if (command === PROTOCOL_COMMANDS.COMPUTE_GET_STREAMABLE_LOGS) {
       const streamIterable = {
         [Symbol.asyncIterator]: async function* () {
-          if (firstChunk) yield firstChunk
+          if (firstChunk) {
+            yield firstChunk
+          }
+
           yield* remainingChunks(it)
         }
       }
@@ -117,7 +123,9 @@ export async function P2PCommand(
     }
 
     const chunks: Uint8Array[] = [firstChunk]
-    for await (const c of remainingChunks(it)) chunks.push(c)
+    for await (const c of remainingChunks(it)) {
+      chunks.push(c)
+    }
 
     let response: unknown
     for (let i = 0; i < chunks.length; i++) {
