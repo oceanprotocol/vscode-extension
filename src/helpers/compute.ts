@@ -15,6 +15,7 @@ import { ExtendedMetadataAlgorithm } from '@oceanprotocol/lib'
 import { P2PCommand } from './p2p'
 import { getConsumerAddress, getSignature } from './auth'
 import { PROTOCOL_COMMANDS } from '../enum'
+import { once } from 'events'
 
 const getContainerConfig = (
   fileExtension: string,
@@ -291,7 +292,7 @@ export async function getComputeResult(
   config: SelectedConfig,
   jobId: string,
   index: number = 0
-): Promise<any> {
+): Promise<{ ok: boolean; status: number; body: AsyncIterable<Uint8Array> }> {
   try {
     const consumerAddress = await getConsumerAddress(config.authToken)
     const computeResult = await P2PCommand(
@@ -306,6 +307,15 @@ export async function getComputeResult(
     console.error('Error getting compute result:', error)
     throw error
   }
+}
+
+export async function streamToString(stream: AsyncIterable<Uint8Array>): Promise<string> {
+  const decoder = new TextDecoder('utf-8')
+  let result = ''
+  for await (const chunk of stream) {
+    result += decoder.decode(chunk, { stream: true })
+  }
+  return result
 }
 
 export async function saveResults(
@@ -364,17 +374,7 @@ export async function getComputeLogs(
       const decoder = new TextDecoder('utf-8')
 
       for await (const chunk of logs.body) {
-        const text = decoder.decode(chunk, { stream: true })
-
-        // Filter out the HTTP status message
-        if (text.includes('"httpStatus":') && text.includes('200')) {
-          const cleanText = text.replace(/\{"httpStatus":\s*200[^}]*\}/g, '').trim()
-          if (cleanText) {
-            outputChannel.append(cleanText)
-          }
-        } else {
-          outputChannel.append(text)
-        }
+        outputChannel.append(decoder.decode(chunk, { stream: true }))
       }
       console.log('Stream complete')
     } else {
@@ -386,43 +386,49 @@ export async function getComputeLogs(
 }
 
 /**
- * Saves the output from the second request (index=1) as a tar file and extracts its contents
- * @param content The tar file content (Buffer or string)
- * @param folderPath The folder to save the tar file and extracted contents
+ * Saves the output stream as a tar file and extracts its contents.
+ * Iterates directly over the stream chunks for maximum control and elegance.
+ * @param contentStream The stream of data chunks (AsyncIterable<Uint8Array>)
+ * @param destinationFolder The folder to save the tar file and extracted contents
  * @param prefix Prefix for the filename
- * @returns The path to the saved tar file and extraction directory
+ * @returns The path to the saved tar file
  */
+
 export async function saveOutput(
-  content: Buffer | string,
+  contentStream: AsyncIterable<Uint8Array>,
   destinationFolder: string,
   prefix: string = 'output'
 ): Promise<string> {
+  let fileHandle: fs.WriteStream | null = null
+
   try {
-    // Use provided destination folder or default to './results'
     const baseDir = destinationFolder || path.join(process.cwd(), 'results')
     const dateStr = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-')
     const resultsDir = path.join(baseDir, `results-${dateStr}`)
 
     const fileName = `${prefix}.tar`
-    console.log('File name:', fileName)
     const filePath = path.join(resultsDir, fileName)
+
     console.log('File path:', filePath)
-    // Ensure the folder exists
+
     await fs.promises.mkdir(resultsDir, { recursive: true })
 
-    // Convert string to Buffer if needed
-    const tarContent =
-      typeof content === 'string' ? Buffer.from(content, 'binary') : content
+    fileHandle = fs.createWriteStream(filePath)
 
-    // // Save the tar file
-    await fs.promises.writeFile(filePath, new Uint8Array(tarContent))
-    console.log(`Tar file saved to: ${filePath}`)
+    for await (const chunk of contentStream) {
+      const buffer = Buffer.from(chunk)
 
-    // Create extraction directory
+      if (!fileHandle.write(buffer)) {
+        await once(fileHandle, 'drain')
+      }
+    }
+
+    fileHandle.end()
+    await once(fileHandle, 'finish')
+
     const extractDir = path.join(resultsDir, `${prefix}_extracted`)
     await fs.promises.mkdir(extractDir, { recursive: true })
 
-    // Extract the tar contents
     try {
       await tar.x({
         file: filePath,
@@ -430,14 +436,15 @@ export async function saveOutput(
         preservePaths: true
       })
       console.log(`Extracted contents to: ${extractDir}`)
-
-      // Return both paths
       return filePath
     } catch (extractError) {
       console.error('Error extracting tar contents:', extractError)
-      return filePath // Return just the tar path if extraction fails
+      return filePath
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (fileHandle && !fileHandle.closed) {
+      fileHandle.destroy()
+    }
     console.error('Error saving tar output:', error)
     throw new Error(`Failed to save tar output: ${error.message}`)
   }

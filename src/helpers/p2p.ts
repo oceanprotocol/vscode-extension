@@ -18,9 +18,8 @@ export const DEFAULT_MULTIADDR =
 
 export const DEFAULT_PEER_ID = '16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJfBcmbNppbT3QYtBpi'
 
-const OCEAN_PROTOCOL = '/ocean/nodes/1.0.0'
+const OCEAN_P2P_PROTOCOL = '/ocean/nodes/1.0.0'
 const MAX_RETRIES = 5
-const DIAL_TIMEOUT = 15_000
 const RETRY_DELAY_MS = 1000
 
 let libp2pNode: Libp2p | null = null
@@ -42,8 +41,7 @@ async function getOrCreateLibp2pNode(): Promise<Libp2p> {
       })
     ],
     connectionManager: {
-      maxConnections: 100,
-      dialTimeout: DIAL_TIMEOUT
+      maxConnections: 100
     }
   })
   await libp2pNode.start()
@@ -81,12 +79,9 @@ export async function P2PCommand(
     }
 
     const node = await getOrCreateLibp2pNode()
-    const connection = await node.dial(multiaddr(DEFAULT_MULTIADDR), {
-      signal: AbortSignal.timeout(DIAL_TIMEOUT)
-    })
+    const connection = await node.dial(multiaddr(DEFAULT_MULTIADDR))
 
-    const stream = await connection.newStream([OCEAN_PROTOCOL], {
-      signal: AbortSignal.timeout(DIAL_TIMEOUT),
+    const stream = await connection.newStream([OCEAN_P2P_PROTOCOL], {
       runOnLimitedConnection: true
     })
 
@@ -109,15 +104,13 @@ export async function P2PCommand(
       }
     } catch {}
 
-    if (command === PROTOCOL_COMMANDS.COMPUTE_GET_STREAMABLE_LOGS) {
+    if (
+      command === PROTOCOL_COMMANDS.COMPUTE_GET_STREAMABLE_LOGS ||
+      command === PROTOCOL_COMMANDS.COMPUTE_GET_RESULT
+    ) {
+      // Skip first chunk (status JSON), stream the rest
       const streamIterable = {
-        [Symbol.asyncIterator]: async function* () {
-          if (firstChunk) {
-            yield firstChunk
-          }
-
-          yield* remainingChunks(it)
-        }
+        [Symbol.asyncIterator]: () => remainingChunks(it)
       }
       return { ok: true, status: 200, body: streamIterable }
     }

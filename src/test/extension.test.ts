@@ -5,7 +5,8 @@ import {
   computeStart,
   checkComputeStatus,
   getComputeResult,
-  saveResults
+  saveResults,
+  streamToString
 } from '../helpers/compute'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -59,8 +60,13 @@ suite('Ocean Protocol Extension Test Suite', () => {
             return mockComputeResponse
           case 'getComputeStatus':
             return mockComputeResponse
-          case 'getComputeResult':
-            return Buffer.from('hello')
+          case 'getComputeResult': {
+            const buf = Buffer.from('hello')
+            const body = (async function* () {
+              yield new Uint8Array(buf)
+            })()
+            return { ok: true, status: 200, body }
+          }
           default:
             return {}
         }
@@ -224,7 +230,13 @@ suite('Ocean Protocol Extension Test Suite', () => {
     const mockResult = 'hello'
 
     setupDirectCommandStub({
-      getComputeResult: Buffer.from(mockResult)
+      getComputeResult: (() => {
+        const buf = Buffer.from(mockResult)
+        const body = (async function* () {
+          yield new Uint8Array(buf)
+        })()
+        return { ok: true, status: 200, body }
+      })()
     })
 
     const mockConfig: SelectedConfig = new SelectedConfig({
@@ -235,7 +247,10 @@ suite('Ocean Protocol Extension Test Suite', () => {
     })
 
     const result = await getComputeResult(mockConfig, mockJobId)
-    assert.deepStrictEqual(result, Buffer.from(mockResult))
+    assert.strictEqual(result.ok, true)
+    assert.strictEqual(result.status, 200)
+    const content = await streamToString(result.body)
+    assert.strictEqual(content, mockResult)
   })
 
   test('saveResults should correctly save to file', async () => {

@@ -13,6 +13,7 @@ import {
   getComputeResult,
   saveOutput,
   saveResults,
+  streamToString,
   stopComputeJob,
   withRetrial
 } from './helpers/compute'
@@ -382,7 +383,7 @@ export async function activate(context: vscode.ExtensionContext) {
                       progress
                     )
                     const filePathOutput = await saveOutput(
-                      outputResult,
+                      outputResult.body,
                       resultsFolderPath,
                       'result-output'
                     )
@@ -484,13 +485,14 @@ async function getAndSaveLogs(
   resultsFolderPath: string,
   progress: vscode.Progress<{ message?: string }>
 ) {
-  const imageResult = await withRetrial(
+  const result = await withRetrial(
     () => getComputeResult(config, jobId, index),
     progress
   )
 
   progress.report({ message: `Saving ${fileName}...` })
-  const filePathLogs = await saveResults(imageResult, resultsFolderPath, fileName)
+  const content = await streamToString(result.body)
+  const filePathLogs = await saveResults(content, resultsFolderPath, fileName)
   outputChannel.appendLine(`${fileName} saved to: ${filePathLogs}`)
   return filePathLogs
 }
