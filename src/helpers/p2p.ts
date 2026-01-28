@@ -38,7 +38,7 @@ async function getOrCreateLibp2pNode(): Promise<Libp2p> {
         enableKeepAlive: true,
         keepAliveInterval: 5 * 1000,
         streamOptions: {
-          maxStreamWindowSize: 1 * 1024 * 1024
+          maxStreamWindowSize: 5 * 1024 * 1024
         }
       })
     ],

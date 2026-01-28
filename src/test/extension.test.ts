@@ -62,10 +62,9 @@ suite('Ocean Protocol Extension Test Suite', () => {
             return mockComputeResponse
           case 'getComputeResult': {
             const buf = Buffer.from('hello')
-            const body = (async function* () {
+            return (async function* () {
               yield new Uint8Array(buf)
             })()
-            return { ok: true, status: 200, body }
           }
           default:
             return {}
@@ -232,10 +231,9 @@ suite('Ocean Protocol Extension Test Suite', () => {
     setupDirectCommandStub({
       getComputeResult: (() => {
         const buf = Buffer.from(mockResult)
-        const body = (async function* () {
+        return (async function* () {
           yield new Uint8Array(buf)
         })()
-        return { ok: true, status: 200, body }
       })()
     })
 
@@ -247,9 +245,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     })
 
     const result = await getComputeResult(mockConfig, mockJobId)
-    assert.strictEqual(result.ok, true)
-    assert.strictEqual(result.status, 200)
-    const content = await streamToString(result.body)
+    const content = await streamToString(result)
     assert.strictEqual(content, mockResult)
   })
 
