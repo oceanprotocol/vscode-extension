@@ -378,12 +378,13 @@ export async function activate(context: vscode.ExtensionContext) {
                       message: 'Requesting the output result...'
                     })
                     outputChannel.appendLine('Requesting the output result...')
-                    const outputResult = await withRetrial(
-                      () => getComputeResult(config, jobId, archive?.index),
-                      progress
+                    const outputStream = await getComputeResult(
+                      config,
+                      jobId,
+                      archive?.index
                     )
                     const filePathOutput = await saveOutput(
-                      outputResult.body,
+                      outputStream,
                       resultsFolderPath,
                       'result-output'
                     )
@@ -399,6 +400,8 @@ export async function activate(context: vscode.ExtensionContext) {
                   } catch (error) {
                     console.log('No second result available:', error)
                     progress.report({ message: 'Error saving the output result' })
+                    provider.sendMessage({ type: 'jobStopped' })
+                    computeLogsChannel.appendLine('Error saving the output result')
                     outputChannel.appendLine('Error saving the output result')
                   }
 
@@ -485,13 +488,10 @@ async function getAndSaveLogs(
   resultsFolderPath: string,
   progress: vscode.Progress<{ message?: string }>
 ) {
-  const result = await withRetrial(
-    () => getComputeResult(config, jobId, index),
-    progress
-  )
+  const result = await withRetrial(() => getComputeResult(config, jobId, index), progress)
 
   progress.report({ message: `Saving ${fileName}...` })
-  const content = await streamToString(result.body)
+  const content = await streamToString(result)
   const filePathLogs = await saveResults(content, resultsFolderPath, fileName)
   outputChannel.appendLine(`${fileName} saved to: ${filePathLogs}`)
   return filePathLogs

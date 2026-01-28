@@ -16,6 +16,7 @@ import { P2PCommand } from './p2p'
 import { getConsumerAddress, getSignature } from './auth'
 import { PROTOCOL_COMMANDS } from '../enum'
 import { once } from 'events'
+import { Stream } from '@libp2p/interface'
 
 const getContainerConfig = (
   fileExtension: string,
@@ -292,7 +293,7 @@ export async function getComputeResult(
   config: SelectedConfig,
   jobId: string,
   index: number = 0
-): Promise<{ ok: boolean; status: number; body: AsyncIterable<Uint8Array> }> {
+): Promise<Stream> {
   try {
     const consumerAddress = await getConsumerAddress(config.authToken)
     const computeResult = await P2PCommand(
@@ -309,11 +310,11 @@ export async function getComputeResult(
   }
 }
 
-export async function streamToString(stream: AsyncIterable<Uint8Array>): Promise<string> {
+export async function streamToString(stream: Stream): Promise<string> {
   const decoder = new TextDecoder('utf-8')
   let result = ''
   for await (const chunk of stream) {
-    result += decoder.decode(chunk, { stream: true })
+    result += decoder.decode(chunk.subarray(), { stream: true })
   }
   return result
 }
@@ -370,16 +371,11 @@ export async function getComputeLogs(
       config.authToken
     )
 
-    if (logs.body && typeof logs.body[Symbol.asyncIterator] === 'function') {
-      const decoder = new TextDecoder('utf-8')
-
-      for await (const chunk of logs.body) {
-        outputChannel.append(decoder.decode(chunk, { stream: true }))
-      }
-      console.log('Stream complete')
-    } else {
-      console.warn('Logs response was not a stream:', logs)
+    const decoder = new TextDecoder('utf-8')
+    for await (const chunk of logs) {
+      outputChannel.append(decoder.decode(chunk.subarray(), { stream: true }))
     }
+    console.log('Stream complete')
   } catch (error) {
     console.error('Error fetching compute logs:', error)
   }
@@ -395,7 +391,7 @@ export async function getComputeLogs(
  */
 
 export async function saveOutput(
-  contentStream: AsyncIterable<Uint8Array>,
+  stream: Stream,
   destinationFolder: string,
   prefix: string = 'output'
 ): Promise<string> {
@@ -413,12 +409,12 @@ export async function saveOutput(
 
     await fs.promises.mkdir(resultsDir, { recursive: true })
 
-    fileHandle = fs.createWriteStream(filePath)
+    fileHandle = fs.createWriteStream(filePath, { highWaterMark: 16 * 1024 * 1024 })
 
-    for await (const chunk of contentStream) {
-      const buffer = Buffer.from(chunk)
+    for await (const chunk of stream) {
+      console.log('-->Chunk size:', chunk.length)
 
-      if (!fileHandle.write(buffer)) {
+      if (!fileHandle.write(chunk.subarray())) {
         await once(fileHandle, 'drain')
       }
     }

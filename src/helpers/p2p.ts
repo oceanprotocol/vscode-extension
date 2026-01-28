@@ -8,7 +8,7 @@ import { bootstrap } from '@libp2p/bootstrap'
 import { multiaddr } from '@multiformats/multiaddr'
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
-
+import { ping } from '@libp2p/ping'
 import { getAuthorization } from './auth'
 import { PROTOCOL_COMMANDS } from '../enum'
 import { GatewayResponse } from '../types'
@@ -33,11 +33,22 @@ async function getOrCreateLibp2pNode(): Promise<Libp2p> {
     addresses: { listen: [] },
     transports: [webSockets()],
     connectionEncrypters: [noise(), tls()],
-    streamMuxers: [yamux()],
+    streamMuxers: [
+      yamux({
+        enableKeepAlive: true,
+        keepAliveInterval: 5 * 1000,
+        streamOptions: {
+          maxStreamWindowSize: 1 * 1024 * 1024
+        }
+      })
+    ],
+    services: {
+      ping: ping()
+    },
     peerDiscovery: [
       bootstrap({
         list: [DEFAULT_MULTIADDR],
-        timeout: 5000
+        timeout: 10000
       })
     ],
     connectionManager: {
@@ -81,9 +92,7 @@ export async function P2PCommand(
     const node = await getOrCreateLibp2pNode()
     const connection = await node.dial(multiaddr(DEFAULT_MULTIADDR))
 
-    const stream = await connection.newStream([OCEAN_P2P_PROTOCOL], {
-      runOnLimitedConnection: true
-    })
+    const stream = await connection.newStream([OCEAN_P2P_PROTOCOL])
 
     stream.send(uint8ArrayFromString(JSON.stringify(payload)))
     stream.close()
@@ -108,11 +117,7 @@ export async function P2PCommand(
       command === PROTOCOL_COMMANDS.COMPUTE_GET_STREAMABLE_LOGS ||
       command === PROTOCOL_COMMANDS.COMPUTE_GET_RESULT
     ) {
-      // Skip first chunk (status JSON), stream the rest
-      const streamIterable = {
-        [Symbol.asyncIterator]: () => remainingChunks(it)
-      }
-      return { ok: true, status: 200, body: streamIterable }
+      return stream
     }
 
     const chunks: Uint8Array[] = [firstChunk]
