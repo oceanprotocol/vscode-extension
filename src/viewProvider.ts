@@ -2,7 +2,14 @@ import * as vscode from 'vscode'
 import * as fs from 'fs'
 import * as path from 'path'
 import { SelectedConfig } from './types'
-import { Language, getAvailableLanguages, getLanguageTemplates, detectProjectType, envTemplate, projectFileNames } from './helpers/project-data'
+import {
+  Language,
+  getAvailableLanguages,
+  getLanguageTemplates,
+  detectProjectType,
+  envTemplate,
+  projectFileNames
+} from './helpers/project-data'
 
 export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'oceanProtocolExplorer'
@@ -14,7 +21,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView
 
-  constructor() { }
+  constructor() {}
 
   public notifyConfigUpdate(config: SelectedConfig) {
     this.config = config
@@ -34,8 +41,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
   private async closeOldProjectTabs() {
     try {
-      const openEditors = vscode.window.tabGroups.all.flatMap(group => group.tabs)
-
+      const openEditors = vscode.window.tabGroups.all.flatMap((group) => group.tabs)
 
       for (const tab of openEditors) {
         if (tab.input instanceof vscode.TabInputText) {
@@ -50,21 +56,26 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-
   private async openProjectFiles(projectPath: string) {
     try {
-
       const fileChecks = projectFileNames.map(async (fileName) => {
         const filePath = path.join(projectPath, fileName)
-        const exists = await fs.promises.access(filePath).then(() => true).catch(() => false)
+        const exists = await fs.promises
+          .access(filePath)
+          .then(() => true)
+          .catch(() => false)
         return { fileName, filePath, exists }
       })
 
       const fileResults = await Promise.all(fileChecks)
 
       const openPromises = fileResults
-        .filter(file => file.exists)
-        .map(file => vscode.window.showTextDocument(vscode.Uri.file(file.filePath), { preview: false }))
+        .filter((file) => file.exists)
+        .map((file) =>
+          vscode.window.showTextDocument(vscode.Uri.file(file.filePath), {
+            preview: false
+          })
+        )
 
       await Promise.all(openPromises)
     } catch (error) {
@@ -136,7 +147,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 await this.openProjectFiles(folderUri[0].fsPath)
 
                 const projectType = await detectProjectType(folderUri[0].fsPath)
-                const algorithmFileName = getLanguageTemplates(projectType).algorithmFileName
+                const algorithmFileName =
+                  getLanguageTemplates(projectType).algorithmFileName
 
                 webviewView.webview.postMessage({
                   type: 'projectFolder',
@@ -165,13 +177,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 if (projectName) {
                   // Show language selection dialog
                   const availableLanguages = getAvailableLanguages()
-                  const language = await vscode.window.showQuickPick(
-                    availableLanguages,
-                    {
-                      placeHolder: 'Select preferred language',
-                      title: 'Choose Language'
-                    }
-                  )
+                  const language = await vscode.window.showQuickPick(availableLanguages, {
+                    placeHolder: 'Select preferred language',
+                    title: 'Choose Language'
+                  })
 
                   if (language) {
                     const projectPath = path.join(folderUri[0].fsPath, projectName)
@@ -182,14 +191,26 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       const templates = getLanguageTemplates(language as Language)
 
                       if (templates.dockerfile) {
-                        await fs.promises.writeFile(path.join(projectPath, 'Dockerfile'), templates.dockerfile)
+                        await fs.promises.writeFile(
+                          path.join(projectPath, 'Dockerfile'),
+                          templates.dockerfile
+                        )
                       }
                       if (templates.dependencies && templates.dependenciesFileName) {
-                        await fs.promises.writeFile(path.join(projectPath, templates.dependenciesFileName), templates.dependencies)
+                        await fs.promises.writeFile(
+                          path.join(projectPath, templates.dependenciesFileName),
+                          templates.dependencies
+                        )
                       }
-                      await fs.promises.writeFile(path.join(projectPath, templates.algorithmFileName), templates.algorithm)
+                      await fs.promises.writeFile(
+                        path.join(projectPath, templates.algorithmFileName),
+                        templates.algorithm
+                      )
 
-                      await fs.promises.writeFile(path.join(projectPath, '.env'), envTemplate)
+                      await fs.promises.writeFile(
+                        path.join(projectPath, '.env'),
+                        envTemplate
+                      )
 
                       const resultsPath = path.join(projectPath, 'results')
                       await fs.promises.mkdir(resultsPath, { recursive: true })
@@ -200,7 +221,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       webviewView.webview.postMessage({
                         type: 'projectCreated',
                         projectPath: projectPath,
-                        algorithmPath: path.join(projectPath, templates.algorithmFileName),
+                        algorithmPath: path.join(
+                          projectPath,
+                          templates.algorithmFileName
+                        ),
                         resultsPath: resultsPath,
                         language: language
                       })
@@ -228,7 +252,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               )
               break
             case 'stopComputeJob':
-              await vscode.commands.executeCommand('ocean-protocol.stopComputeJob', data.authToken)
+              await vscode.commands.executeCommand(
+                'ocean-protocol.stopComputeJob',
+                data.authToken
+              )
               break
             case 'copyToClipboard':
               vscode.env.clipboard.writeText(data.text)
@@ -385,7 +412,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             margin: 5px 0;
           }
           .environment-section {
-            margin: 15px 0;
+            margin: 6px 0;
           }
           .environment-select {
             width: 100%;
@@ -396,7 +423,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             border: 1px solid var(--vscode-dropdown-border);
           }
           .environment-details {
-            margin-top: 10px;
+            margin-top: 6px;
             padding: 10px;
             background-color: var(--vscode-editor-background);
             border: 1px solid var(--vscode-input-border);
@@ -413,6 +440,23 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           .environment-details .label {
             font-weight: bold;
             color: var(--vscode-descriptionForeground);
+          }
+          .env-loading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--vscode-descriptionForeground);
+          }
+          .env-loading-spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--vscode-input-border);
+            border-top-color: var(--vscode-focusBorder);
+            border-radius: 50%;
+            animation: env-spin 0.8s linear infinite;
+          }
+          @keyframes env-spin {
+            to { transform: rotate(360deg); }
           }
           .error-message {
             color: var(--vscode-errorForeground);
@@ -445,23 +489,11 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               <div id="setup" class="section-content">
                   <div class="container">
 
-                      <label for="peerIdInput">Peer ID</label>
-                      <div style="display: flex; align-items: center; gap: 4px;">
-                        <input id="peerIdInput" placeholder="Enter peer ID" value="${this.randomPeerId}" style="flex: 1;" />
-                        <button id="validateNodeBtn" style="padding: 2px 8px; font-size: 0.75em; width: 50px; height: 30px; flex-shrink: 0; box-sizing: border-box;">Check</button>
-                      </div>
-
                       <div class="environment-section">
-                        <label for="environmentSelect">Compute Environment</label>
-                        <select id="environmentSelect" class="environment-select">
-                          <option value="">Loading environments...</option>
-                        </select>
+                        <button id="checkConnectionBtn">Check connection</button>
                         <div id="environmentDetails" class="environment-details"></div>
                       </div>
 
-                      <label for="authTokenInput">Auth Token</label>
-                      <input id="authTokenInput" type="password" placeholder="Enter your auth token" />
-                      
                       <div style="margin: 5px 0; font-size: 0.85em; color: var(--vscode-descriptionForeground); font-style: italic;">
                         *Dockerfile in project root takes priority
                       </div>
@@ -477,6 +509,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
           <script>
               const vscode = acquireVsCodeApi();
+              const defaultPeerId = "${this.randomPeerId}";
               let selectedProjectPath = '';
               let selectedAlgorithmPath = '';
               let selectedResultsFolderPath = '';
@@ -484,11 +517,18 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let configResources = null;
               let jobDuration = null;
               let isFreeCompute = true; // Default to free compute
+              let storedAuthToken = null;
+              let storedEnvironmentId = null;
+              let storedPeerId = null;
+
+              function getPeerId() { return storedPeerId || defaultPeerId; }
+              function truncatePeerId(peerId) {
+                  if (!peerId) return 'N/A';
+                  return peerId.length > 13 ? peerId.substring(0, 6) + '...' + peerId.substring(peerId.length - 4) : peerId;
+              }
 
 
               const environmentDetails = document.getElementById('environmentDetails');
-              const peerIdInput = document.getElementById('peerIdInput');
-              const select = document.getElementById('environmentSelect');
 
               function toggleSection(sectionId) {
                   const header = document.getElementById(sectionId + 'Header');
@@ -518,11 +558,14 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   });
               }
 
+              if (document.getElementById('checkConnectionBtn')) {
+                  document.getElementById('checkConnectionBtn').addEventListener('click', () => loadEnvironments());
+              }
+
               if (document.getElementById('datasetInput')) {
                 document.getElementById('datasetInput').addEventListener('input', (e) => {
                   const input = e.target.value.trim();
                   const validationIcon = document.getElementById('datasetValidationIcon');
-                  const peerId = document.getElementById('peerIdInput').value;
                   
                   if (!input) {
                     validationIcon.textContent = '';
@@ -533,7 +576,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   console.log('Dataset input changed:', input);
                   vscode.postMessage({
                     type: 'validateDatasetFromInput',
-                    peerId: peerId,
+                    peerId: getPeerId(),
                     input: input
                   });
                 });
@@ -560,11 +603,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
               if (document.getElementById('startComputeBtn')) {
                   document.getElementById('startComputeBtn').addEventListener('click', () => {
-                      const authToken = document.getElementById('authTokenInput').value;
-                      const peerId = document.getElementById('peerIdInput').value || "${this.randomPeerId}";
                       const dockerImage = document.getElementById('dockerImageInput').value;
                       const dockerTag = document.getElementById('dockerTagInput').value;
                       const errorMessage = document.getElementById('errorMessage');
+                      const environmentId = storedEnvironmentId || (availableEnvironments.length > 0 ? availableEnvironments[0].id : undefined);
                       
                       if (!selectedProjectPath) {
                           errorMessage.textContent = 'Please create or select a project folder';
@@ -587,14 +629,14 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       // Start compute job directly
                       vscode.postMessage({ 
                           type: 'startComputeJob',
-                          authToken: authToken,
+                          authToken: storedAuthToken,
                           algorithmPath: algorithmPath,
                           resultsFolderPath: resultsFolderPath,
-                          peerId: peerId,
+                          peerId: getPeerId(),
                           datasetPath: document.getElementById('datasetInput').value || undefined,
                           dockerImage: dockerImage || undefined,
                           dockerTag: dockerTag || undefined,
-                          environmentId: document.getElementById('environmentSelect').value || undefined
+                          environmentId: environmentId
                       });
                   });
               }
@@ -604,54 +646,41 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       vscode.postMessage({ 
                           type: 'openBrowser',
                           url: 'https://vscode-extension-config-test-page.vercel.app/',
-                          peerId: peerIdInput.value || "${this.randomPeerId}"
+                          peerId: getPeerId()
                       });
                   });
               }
 
               if (document.getElementById('stopComputeBtn')) {
                   document.getElementById('stopComputeBtn').addEventListener('click', () => {
-                      const authToken = document.getElementById('authTokenInput').value;
-                      vscode.postMessage({ type: 'stopComputeJob', authToken: authToken });
+                      vscode.postMessage({ type: 'stopComputeJob', authToken: storedAuthToken });
                   });
               }
 
-              async function loadEnvironments() {
-                const peerId = peerIdInput.value;
-                if (!peerId) {
-                  disableStartButton();
-                  return;
-                }
+              function showEnvironmentsLoading() {
+                const detailsDiv = document.getElementById('environmentDetails');
+                if (!detailsDiv) return;
+                detailsDiv.innerHTML = 
+                  '<div class="env-loading">' +
+                  '<div class="env-loading-spinner"></div>' +
+                  '<span>Checking connection...</span>' +
+                  '</div>';
+                detailsDiv.style.display = 'block';
+              }
 
-                select.innerHTML = '<option value="">Loading environments...</option>';
-                select.disabled = true;
-                environmentDetails.style.display = 'none';
-
+              function loadEnvironments() {
+                showEnvironmentsLoading();
                 try {
                   vscode.postMessage({
                     type: 'getEnvironments',
-                    peerId: peerId
+                    peerId: getPeerId()
                   });
                 } catch (error) {
                   console.error('Error loading environments:', error);
-                  select.innerHTML = '<option value="">Error loading environments</option>';
-                  select.disabled = true;
-                  environmentDetails.style.display = 'none';
+                  document.getElementById('environmentDetails').innerHTML = 
+                    '<p style="color: var(--vscode-errorForeground);">Failed to check connection</p>';
                   disableStartButton();
                 }
-              }
-
-              if (document.getElementById('validateNodeBtn')) {
-                  document.getElementById('validateNodeBtn').addEventListener('click', () => {
-                      loadEnvironments();
-                  });
-              }
-              
-              // Listen for peer ID input changes
-              if (document.getElementById('peerIdInput')) {
-                  document.getElementById('peerIdInput').addEventListener('input', () => {
-                      checkStartButtonState();
-                  });
               }
               
               // Disable start button initially until node is validated and project is selected
@@ -663,14 +692,95 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               function checkStartButtonState() {
                   const hasProject = selectedProjectPath && selectedProjectPath.trim() !== '';
                   const hasEnvironments = availableEnvironments && availableEnvironments.length > 0;
-                  const peerId = document.getElementById('peerIdInput').value;
                   
-                  if (hasProject && hasEnvironments && peerId) {
+                  if (hasProject && hasEnvironments) {
                       document.getElementById('startComputeBtn').disabled = false;
                       document.getElementById('startComputeBtn').style.opacity = '1';
                   } else {
                       document.getElementById('startComputeBtn').disabled = true;
                       document.getElementById('startComputeBtn').style.opacity = '0.8';
+                  }
+              }
+
+              function showEnvDetails(envId) {
+                  const detailsDiv = document.getElementById('environmentDetails');
+                  const selectedEnv = availableEnvironments.find(e => e.id === envId);
+                  if (!selectedEnv || !detailsDiv) {
+                      if (detailsDiv) detailsDiv.style.display = 'none';
+                      return;
+                  }
+                  function formatResourceValue(amount, resourceId) {
+                      if (resourceId === 'ram' || resourceId === 'disk') return Math.round(amount) + ' GB';
+                      return amount;
+                  }
+                  function getAvailableValue(resourceId, isFreeCompute) {
+                      if (isFreeCompute === false) {
+                          const paidResource = selectedEnv.resources.find(pr => pr.id === resourceId);
+                          return paidResource ? formatResourceValue(paidResource.max, resourceId) : 'N/A';
+                      }
+                      const envResource = selectedEnv.free?.resources.find(fr => fr.id === resourceId);
+                      return envResource ? formatResourceValue(envResource.max - envResource.inUse, resourceId) : 'N/A';
+                  }
+                  const truncatedId = selectedEnv.id.length > 13 
+                      ? selectedEnv.id.substring(0, 6) + '...' + selectedEnv.id.substring(selectedEnv.id.length - 4)
+                      : selectedEnv.id;
+                  const paidResourceDetails = selectedEnv.resources.map(r => {
+                      const minValue = formatResourceValue(r.min, r.id);
+                      const maxValue = formatResourceValue(r.max, r.id);
+                      return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Min/Max):</span> ' + minValue + ' / ' + maxValue + '</p>';
+                  }).join('');
+                  const freeResourceDetails = (selectedEnv.free?.resources || []).map(r => {
+                      const maxValue = formatResourceValue(r.max, r.id);
+                      const availableValue = formatResourceValue(r.max - r.inUse, r.id);
+                      return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + maxValue + ' / ' + availableValue + '</p>';
+                  }).join('');
+                  let resourceDetails = '';
+                  let resourcesLabel = 'Resources:';
+                  if (configResources && configResources.length > 0) {
+                      resourcesLabel = 'Resources (SELECTED / AVAILABLE):';
+                      resourceDetails = configResources.map(r => {
+                          const selectedValue = formatResourceValue(r.amount, r.id);
+                          const availableValue = getAvailableValue(r.id, isFreeCompute);
+                          return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + selectedValue + ' / ' + availableValue + '</p>';
+                      }).join('');
+                      resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (jobDuration || 'N/A') + ' seconds</p>';
+                  } else {
+                      if (isFreeCompute === false) {
+                          resourcesLabel = 'Resources (MIN / MAX):';
+                          resourceDetails = paidResourceDetails;
+                          resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (jobDuration || 'N/A') + ' seconds</p>';
+                      } else {
+                          resourcesLabel = 'Resources (MAX / AVAILABLE):';
+                          resourceDetails = freeResourceDetails;
+                          resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (selectedEnv.free?.maxJobDuration || 'N/A') + ' seconds</p>';
+                      }
+                  }
+                  const peerIdDisplay = truncatePeerId(getPeerId());
+                  detailsDiv.innerHTML = 
+                      '<p style="margin: 4px 0;"><span class="label">Peer ID:</span> ' + peerIdDisplay + '</p>' +
+                      '<p><span class="label">Environment ID:</span> ' + truncatedId + '</p>' +
+                      '<p><span class="label">OS:</span> ' + selectedEnv.platform.os + '</p>' +
+                      '<p><span class="label">Architecture:</span> ' + selectedEnv.platform.architecture + '</p>' +
+                      '<div style="margin: 4px 0;">' +
+                      '<div class="label" style="margin-bottom: 2px;">Consumer Address:</div>' +
+                      '<div style="display: flex; align-items: center; gap: 8px; background: var(--vscode-input-background); padding: 4px; border-radius: 4px;">' +
+                      '<span style="font-family: monospace; flex-grow: 1; overflow-x: auto; white-space: nowrap;">' + 
+                      (selectedEnv.consumerAddress.length > 24 
+                          ? selectedEnv.consumerAddress.substring(0, 12) + '...' + selectedEnv.consumerAddress.substring(selectedEnv.consumerAddress.length - 8)
+                          : selectedEnv.consumerAddress) + 
+                      '</span>' +
+                      '<button id="copyAddressBtn" style="padding: 2px 8px; margin: 0; width: auto; min-width: 60px; font-size: 0.9em;">Copy</button>' +
+                      '</div></div>' +
+                      '<p><span class="label">' + resourcesLabel + '</span></p>' +
+                      '<div style="margin-left: 8px;">' + resourceDetails + '</div>';
+                  detailsDiv.style.display = 'block';
+                  const copyBtn = document.getElementById('copyAddressBtn');
+                  if (copyBtn) {
+                      copyBtn.addEventListener('click', () => {
+                          vscode.postMessage({ type: 'copyToClipboard', text: selectedEnv.consumerAddress });
+                          copyBtn.textContent = 'Copied!';
+                          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+                      });
                   }
               }
 
@@ -680,36 +790,25 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   
                   switch (message.type) {
                       case 'configUpdate':
-                          if (message.config.peerId) {
-                              const peerIdInput = document.getElementById('peerIdInput');
-                              if (peerIdInput) {
-                                  peerIdInput.value = message.config.peerId;
-                                  loadEnvironments();
-                              }
-                          }
                           if (message.config.authToken) {
-                              const authTokenInput = document.getElementById('authTokenInput');
-                              if (authTokenInput) {
-                                  authTokenInput.value = message.config.authToken;
-                              }
+                              storedAuthToken = message.config.authToken;
+                          }
+                          if (message.config.peerId !== undefined) {
+                              storedPeerId = message.config.peerId;
+                              loadEnvironments();
                           }
                           if (message.config.environmentId) {
-                            const environmentSelect = document.getElementById('environmentSelect');
-                            if (environmentSelect) {
-                              environmentSelect.value = message.config.environmentId;
-                              // Refresh environment details if an environment is selected
+                              storedEnvironmentId = message.config.environmentId;
                               if (message.config.environmentId && availableEnvironments.length > 0) {
                                 showEnvDetails(message.config.environmentId);
                               }
-                            }
                           }
                           if (message.config.resources) {
                             configResources = message.config.resources;
                             jobDuration = message.config.jobDuration;
-                            // Refresh environment details if an environment is selected
-                            const environmentSelect = document.getElementById('environmentSelect');
-                            if (environmentSelect && environmentSelect.value) {
-                              showEnvDetails(environmentSelect.value);
+                            const envId = storedEnvironmentId || (availableEnvironments.length > 0 ? availableEnvironments[0].id : null);
+                            if (envId) {
+                              showEnvDetails(envId);
                             }
                           }
                           if (message.config.isFreeCompute !== undefined) {
@@ -757,167 +856,29 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                         break;
                       case 'environmentsLoaded':
                           console.log('Environments loaded:', message.environments);
-                          availableEnvironments = message.environments;
-                          const select = document.getElementById('environmentSelect');
+                          availableEnvironments = message.environments || [];
+                          const detailsEl = document.getElementById('environmentDetails');
                           
                           if (message.error) {
-                            select.innerHTML = '<option value="">' + message.error + '</option>';
-                            select.disabled = true;
-                            document.getElementById('environmentDetails').style.display = 'none';
+                            detailsEl.innerHTML = '<p style="color: var(--vscode-errorForeground);">Connection failed</p>';
+                            detailsEl.style.display = 'block';
                             disableStartButton();
                             return;
                           }
                           
                           if (!message.environments || message.environments.length === 0) {
-                            select.innerHTML = '<option value="">No environments available</option>';
-                            select.disabled = true;
-                            document.getElementById('environmentDetails').style.display = 'none';
+                            detailsEl.innerHTML = '<p style="color: var(--vscode-descriptionForeground);">No environments available</p>';
+                            detailsEl.style.display = 'block';
                             disableStartButton();
                             return;
                           }
 
-                          select.innerHTML = '';
-                          message.environments.forEach(env => {
-                              const option = document.createElement('option');
-                              option.value = env.id;
-                              const truncatedId = env.id.length > 13 
-                                  ? env.id.substring(0, 6) + '...' + env.id.substring(env.id.length - 4)
-                                  : env.id;
-                              option.textContent = env.platform.os + ' (' + truncatedId + ')';
-                              select.appendChild(option);
-                          });
-                          select.disabled = false;
-                          document.getElementById('environmentDetails').style.display = 'none';
-                          
                           checkStartButtonState();
 
-                          function showEnvDetails(envId) {
-                              const detailsDiv = document.getElementById('environmentDetails');
-                              const selectedEnv = availableEnvironments.find(e => e.id === envId);
-                              if (!selectedEnv) {
-                                  detailsDiv.style.display = 'none';
-                                  return;
-                              }
-
-                              // Format environment ID to show first and last few characters
-                              const truncatedId = selectedEnv.id.length > 13 
-                                  ? selectedEnv.id.substring(0, 6) + '...' + selectedEnv.id.substring(selectedEnv.id.length - 4)
-                                  : selectedEnv.id;
-
-                              // Helper function to format resource values
-                              function formatResourceValue(amount, resourceId) {
-                                  if (resourceId === 'ram' || resourceId === 'disk') {
-                                      return Math.round(amount) + ' GB';
-                                  }
-                                  return amount;
-                              }
-
-                              // Helper function to get available value for a resource
-                              function getAvailableValue(resourceId, isFreeCompute) {
-                                  if (isFreeCompute === false) {
-                                      // For paid compute, use paid resources (max value)
-                                      const paidResource = selectedEnv.resources.find(pr => pr.id === resourceId);
-                                      if (paidResource) {
-                                          return formatResourceValue(paidResource.max, resourceId);
-                                      }
-                                  } else {
-                                      // For free compute, use free resources (available amount)
-                                      const envResource = selectedEnv.free?.resources.find(fr => fr.id === resourceId);
-                                      if (envResource) {
-                                          return formatResourceValue(envResource.max - envResource.inUse, resourceId);
-                                      }
-                                  }
-                                  return 'N/A';
-                              }
-
-                              // Process resources to show min/max values for paid resources
-                              const paidResourceDetails = selectedEnv.resources.map(r => {
-                                  const minValue = formatResourceValue(r.min, r.id);
-                                  const maxValue = formatResourceValue(r.max, r.id);
-                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Min/Max):</span> ' + minValue + ' / ' + maxValue + '</p>';
-                              }).join('');
-
-                              // Process resources for free tier
-                              const freeResourceDetails = selectedEnv.free.resources.map(r => {
-                                  const maxValue = formatResourceValue(r.max, r.id);
-                                  const availableValue = formatResourceValue(r.max - r.inUse, r.id);
-                                  return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + maxValue + ' / ' + availableValue + '</p>';
-                              }).join('');
-
-                              // Combine resource details based on compute type
-                              let resourceDetails = '';
-                              let resourcesLabel = 'Resources:';
-                              
-                              if (configResources && configResources.length > 0) {
-                                  // Show selected resources in "selected / available" format
-                                  resourcesLabel = 'Resources (SELECTED / AVAILABLE):';
-                                  resourceDetails = configResources.map(r => {
-                                      const selectedValue = formatResourceValue(r.amount, r.id);
-                                      const availableValue = getAvailableValue(r.id, isFreeCompute);
-                                      
-                                      return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + selectedValue + ' / ' + availableValue + '</p>';
-                                  }).join('');
-                                  resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (jobDuration || 'N/A') + ' seconds</p>';
-                              } else {
-                                  // Show resources based on compute type when no specific resources are selected
-                                  if (isFreeCompute === false) {
-                                      // For paid compute, show paid resources (min/max)
-                                      resourcesLabel = 'Resources (MIN / MAX):';
-                                      resourceDetails = paidResourceDetails;
-                                      resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (jobDuration || 'N/A') + ' seconds</p>';
-                                  } else {
-                                      // For free compute, show free resources (max/available)
-                                      resourcesLabel = 'Resources (MAX / AVAILABLE):';
-                                      resourceDetails = freeResourceDetails;
-                                      resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (selectedEnv.free?.maxJobDuration || 'N/A') + ' seconds</p>';
-                                  }
-                              }
-
-                              detailsDiv.innerHTML = 
-                                  '<p><span class="label">Environment ID:</span> ' + truncatedId + '</p>' +
-                                  '<p><span class="label">OS:</span> ' + selectedEnv.platform.os + '</p>' +
-                                  '<p><span class="label">Architecture:</span> ' + selectedEnv.platform.architecture + '</p>' +
-                                  '<div style="margin: 4px 0;">' +
-                                  '<div class="label" style="margin-bottom: 2px;">Consumer Address:</div>' +
-                                  '<div style="display: flex; align-items: center; gap: 8px; background: var(--vscode-input-background); padding: 4px; border-radius: 4px;">' +
-                                  '<span style="font-family: monospace; flex-grow: 1; overflow-x: auto; white-space: nowrap;">' + 
-                                  (selectedEnv.consumerAddress.length > 24 
-                                      ? selectedEnv.consumerAddress.substring(0, 12) + '...' + selectedEnv.consumerAddress.substring(selectedEnv.consumerAddress.length - 8)
-                                      : selectedEnv.consumerAddress) + 
-                                  '</span>' +
-                                  '<button id="copyAddressBtn" ' +
-                                  'style="padding: 2px 8px; margin: 0; width: auto; min-width: 60px; font-size: 0.9em;">Copy</button>' +
-                                  '</div>' +
-                                  '</div>' +
-                                  '<p><span class="label">' + resourcesLabel + '</span></p>' +
-                                  '<div style="margin-left: 8px;">' + 
-                                  resourceDetails +
-                                  '</div>';
-                              detailsDiv.style.display = 'block';
-
-                              const copyBtn = document.getElementById('copyAddressBtn');
-                              if (copyBtn) {
-                                  copyBtn.addEventListener('click', () => {
-                                      vscode.postMessage({
-                                          type: 'copyToClipboard',
-                                          text: selectedEnv.consumerAddress
-                                      });
-                                      copyBtn.textContent = 'Copied!';
-                                      setTimeout(() => {
-                                          copyBtn.textContent = 'Copy';
-                                      }, 1500);
-                                  });
-                              }
+                          const envId = storedEnvironmentId || (availableEnvironments.length > 0 ? availableEnvironments[0].id : null);
+                          if (envId) {
+                              showEnvDetails(envId);
                           }
-
-                          if (select.options.length > 0) {
-                              select.selectedIndex = 0;
-                              showEnvDetails(select.value);
-                          }
-
-                          select.addEventListener('change', function() {
-                              showEnvDetails(this.value);
-                          });
                           break;
 
                       case 'jobLoading':
