@@ -5,7 +5,7 @@ import { yamux } from '@chainsafe/libp2p-yamux'
 import { tcp } from '@libp2p/tcp'
 import { webSockets } from '@libp2p/websockets'
 import { bootstrap } from '@libp2p/bootstrap'
-import { multiaddr } from '@multiformats/multiaddr'
+import { isMultiaddr, Multiaddr, multiaddr } from '@multiformats/multiaddr'
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
 import { ping } from '@libp2p/ping'
@@ -23,9 +23,10 @@ const MAX_RETRIES = 5
 const RETRY_DELAY_MS = 1000
 
 let libp2pNode: Libp2p | null = null
+let lastMultiaddresses: Multiaddr[] | null = null
 
-async function getOrCreateLibp2pNode(): Promise<Libp2p> {
-  if (libp2pNode) {
+async function getOrCreateLibp2pNode(multiaddresses: Multiaddr[]): Promise<Libp2p> {
+  if (libp2pNode && lastMultiaddresses === multiaddresses) {
     return libp2pNode
   }
 
@@ -46,7 +47,7 @@ async function getOrCreateLibp2pNode(): Promise<Libp2p> {
     },
     peerDiscovery: [
       bootstrap({
-        list: [DEFAULT_MULTIADDR],
+        list: multiaddresses.map((addr) => addr.toString()),
         timeout: 10000
       })
     ],
@@ -54,6 +55,7 @@ async function getOrCreateLibp2pNode(): Promise<Libp2p> {
       maxConnections: 100
     }
   })
+  lastMultiaddresses = multiaddresses
   await libp2pNode.start()
 
   return libp2pNode
@@ -76,6 +78,7 @@ async function* remainingChunks(
 export async function P2PCommand(
   command: PROTOCOL_COMMANDS,
   peerId: string,
+  multiaddrs: string[] | undefined,
   body: any,
   signerOrAuthToken?: Signer | string | null,
   retrialNumber: number = 0
@@ -88,11 +91,18 @@ export async function P2PCommand(
       ...body
     }
 
-    const node = await getOrCreateLibp2pNode()
-    const connection = await node.dial(multiaddr(DEFAULT_MULTIADDR))
+    // If no multiaddresses are configured, use the default multiaddress
+    const multiaddressesArray = multiaddrs?.length ? multiaddrs : [DEFAULT_MULTIADDR]
+    const multiaddresses = multiaddressesArray
+      .filter((address) => isMultiaddr(multiaddr(address)))
+      .map((address) => multiaddr(address))
+    const multiaddressesToDial =
+      multiaddresses.length > 0 ? multiaddresses : [multiaddr(DEFAULT_MULTIADDR)]
+
+    const node = await getOrCreateLibp2pNode(multiaddresses)
+    const connection = await node.dial(multiaddressesToDial)
 
     const stream = await connection.newStream([OCEAN_P2P_PROTOCOL])
-
     stream.send(uint8ArrayFromString(JSON.stringify(payload)))
     stream.close()
 
@@ -143,7 +153,14 @@ export async function P2PCommand(
     const errText = (typeof response === 'string' ? response : res?.error) ?? ''
     if (errText.includes('Cannot connect to peer') && retrialNumber < MAX_RETRIES) {
       await new Promise((r) => setTimeout(r, RETRY_DELAY_MS))
-      return P2PCommand(command, peerId, body, signerOrAuthToken, retrialNumber + 1)
+      return P2PCommand(
+        command,
+        peerId,
+        multiaddrs,
+        body,
+        signerOrAuthToken,
+        retrialNumber + 1
+      )
     }
 
     return response

@@ -106,6 +106,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               const isValid = await vscode.commands.executeCommand(
                 'ocean-protocol.validateDataset',
                 data.peerId,
+                data.multiaddrs,
                 data.input
               )
               webviewView.webview.postMessage({
