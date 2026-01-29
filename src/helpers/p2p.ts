@@ -2,8 +2,8 @@ import { Signer } from 'ethers'
 import { createLibp2p, type Libp2p } from 'libp2p'
 import { noise } from '@chainsafe/libp2p-noise'
 import { yamux } from '@chainsafe/libp2p-yamux'
+import { tcp } from '@libp2p/tcp'
 import { webSockets } from '@libp2p/websockets'
-import { tls } from '@libp2p/tls'
 import { bootstrap } from '@libp2p/bootstrap'
 import { multiaddr } from '@multiformats/multiaddr'
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
@@ -31,12 +31,11 @@ async function getOrCreateLibp2pNode(): Promise<Libp2p> {
 
   libp2pNode = await createLibp2p({
     addresses: { listen: [] },
-    transports: [webSockets()],
-    connectionEncrypters: [noise(), tls()],
+    transports: [webSockets(), tcp()],
+    connectionEncrypters: [noise()],
     streamMuxers: [
       yamux({
         enableKeepAlive: true,
-        keepAliveInterval: 5 * 1000,
         streamOptions: {
           maxStreamWindowSize: 5 * 1024 * 1024
         }
