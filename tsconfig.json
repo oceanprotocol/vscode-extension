@@ -3,6 +3,7 @@
     "resolveJsonModule": true,
     "moduleResolution": "bundler",
     "esModuleInterop": true,
+    "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "lib": ["ESNext", "dom"],
     "declaration": true,

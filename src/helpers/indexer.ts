@@ -1,9 +1,14 @@
-import { PROTOCOL_COMMANDS } from "../enum"
-import { directNodeCommand } from "./direct-command"
+import { PROTOCOL_COMMANDS } from '../enum'
+import { P2PCommand } from './p2p'
 
-export const fetchDdoByDid = async (peerId: string, did: string) => {
+export const fetchDdoByDid = async (
+  multiaddrs: string[] | undefined,
+  did: string
+) => {
   try {
-    const response = await directNodeCommand(PROTOCOL_COMMANDS.FIND_DDO, peerId, { did })
+    const response = await P2PCommand(PROTOCOL_COMMANDS.FIND_DDO, multiaddrs, {
+      did
+    })
     const data = await response.json()
     return data
   } catch (error) {
