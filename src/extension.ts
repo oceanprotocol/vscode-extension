@@ -21,18 +21,14 @@ import { validateDatasetFromInput } from './helpers/validation'
 import { SelectedConfig } from './types'
 import { ethers, Signer } from 'ethers'
 import { checkAndReadFile, listDirectoryContents } from './helpers/path'
-import { DEFAULT_MULTIADDR, DEFAULT_PEER_ID } from './helpers/p2p'
+import { DEFAULT_MULTIADDR } from './helpers/p2p'
 
 globalThis.fetch = fetch
 
 const outputChannel = vscode.window.createOutputChannel('Ocean Protocol extension')
 let config: SelectedConfig = new SelectedConfig({
   isFreeCompute: true,
-  multiaddresses: [DEFAULT_MULTIADDR],
-  // multiaddresses: [
-  //   '/ip4/157.66.255.31/tcp/9001/tls/sni/157-66-255-31.kzwfwjn5ji4puoq3jxr1b2i9dlm9xi1d75mp458ydpslbekjybcc9p46x7n37gr.libp2p.direct/ws/p2p/16Uiu2HAm94yL3Sjem2piKmGkiHCdJyTn3F3aWueZTXKT38ekjuzr'
-  // ],
-  peerId: DEFAULT_PEER_ID
+  multiaddresses: [DEFAULT_MULTIADDR]
 })
 let provider: OceanProtocolViewProvider
 
@@ -40,7 +36,6 @@ vscode.window.registerUriHandler({
   handleUri(uri: vscode.Uri) {
     const urlParams = new URLSearchParams(uri.query)
     const authToken = urlParams.get('authToken')
-    const peerId = urlParams.get('peerId')
     const multiaddresses = urlParams.get('multiaddresses')
     const isFreeCompute = urlParams.get('isFreeCompute')
     const environmentId = urlParams.get('environmentId')
@@ -59,7 +54,6 @@ vscode.window.registerUriHandler({
     config.updateFields({
       authToken,
       address,
-      peerId,
       multiaddresses: multiaddresses ? multiaddresses.split(',') : [DEFAULT_MULTIADDR],
       isFreeCompute: isFreeComputeBoolean,
       environmentId,
@@ -78,7 +72,6 @@ vscode.window.registerUriHandler({
 export async function activate(context: vscode.ExtensionContext) {
   let savedSigner: Signer | null = null
   let savedJobId: string | null = null
-  let savedPeerId: string | null = null
 
   outputChannel.show()
   outputChannel.appendLine('Ocean Protocol extension is now active!')
@@ -116,19 +109,16 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Add handler for environment loading
     context.subscriptions.push(
-      vscode.commands.registerCommand(
-        'ocean-protocol.getEnvironments',
-        async (peerId: string) => {
-          return await getComputeEnvironments(peerId, config.multiaddresses)
-        }
-      )
+      vscode.commands.registerCommand('ocean-protocol.getEnvironments', async () => {
+        return await getComputeEnvironments(config.multiaddresses)
+      })
     )
 
     context.subscriptions.push(
       vscode.commands.registerCommand(
         'ocean-protocol.validateDataset',
-        async (peerId: string, input: string) => {
-          return await validateDatasetFromInput(peerId, config.multiaddresses, input)
+        async (input: string) => {
+          return await validateDatasetFromInput(config.multiaddresses, input)
         }
       )
     )
@@ -143,7 +133,6 @@ export async function activate(context: vscode.ExtensionContext) {
           }
           try {
             await stopComputeJob(
-              savedPeerId,
               config.multiaddresses,
               savedJobId,
               authToken || savedSigner
@@ -164,7 +153,6 @@ export async function activate(context: vscode.ExtensionContext) {
         algorithmPath: string,
         resultsFolderPath: string,
         authToken: string | undefined,
-        peerId: string,
         dataset?: string,
         dockerImage?: string,
         dockerTag?: string,
@@ -174,17 +162,12 @@ export async function activate(context: vscode.ExtensionContext) {
         console.log('Dataset:', dataset)
         console.log('Algorithm path:', algorithmPath)
         console.log('Results folder path:', resultsFolderPath)
-        console.log('Peer ID:', peerId)
         console.log('Auth token:', authToken)
         console.log('Docker image:', dockerImage)
         console.log('Docker tag:', dockerTag)
         console.log('Environment ID:', environmentId)
         const missingParams = []
         !algorithmPath && missingParams.push('algorithm path')
-        !peerId && missingParams.push('peer ID')
-
-        // Save the peer ID for future use
-        savedPeerId = peerId
 
         if (missingParams.length > 0) {
           vscode.window.showErrorMessage(
@@ -203,7 +186,7 @@ export async function activate(context: vscode.ExtensionContext) {
               `Using generated wallet with address: ${signer.address}`
             )
             // Generate new token and register the address in the config
-            authToken = await generateAuthToken(peerId, config.multiaddresses, signer)
+            authToken = await generateAuthToken(config.multiaddresses, signer)
             config.updateFields({ address: signer.address })
           } catch (error) {
             console.log(error)
@@ -215,7 +198,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }
 
         // Update back the config with new values from the extension
-        config.updateFields({ authToken, peerId, environmentId })
+        config.updateFields({ authToken, environmentId })
         provider.sendMessage({ type: 'jobLoading' })
 
         const progressOptions = {

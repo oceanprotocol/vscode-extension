@@ -2,12 +2,11 @@ import { PROTOCOL_COMMANDS } from '../enum'
 import { P2PCommand } from './p2p'
 
 export const fetchDdoByDid = async (
-  peerId: string,
   multiaddrs: string[] | undefined,
   did: string
 ) => {
   try {
-    const response = await P2PCommand(PROTOCOL_COMMANDS.FIND_DDO, peerId, multiaddrs, {
+    const response = await P2PCommand(PROTOCOL_COMMANDS.FIND_DDO, multiaddrs, {
       did
     })
     const data = await response.json()

@@ -3,7 +3,6 @@ import { ComputeResourceRequest } from '@oceanprotocol/lib'
 export class SelectedConfig {
   authToken?: string
   address?: string
-  peerId?: string
   multiaddresses?: string[]
   isFreeCompute?: boolean
   environmentId?: string

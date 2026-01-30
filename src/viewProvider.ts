@@ -10,11 +10,11 @@ import {
   envTemplate,
   projectFileNames
 } from './helpers/project-data'
-import { DEFAULT_PEER_ID } from './helpers/p2p'
+import { DEFAULT_MULTIADDR } from './helpers/p2p'
 
 export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'oceanProtocolExplorer'
-  private defaultPeerId = DEFAULT_PEER_ID
+  private defaultMultiaddr = DEFAULT_MULTIADDR
   private config: SelectedConfig
 
   private _view?: vscode.WebviewView
@@ -105,8 +105,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             case 'validateDatasetFromInput':
               const isValid = await vscode.commands.executeCommand(
                 'ocean-protocol.validateDataset',
-                data.peerId,
-                data.multiaddrs,
                 data.input
               )
               webviewView.webview.postMessage({
@@ -117,8 +115,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             case 'getEnvironments':
               try {
                 const environments = await vscode.commands.executeCommand(
-                  'ocean-protocol.getEnvironments',
-                  data.peerId
+                  'ocean-protocol.getEnvironments'
                 )
                 webviewView.webview.postMessage({
                   type: 'environmentsLoaded',
@@ -243,7 +240,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 data.algorithmPath,
                 data.resultsFolderPath,
                 data.authToken,
-                data.peerId,
                 data.datasetPath,
                 data.dockerImage,
                 data.dockerTag,
@@ -261,9 +257,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               break
             case 'openBrowser':
               const appName = vscode.env?.appName || 'vscode'
+              const multiaddrsParam = (this.config?.multiaddresses ?? [this.defaultMultiaddr]).join(',')
               vscode.env.openExternal(
                 vscode.Uri.parse(
-                  `${data.url}?ide=${appName?.toLowerCase()}&isFreeCompute=${this.config?.isFreeCompute || true}&peerId=${data.peerId}`
+                  `${data.url}?ide=${appName?.toLowerCase()}&isFreeCompute=${this.config?.isFreeCompute || true}&multiaddresses=${encodeURIComponent(multiaddrsParam)}`
                 )
               )
               break
@@ -508,7 +505,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
           <script>
               const vscode = acquireVsCodeApi();
-              const defaultPeerId = "${this.defaultPeerId}";
+              const defaultMultiaddr = "${this.defaultMultiaddr.replace(/"/g, '\\"')}";
               let selectedProjectPath = '';
               let selectedAlgorithmPath = '';
               let selectedResultsFolderPath = '';
@@ -518,12 +515,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let isFreeCompute = true; // Default to free compute
               let storedAuthToken = null;
               let storedEnvironmentId = null;
-              let storedPeerId = null;
+              let storedMultiaddrs = null;
 
-              function getPeerId() { return storedPeerId || defaultPeerId; }
-              function truncatePeerId(peerId) {
-                  if (!peerId) return 'N/A';
-                  return peerId.length > 13 ? peerId.substring(0, 6) + '...' + peerId.substring(peerId.length - 4) : peerId;
+              function getMultiaddrs() { return storedMultiaddrs || [defaultMultiaddr]; }
+              function truncateMultiaddr(addr) {
+                  if (!addr) return 'N/A';
+                  return addr.length > 40 ? addr.substring(0, 20) + '...' + addr.substring(addr.length - 12) : addr;
               }
 
 
@@ -575,7 +572,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   console.log('Dataset input changed:', input);
                   vscode.postMessage({
                     type: 'validateDatasetFromInput',
-                    peerId: getPeerId(),
                     input: input
                   });
                 });
@@ -631,7 +627,6 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           authToken: storedAuthToken,
                           algorithmPath: algorithmPath,
                           resultsFolderPath: resultsFolderPath,
-                          peerId: getPeerId(),
                           datasetPath: document.getElementById('datasetInput').value || undefined,
                           dockerImage: dockerImage || undefined,
                           dockerTag: dockerTag || undefined,
@@ -644,8 +639,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   document.getElementById('configureCompute').addEventListener('click', () => {
                       vscode.postMessage({ 
                           type: 'openBrowser',
-                          url: 'https://vscode-extension-config-test-page.vercel.app/',
-                          peerId: getPeerId()
+                          url: 'https://vscode-extension-config-test-page.vercel.app/'
                       });
                   });
               }
@@ -671,8 +665,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 showEnvironmentsLoading();
                 try {
                   vscode.postMessage({
-                    type: 'getEnvironments',
-                    peerId: getPeerId()
+                    type: 'getEnvironments'
                   });
                 } catch (error) {
                   console.error('Error loading environments:', error);
@@ -754,9 +747,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (selectedEnv.free?.maxJobDuration || 'N/A') + ' seconds</p>';
                       }
                   }
-                  const peerIdDisplay = truncatePeerId(getPeerId());
+                  const multiaddrDisplay = truncateMultiaddr(getMultiaddrs()[0]);
                   detailsDiv.innerHTML = 
-                      '<p style="margin: 4px 0;"><span class="label">Peer ID:</span> ' + peerIdDisplay + '</p>' +
+                      '<p style="margin: 4px 0;"><span class="label">Multiaddress:</span> ' + multiaddrDisplay + '</p>' +
                       '<p><span class="label">Environment ID:</span> ' + truncatedId + '</p>' +
                       '<p><span class="label">OS:</span> ' + selectedEnv.platform.os + '</p>' +
                       '<p><span class="label">Architecture:</span> ' + selectedEnv.platform.architecture + '</p>' +
@@ -792,8 +785,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           if (message.config.authToken) {
                               storedAuthToken = message.config.authToken;
                           }
-                          if (message.config.peerId !== undefined) {
-                              storedPeerId = message.config.peerId;
+                          if (message.config.multiaddresses !== undefined) {
+                              storedMultiaddrs = message.config.multiaddresses;
                               loadEnvironments();
                           }
                           if (message.config.environmentId) {

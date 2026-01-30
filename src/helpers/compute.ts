@@ -81,7 +81,6 @@ const getContainerConfig = (
 }
 
 export const getComputeAsset = async (
-  peerId: string,
   multiaddresses: string[] | undefined,
   dataset?: string
 ) => {
@@ -92,7 +91,7 @@ export const getComputeAsset = async (
 
     const isDatasetDid = dataset?.startsWith('did:')
     if (isDatasetDid) {
-      const ddo = await fetchDdoByDid(peerId, multiaddresses, dataset)
+      const ddo = await fetchDdoByDid(multiaddresses, dataset)
       return [{ documentId: dataset, serviceId: ddo.services[0].id }]
     }
 
@@ -127,14 +126,13 @@ export const getComputeAsset = async (
 }
 
 export async function stopComputeJob(
-  peerId: string,
   multiaddresses: string[] | undefined,
   jobId: string,
   signerOrAuthToken: Signer | string | null
 ) {
   try {
     const consumerAddress = await getConsumerAddress(signerOrAuthToken)
-    const nonce = await P2PCommand(PROTOCOL_COMMANDS.NONCE, peerId, multiaddresses, {
+    const nonce = await P2PCommand(PROTOCOL_COMMANDS.NONCE, multiaddresses, {
       address: consumerAddress
     })
     const signature = await getSignature(
@@ -144,7 +142,6 @@ export async function stopComputeJob(
 
     const computeJob = await P2PCommand(
       PROTOCOL_COMMANDS.COMPUTE_STOP,
-      peerId,
       multiaddresses,
       { jobId, consumerAddress, nonce, signature },
       signerOrAuthToken
@@ -180,7 +177,6 @@ export async function computeStart(
       additionalDockerFiles
     )
     const datasets = (await getComputeAsset(
-      config.peerId,
       config.multiaddresses,
       dataset
     )) as ComputeAsset[]
@@ -202,7 +198,6 @@ export async function computeStart(
       const consumerAddress = await getConsumerAddress(config.authToken)
       const nonce = await P2PCommand(
         PROTOCOL_COMMANDS.NONCE,
-        config.peerId,
         config.multiaddresses,
         {
           address: consumerAddress
@@ -217,7 +212,6 @@ export async function computeStart(
       const signature = await getSignature(config.authToken, signatureMessage)
       const computeJob = await P2PCommand(
         PROTOCOL_COMMANDS.COMPUTE_START,
-        config.peerId,
         config.multiaddresses,
         {
           environment: config.environmentId,
@@ -246,7 +240,6 @@ export async function computeStart(
     const consumerAddress = await getConsumerAddress(config.authToken)
     const nonce = await P2PCommand(
       PROTOCOL_COMMANDS.NONCE,
-      config.peerId,
       config.multiaddresses,
       {
         address: consumerAddress
@@ -259,7 +252,6 @@ export async function computeStart(
     )
     const computeJob = await P2PCommand(
       PROTOCOL_COMMANDS.FREE_COMPUTE_START,
-      config.peerId,
       config.multiaddresses,
       {
         environment: config.environmentId,
@@ -301,7 +293,6 @@ export async function checkComputeStatus(
   try {
     const computeStatus = await P2PCommand(
       PROTOCOL_COMMANDS.COMPUTE_GET_STATUS,
-      config.peerId,
       config.multiaddresses,
       { jobId },
       config.authToken
@@ -321,7 +312,6 @@ export async function getComputeResult(
     const consumerAddress = await getConsumerAddress(config.authToken)
     const computeResult = await P2PCommand(
       PROTOCOL_COMMANDS.COMPUTE_GET_RESULT,
-      config.peerId,
       config.multiaddresses,
       { jobId, index, consumerAddress },
       config.authToken
@@ -390,7 +380,6 @@ export async function getComputeLogs(
     outputChannel.show(true)
     const logs = await P2PCommand(
       PROTOCOL_COMMANDS.COMPUTE_GET_STREAMABLE_LOGS,
-      config.peerId,
       config.multiaddresses,
       { jobId },
       config.authToken
@@ -472,12 +461,10 @@ export async function saveOutput(
 }
 
 export async function getComputeEnvironments(
-  peerId: string,
   multiaddresses: string[] | undefined
 ) {
   const environments = await P2PCommand(
     PROTOCOL_COMMANDS.COMPUTE_GET_ENVIRONMENTS,
-    peerId,
     multiaddresses,
     {}
   )
@@ -488,19 +475,17 @@ export async function getComputeEnvironments(
 }
 
 export async function generateAuthToken(
-  peerId: string,
   multiaddresses: string[] | undefined,
   signer: Signer
 ) {
   const consumerAddress = await signer.getAddress()
-  const nonce = await P2PCommand(PROTOCOL_COMMANDS.NONCE, peerId, multiaddresses, {
+  const nonce = await P2PCommand(PROTOCOL_COMMANDS.NONCE, multiaddresses, {
     address: consumerAddress
   })
   const incrementedNonce = (nonce + 1).toString()
   const signature = await getSignature(signer, consumerAddress + incrementedNonce)
   const response = await P2PCommand(
     PROTOCOL_COMMANDS.CREATE_AUTH_TOKEN,
-    peerId,
     multiaddresses,
     {
       address: consumerAddress,

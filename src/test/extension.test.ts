@@ -19,7 +19,8 @@ const P2PCommand = require('../helpers/p2p') as typeof import('../helpers/p2p')
 suite('Ocean Protocol Extension Test Suite', () => {
   const mockAuthToken =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZGRyZXNzIjoiMHgxMjM0NTY3ODkwYWJjZGVmIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
-  const mockPeerId = '16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJaBcmbNtpbT3QYxYOpB'
+  const mockMultiaddr =
+    '/ip4/198.145.104.8/tcp/9001/tls/sni/198-145-104-8.kzwfwjn5ji4puuok23h2yyzro0fe1rqv1bqzbmrjf7uqyj504rawjl4zs68mepr.libp2p.direct/ws/p2p/16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJfBcmbNppbT3QYtBpi'
 
   const mockEnvResponse: ComputeEnvironment[] = [
     {
@@ -95,7 +96,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     setupDirectCommandStub()
 
     const mockConfig: SelectedConfig = new SelectedConfig({
-      peerId: mockPeerId,
+      multiaddresses: [mockMultiaddr],
       environmentId: mockEnvResponse[0].id,
       isFreeCompute: true,
       authToken: mockAuthToken
@@ -113,7 +114,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     setupDirectCommandStub()
 
     const mockConfig: SelectedConfig = new SelectedConfig({
-      peerId: mockPeerId,
+      multiaddresses: [mockMultiaddr],
       environmentId: mockEnvResponse[0].id,
       isFreeCompute: true,
       authToken: mockAuthToken
@@ -125,7 +126,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     assert.ok(
       directCommandStub.calledWith(
         'freeStartCompute',
-        mockConfig.peerId,
+        mockConfig.multiaddresses,
         sinon.match({
           algorithm: sinon.match({
             meta: {
@@ -154,7 +155,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     })
 
     const mockConfig: SelectedConfig = new SelectedConfig({
-      peerId: mockPeerId,
+      multiaddresses: [mockMultiaddr],
       environmentId: mockEnvResponse[0].id,
       isFreeCompute: true,
       authToken: mockAuthToken
@@ -167,7 +168,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
   test('computeStart should handle missing compute environments', async () => {
     const mockAlgorithm = 'console.log("test")'
     const mockConfig: SelectedConfig = new SelectedConfig({
-      peerId: mockPeerId,
+      multiaddresses: [mockMultiaddr],
       isFreeCompute: true,
       authToken: mockAuthToken
     })
@@ -238,7 +239,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     })
 
     const mockConfig: SelectedConfig = new SelectedConfig({
-      peerId: mockPeerId,
+      multiaddresses: [mockMultiaddr],
       environmentId: mockEnvResponse[0].id,
       isFreeCompute: true,
       authToken: mockAuthToken

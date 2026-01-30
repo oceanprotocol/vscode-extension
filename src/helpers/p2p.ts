@@ -16,8 +16,6 @@ import { GatewayResponse } from '../types'
 export const DEFAULT_MULTIADDR =
   '/ip4/198.145.104.8/tcp/9001/tls/sni/198-145-104-8.kzwfwjn5ji4puuok23h2yyzro0fe1rqv1bqzbmrjf7uqyj504rawjl4zs68mepr.libp2p.direct/ws/p2p/16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJfBcmbNppbT3QYtBpi'
 
-export const DEFAULT_PEER_ID = '16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJfBcmbNppbT3QYtBpi'
-
 const OCEAN_P2P_PROTOCOL = '/ocean/nodes/1.0.0'
 const MAX_RETRIES = 5
 const RETRY_DELAY_MS = 1000
@@ -77,8 +75,7 @@ async function* remainingChunks(
 
 export async function P2PCommand(
   command: PROTOCOL_COMMANDS,
-  peerId: string,
-  multiaddrs: string[] | undefined,
+  multiaddresses: string[],
   body: any,
   signerOrAuthToken?: Signer | string | null,
   retrialNumber: number = 0
@@ -86,20 +83,14 @@ export async function P2PCommand(
   try {
     const payload = {
       command,
-      node: peerId,
       authorization: getAuthorization(signerOrAuthToken),
       ...body
     }
-
-    // If no multiaddresses are configured, use the default multiaddress
-    const multiaddressesArray = multiaddrs?.length ? multiaddrs : [DEFAULT_MULTIADDR]
-    const multiaddresses = multiaddressesArray
+    const multiaddressesToDial = multiaddresses
       .filter((address) => isMultiaddr(multiaddr(address)))
       .map((address) => multiaddr(address))
-    const multiaddressesToDial =
-      multiaddresses.length > 0 ? multiaddresses : [multiaddr(DEFAULT_MULTIADDR)]
 
-    const node = await getOrCreateLibp2pNode(multiaddresses)
+    const node = await getOrCreateLibp2pNode(multiaddressesToDial)
     const connection = await node.dial(multiaddressesToDial)
 
     const stream = await connection.newStream([OCEAN_P2P_PROTOCOL])
@@ -155,8 +146,7 @@ export async function P2PCommand(
       await new Promise((r) => setTimeout(r, RETRY_DELAY_MS))
       return P2PCommand(
         command,
-        peerId,
-        multiaddrs,
+        multiaddresses,
         body,
         signerOrAuthToken,
         retrialNumber + 1
