@@ -785,13 +785,16 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           if (message.config.authToken) {
                               storedAuthToken = message.config.authToken;
                           }
+                          let didReloadEnvironments = false;
                           if (message.config.multiaddresses !== undefined) {
                               storedMultiaddrs = message.config.multiaddresses;
+                              showEnvironmentsLoading();
                               loadEnvironments();
+                              didReloadEnvironments = true;
                           }
                           if (message.config.environmentId) {
                               storedEnvironmentId = message.config.environmentId;
-                              if (message.config.environmentId && availableEnvironments.length > 0) {
+                              if (!didReloadEnvironments && message.config.environmentId && availableEnvironments.length > 0) {
                                 showEnvDetails(message.config.environmentId);
                               }
                           }
@@ -799,7 +802,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                             configResources = message.config.resources;
                             jobDuration = message.config.jobDuration;
                             const envId = storedEnvironmentId || (availableEnvironments.length > 0 ? availableEnvironments[0].id : null);
-                            if (envId) {
+                            if (envId && !didReloadEnvironments) {
                               showEnvDetails(envId);
                             }
                           }
