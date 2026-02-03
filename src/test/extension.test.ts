@@ -44,10 +44,10 @@ suite('Ocean Protocol Extension Test Suite', () => {
   }
   let sandbox: sinon.SinonSandbox
   let outputChannel: vscode.OutputChannel
-  let directCommandStub: sinon.SinonStub
+  let p2pCommandStub: sinon.SinonStub
 
-  const setupDirectCommandStub = (customHandlers?: Record<string, any>) => {
-    directCommandStub = sandbox
+  const setupP2PCommandStub = (customHandlers?: Record<string, any>) => {
+    p2pCommandStub = sandbox
       .stub(P2PCommand, 'P2PCommand')
       .callsFake(async (command: string) => {
         if (customHandlers && customHandlers[command]) {
@@ -71,7 +71,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
             return {}
         }
       })
-    return directCommandStub
+    return p2pCommandStub
   }
 
   setup(() => {
@@ -93,7 +93,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
   test('computeStart should handle JavaScript algorithm correctly', async () => {
     const mockAlgorithm = 'console.log("test")'
 
-    setupDirectCommandStub()
+    setupP2PCommandStub()
 
     const mockConfig: SelectedConfig = new SelectedConfig({
       multiaddresses: [mockMultiaddr],
@@ -111,7 +111,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
   test('computeStart should handle Python algorithm correctly', async () => {
     const mockAlgorithm = 'print("test")'
 
-    setupDirectCommandStub()
+    setupP2PCommandStub()
 
     const mockConfig: SelectedConfig = new SelectedConfig({
       multiaddresses: [mockMultiaddr],
@@ -124,7 +124,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.ok(
-      directCommandStub.calledWith(
+      p2pCommandStub.calledWith(
         'freeStartCompute',
         mockConfig.multiaddresses,
         sinon.match({
@@ -146,7 +146,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
   test('checkComputeStatus should return correct status', async () => {
     const mockJobId = 'test-job-id'
 
-    setupDirectCommandStub({
+    setupP2PCommandStub({
       getComputeStatus: {
         ...mockComputeResponse,
         status: 1,
@@ -229,7 +229,7 @@ suite('Ocean Protocol Extension Test Suite', () => {
     const mockJobId = 'test-job-id'
     const mockResult = 'hello'
 
-    setupDirectCommandStub({
+    setupP2PCommandStub({
       getComputeResult: (() => {
         const buf = Buffer.from(mockResult)
         return (async function* () {

@@ -452,11 +452,12 @@ export async function saveOutput(
       return filePath
     }
   } catch (error: any) {
+    console.error('Error saving tar output:', error)
+    throw new Error(`Failed to save tar output: ${error.message}`)
+  } finally {
     if (fileHandle && !fileHandle.closed) {
       fileHandle.destroy()
     }
-    console.error('Error saving tar output:', error)
-    throw new Error(`Failed to save tar output: ${error.message}`)
   }
 }
 
