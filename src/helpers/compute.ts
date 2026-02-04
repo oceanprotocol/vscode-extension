@@ -5,15 +5,18 @@ import * as tar from 'tar'
 import {
   ComputeAlgorithm,
   ComputeAsset,
-  ComputeJob, FileObjectType
+  ComputeJob,
+  FileObjectType
 } from '@oceanprotocol/lib'
 import { fetchDdoByDid } from './indexer'
 import { SelectedConfig } from '../types'
 import { Signer } from 'ethers'
 import { ExtendedMetadataAlgorithm } from '@oceanprotocol/lib'
-import { directNodeCommand } from './direct-command'
+import { P2PCommand } from './p2p'
 import { getConsumerAddress, getSignature } from './auth'
 import { PROTOCOL_COMMANDS } from '../enum'
+import { once } from 'events'
+import { Stream } from '@libp2p/interface'
 
 const getContainerConfig = (
   fileExtension: string,
@@ -31,7 +34,7 @@ const getContainerConfig = (
       entrypoint: fileExtension === 'py' ? 'python $ALGO' : 'node $ALGO',
       dockerfile,
       additionalDockerFiles,
-      checksum: '',
+      checksum: ''
     }
   }
 
@@ -39,10 +42,15 @@ const getContainerConfig = (
     return {
       image: dockerImage,
       tag: dockerTag || 'latest',
-      entrypoint: fileExtension === 'py' ? 'python $ALGO' : fileExtension === 'js' ? 'node $ALGO' : '',
+      entrypoint:
+        fileExtension === 'py'
+          ? 'python $ALGO'
+          : fileExtension === 'js'
+            ? 'node $ALGO'
+            : '',
       dockerfile,
       additionalDockerFiles,
-      checksum: '',
+      checksum: ''
     }
   }
 
@@ -66,11 +74,16 @@ const getContainerConfig = (
         checksum: ''
       }
     default:
-      throw new Error('Cannot start job. Do you have a .py/.js file or a docker image in Setup section?')
+      throw new Error(
+        'Cannot start job. Do you have a .py/.js file or a docker image in Setup section?'
+      )
   }
 }
 
-export const getComputeAsset = async (peerId: string, dataset?: string) => {
+export const getComputeAsset = async (
+  multiaddresses: string[] | undefined,
+  dataset?: string
+) => {
   try {
     if (!dataset) {
       return []
@@ -78,7 +91,7 @@ export const getComputeAsset = async (peerId: string, dataset?: string) => {
 
     const isDatasetDid = dataset?.startsWith('did:')
     if (isDatasetDid) {
-      const ddo = await fetchDdoByDid(peerId, dataset)
+      const ddo = await fetchDdoByDid(multiaddresses, dataset)
       return [{ documentId: dataset, serviceId: ddo.services[0].id }]
     }
 
@@ -95,7 +108,9 @@ export const getComputeAsset = async (peerId: string, dataset?: string) => {
     const arweaveUrl = `https://arweave.net/${dataset}`
     const isDatasetUnknownArweave = await fetch(arweaveUrl)
     if (isDatasetUnknownArweave.status === 200) {
-      return [{ fileObject: { type: FileObjectType.URL, url: arweaveUrl, method: 'GET' } }]
+      return [
+        { fileObject: { type: FileObjectType.URL, url: arweaveUrl, method: 'GET' } }
+      ]
     }
 
     const ipfsUrl = `https://ipfs.io/ipfs/${dataset}`
@@ -110,13 +125,27 @@ export const getComputeAsset = async (peerId: string, dataset?: string) => {
   }
 }
 
-export async function stopComputeJob(peerId: string, jobId: string, signerOrAuthToken: Signer | string | null) {
+export async function stopComputeJob(
+  multiaddresses: string[] | undefined,
+  jobId: string,
+  signerOrAuthToken: Signer | string | null
+) {
   try {
     const consumerAddress = await getConsumerAddress(signerOrAuthToken)
-    const nonce = await directNodeCommand(PROTOCOL_COMMANDS.NONCE, peerId, { address: consumerAddress })
-    const signature = await getSignature(signerOrAuthToken, consumerAddress + (jobId || ''))
+    const nonce = await P2PCommand(PROTOCOL_COMMANDS.NONCE, multiaddresses, {
+      address: consumerAddress
+    })
+    const signature = await getSignature(
+      signerOrAuthToken,
+      consumerAddress + (jobId || '')
+    )
 
-    const computeJob = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_STOP, peerId, { jobId, consumerAddress, nonce, signature }, signerOrAuthToken)
+    const computeJob = await P2PCommand(
+      PROTOCOL_COMMANDS.COMPUTE_STOP,
+      multiaddresses,
+      { jobId, consumerAddress, nonce, signature },
+      signerOrAuthToken
+    )
     return computeJob
   } catch (e) {
     console.error('Stop compute job error: ', e)
@@ -140,8 +169,17 @@ export async function computeStart(
   }
 ): Promise<ComputeJob> {
   try {
-    const container = getContainerConfig(fileExtension, dockerImage, dockerTag, dockerfile, additionalDockerFiles)
-    const datasets = (await getComputeAsset(config.peerId, dataset)) as ComputeAsset[]
+    const container = getContainerConfig(
+      fileExtension,
+      dockerImage,
+      dockerTag,
+      dockerfile,
+      additionalDockerFiles
+    )
+    const datasets = (await getComputeAsset(
+      config.multiaddresses,
+      dataset
+    )) as ComputeAsset[]
     const algorithm: ComputeAlgorithm = {
       meta: {
         rawcode: algorithmContent,
@@ -158,7 +196,13 @@ export async function computeStart(
     if (!config.isFreeCompute) {
       console.log('----------> Paid compute job started')
       const consumerAddress = await getConsumerAddress(config.authToken)
-      const nonce = await directNodeCommand(PROTOCOL_COMMANDS.NONCE, config.peerId, { address: consumerAddress })
+      const nonce = await P2PCommand(
+        PROTOCOL_COMMANDS.NONCE,
+        config.multiaddresses,
+        {
+          address: consumerAddress
+        }
+      )
       const incrementedNonce = (nonce + 1).toString()
 
       let signatureMessage = consumerAddress
@@ -166,42 +210,61 @@ export async function computeStart(
       signatureMessage += incrementedNonce
 
       const signature = await getSignature(config.authToken, signatureMessage)
-      const computeJob = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_START, config.peerId, {
-        environment: config.environmentId,
-        datasets,
-        dataset: datasets[0],
-        algorithm,
-        maxJobDuration: Number(config.jobDuration),
-        feeToken: config.feeToken,
-        resources: config.resources,
-        chainId: config.chainId,
-        payment: {
-          chainId: config.chainId,
-          token: config.feeToken,
+      const computeJob = await P2PCommand(
+        PROTOCOL_COMMANDS.COMPUTE_START,
+        config.multiaddresses,
+        {
+          environment: config.environmentId,
+          datasets,
+          dataset: datasets[0],
+          algorithm,
+          maxJobDuration: Number(config.jobDuration),
+          feeToken: config.feeToken,
           resources: config.resources,
+          chainId: config.chainId,
+          payment: {
+            chainId: config.chainId,
+            token: config.feeToken,
+            resources: config.resources
+          },
+          consumerAddress,
+          nonce: incrementedNonce,
+          signature
         },
-        consumerAddress,
-        nonce: incrementedNonce,
-        signature
-      }, config.authToken)
+        config.authToken
+      )
 
       return Array.isArray(computeJob) ? computeJob[0] : computeJob
     }
 
     const consumerAddress = await getConsumerAddress(config.authToken)
-    const nonce = await directNodeCommand(PROTOCOL_COMMANDS.NONCE, config.peerId, { address: consumerAddress })
+    const nonce = await P2PCommand(
+      PROTOCOL_COMMANDS.NONCE,
+      config.multiaddresses,
+      {
+        address: consumerAddress
+      }
+    )
     const incrementedNonce = (nonce + 1).toString()
-    const signature = await getSignature(config.authToken, consumerAddress + incrementedNonce)
-    const computeJob = await directNodeCommand(PROTOCOL_COMMANDS.FREE_COMPUTE_START, config.peerId, {
-      environment: config.environmentId,
-      datasets,
-      dataset: datasets[0],
-      algorithm,
-      resources: config.resources,
-      consumerAddress,
-      nonce: incrementedNonce,
-      signature,
-    }, config.authToken)
+    const signature = await getSignature(
+      config.authToken,
+      consumerAddress + incrementedNonce
+    )
+    const computeJob = await P2PCommand(
+      PROTOCOL_COMMANDS.FREE_COMPUTE_START,
+      config.multiaddresses,
+      {
+        environment: config.environmentId,
+        datasets,
+        dataset: datasets[0],
+        algorithm,
+        resources: config.resources,
+        consumerAddress,
+        nonce: incrementedNonce,
+        signature
+      },
+      config.authToken
+    )
 
     return Array.isArray(computeJob) ? computeJob[0] : computeJob
   } catch (e) {
@@ -228,7 +291,12 @@ export async function checkComputeStatus(
   jobId: string
 ): Promise<ComputeJob> {
   try {
-    const computeStatus = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_GET_STATUS, config.peerId, { jobId }, config.authToken)
+    const computeStatus = await P2PCommand(
+      PROTOCOL_COMMANDS.COMPUTE_GET_STATUS,
+      config.multiaddresses,
+      { jobId },
+      config.authToken
+    )
     return Array.isArray(computeStatus) ? computeStatus[0] : computeStatus
   } catch (error) {
     throw new Error('Failed to check compute status')
@@ -239,16 +307,30 @@ export async function getComputeResult(
   config: SelectedConfig,
   jobId: string,
   index: number = 0
-): Promise<any> {
+): Promise<Stream> {
   try {
     const consumerAddress = await getConsumerAddress(config.authToken)
-    const computeResult = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_GET_RESULT, config.peerId, { jobId, index, consumerAddress }, config.authToken)
+    const computeResult = await P2PCommand(
+      PROTOCOL_COMMANDS.COMPUTE_GET_RESULT,
+      config.multiaddresses,
+      { jobId, index, consumerAddress },
+      config.authToken
+    )
 
     return computeResult
   } catch (error) {
     console.error('Error getting compute result:', error)
     throw error
   }
+}
+
+export async function streamToString(stream: Stream): Promise<string> {
+  const decoder = new TextDecoder('utf-8')
+  let result = ''
+  for await (const chunk of stream) {
+    result += decoder.decode(chunk.subarray(), { stream: true })
+  }
+  return result
 }
 
 export async function saveResults(
@@ -296,63 +378,67 @@ export async function getComputeLogs(
 ): Promise<void> {
   try {
     outputChannel.show(true)
-    const logs = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_GET_STREAMABLE_LOGS, config.peerId, { jobId }, config.authToken)
-    const stream = (logs.body) as any
+    const logs = await P2PCommand(
+      PROTOCOL_COMMANDS.COMPUTE_GET_STREAMABLE_LOGS,
+      config.multiaddresses,
+      { jobId },
+      config.authToken
+    )
 
-    stream.on('data', (chunk) => {
-      const text = chunk.toString('utf8')
-      outputChannel.append(text)
-    })
-    stream.on('end', () => {
-      console.log('Stream complete')
-    })
-    stream.on('error', (error) => {
-      console.error('Stream error:', error)
-      throw error
-    })
+    const decoder = new TextDecoder('utf-8')
+    for await (const chunk of logs) {
+      outputChannel.append(decoder.decode(chunk.subarray(), { stream: true }))
+    }
+    console.log('Stream complete')
   } catch (error) {
     console.error('Error fetching compute logs:', error)
   }
 }
 
 /**
- * Saves the output from the second request (index=1) as a tar file and extracts its contents
- * @param content The tar file content (Buffer or string)
- * @param folderPath The folder to save the tar file and extracted contents
+ * Saves the output stream as a tar file and extracts its contents.
+ * Iterates directly over the stream chunks for maximum control and elegance.
+ * @param contentStream The stream of data chunks (AsyncIterable<Uint8Array>)
+ * @param destinationFolder The folder to save the tar file and extracted contents
  * @param prefix Prefix for the filename
- * @returns The path to the saved tar file and extraction directory
+ * @returns The path to the saved tar file
  */
+
 export async function saveOutput(
-  content: Buffer | string,
+  stream: Stream,
   destinationFolder: string,
   prefix: string = 'output'
 ): Promise<string> {
+  let fileHandle: fs.WriteStream | null = null
+
   try {
-    // Use provided destination folder or default to './results'
     const baseDir = destinationFolder || path.join(process.cwd(), 'results')
     const dateStr = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-')
     const resultsDir = path.join(baseDir, `results-${dateStr}`)
 
     const fileName = `${prefix}.tar`
-    console.log('File name:', fileName)
     const filePath = path.join(resultsDir, fileName)
+
     console.log('File path:', filePath)
-    // Ensure the folder exists
+
     await fs.promises.mkdir(resultsDir, { recursive: true })
 
-    // Convert string to Buffer if needed
-    const tarContent =
-      typeof content === 'string' ? Buffer.from(content, 'binary') : content
+    fileHandle = fs.createWriteStream(filePath, { highWaterMark: 16 * 1024 * 1024 })
 
-    // // Save the tar file
-    await fs.promises.writeFile(filePath, new Uint8Array(tarContent))
-    console.log(`Tar file saved to: ${filePath}`)
+    for await (const chunk of stream) {
+      console.log('-->Chunk size:', chunk.length)
 
-    // Create extraction directory
+      if (!fileHandle.write(chunk.subarray())) {
+        await once(fileHandle, 'drain')
+      }
+    }
+
+    fileHandle.end()
+    await once(fileHandle, 'finish')
+
     const extractDir = path.join(resultsDir, `${prefix}_extracted`)
     await fs.promises.mkdir(extractDir, { recursive: true })
 
-    // Extract the tar contents
     try {
       await tar.x({
         file: filePath,
@@ -360,45 +446,62 @@ export async function saveOutput(
         preservePaths: true
       })
       console.log(`Extracted contents to: ${extractDir}`)
-
-      // Return both paths
       return filePath
     } catch (extractError) {
       console.error('Error extracting tar contents:', extractError)
-      return filePath // Return just the tar path if extraction fails
+      return filePath
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving tar output:', error)
     throw new Error(`Failed to save tar output: ${error.message}`)
+  } finally {
+    if (fileHandle && !fileHandle.closed) {
+      fileHandle.destroy()
+    }
   }
 }
 
-export async function getComputeEnvironments(peerId: string) {
-  const environments = await directNodeCommand(PROTOCOL_COMMANDS.COMPUTE_GET_ENVIRONMENTS, peerId, {})
+export async function getComputeEnvironments(
+  multiaddresses: string[] | undefined
+) {
+  const environments = await P2PCommand(
+    PROTOCOL_COMMANDS.COMPUTE_GET_ENVIRONMENTS,
+    multiaddresses,
+    {}
+  )
   if (!environments || environments.length === 0) {
     throw new Error('No compute environments available')
   }
   return environments
 }
 
-export async function generateAuthToken(peerId: string, signer: Signer) {
+export async function generateAuthToken(
+  multiaddresses: string[] | undefined,
+  signer: Signer
+) {
   const consumerAddress = await signer.getAddress()
-  const nonce = await directNodeCommand(PROTOCOL_COMMANDS.NONCE, peerId, { address: consumerAddress })
+  const nonce = await P2PCommand(PROTOCOL_COMMANDS.NONCE, multiaddresses, {
+    address: consumerAddress
+  })
   const incrementedNonce = (nonce + 1).toString()
   const signature = await getSignature(signer, consumerAddress + incrementedNonce)
-  const response = await directNodeCommand(PROTOCOL_COMMANDS.CREATE_AUTH_TOKEN, peerId, {
-    address: consumerAddress,
-    signature,
-    nonce: incrementedNonce
-  })
-  return response.token;
+  const response = await P2PCommand(
+    PROTOCOL_COMMANDS.CREATE_AUTH_TOKEN,
+    multiaddresses,
+    {
+      address: consumerAddress,
+      signature,
+      nonce: incrementedNonce
+    }
+  )
+  return response.token
 }
 
 export async function withRetrial<T>(
   fn: () => Promise<T>,
   progress?: vscode.Progress<{ message?: string }>,
   maxRetries: number = 5,
-  delay: number = 2000,
+  delay: number = 2000
 ): Promise<T> {
   let lastError: Error
 
@@ -414,9 +517,11 @@ export async function withRetrial<T>(
 
       const retryDelay = delay * Math.pow(2, attempt)
       if (progress) {
-        progress.report({ message: `Attempt ${attempt + 1} failed. Retry in ${retryDelay}ms...` })
+        progress.report({
+          message: `Attempt ${attempt + 1} failed. Retry in ${retryDelay}ms...`
+        })
       }
-      await new Promise(resolve => setTimeout(resolve, retryDelay))
+      await new Promise((resolve) => setTimeout(resolve, retryDelay))
     }
   }
 

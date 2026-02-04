@@ -5,18 +5,22 @@ import {
   computeStart,
   checkComputeStatus,
   getComputeResult,
-  saveResults
+  saveResults,
+  streamToString
 } from '../helpers/compute'
 import * as fs from 'fs'
 import * as path from 'path'
 import { ComputeEnvironment, ComputeJob } from '@oceanprotocol/lib'
 import { SelectedConfig } from '../types'
-import * as directCommand from '../helpers/direct-command'
+// p2p is mocked in run.test.ts; use require() so we get the raw mock and can stub P2PCommand
+const P2PCommand = require('../helpers/p2p') as typeof import('../helpers/p2p')
 
 // Use VS Code test runner syntax
 suite('Ocean Protocol Extension Test Suite', () => {
-  const mockAuthToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZGRyZXNzIjoiMHgxMjM0NTY3ODkwYWJjZGVmIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
-  const mockPeerId = '16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJaBcmbNtpbT3QYxYOpB'
+  const mockAuthToken =
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZGRyZXNzIjoiMHgxMjM0NTY3ODkwYWJjZGVmIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
+  const mockMultiaddr =
+    '/ip4/198.145.104.8/tcp/9001/tls/sni/198-145-104-8.kzwfwjn5ji4puuok23h2yyzro0fe1rqv1bqzbmrjf7uqyj504rawjl4zs68mepr.libp2p.direct/ws/p2p/16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJfBcmbNppbT3QYtBpi'
 
   const mockEnvResponse: ComputeEnvironment[] = [
     {
@@ -40,28 +44,34 @@ suite('Ocean Protocol Extension Test Suite', () => {
   }
   let sandbox: sinon.SinonSandbox
   let outputChannel: vscode.OutputChannel
-  let directCommandStub: sinon.SinonStub
+  let p2pCommandStub: sinon.SinonStub
 
-  const setupDirectCommandStub = (customHandlers?: Record<string, any>) => {
-    directCommandStub = sandbox.stub(directCommand, 'directNodeCommand').callsFake(async (command: string) => {
-      if (customHandlers && customHandlers[command]) {
-        return customHandlers[command]
-      }
+  const setupP2PCommandStub = (customHandlers?: Record<string, any>) => {
+    p2pCommandStub = sandbox
+      .stub(P2PCommand, 'P2PCommand')
+      .callsFake(async (command: string) => {
+        if (customHandlers && customHandlers[command]) {
+          return customHandlers[command]
+        }
 
-      switch (command) {
-        case 'nonce':
-          return 1
-        case 'freeStartCompute':
-          return mockComputeResponse
-        case 'getComputeStatus':
-          return mockComputeResponse
-        case 'getComputeResult':
-          return Buffer.from('hello')
-        default:
-          return {}
-      }
-    })
-    return directCommandStub
+        switch (command) {
+          case 'nonce':
+            return 1
+          case 'freeStartCompute':
+            return mockComputeResponse
+          case 'getComputeStatus':
+            return mockComputeResponse
+          case 'getComputeResult': {
+            const buf = Buffer.from('hello')
+            return (async function* () {
+              yield new Uint8Array(buf)
+            })()
+          }
+          default:
+            return {}
+        }
+      })
+    return p2pCommandStub
   }
 
   setup(() => {
@@ -83,20 +93,16 @@ suite('Ocean Protocol Extension Test Suite', () => {
   test('computeStart should handle JavaScript algorithm correctly', async () => {
     const mockAlgorithm = 'console.log("test")'
 
-    setupDirectCommandStub()
+    setupP2PCommandStub()
 
     const mockConfig: SelectedConfig = new SelectedConfig({
-      peerId: mockPeerId,
+      multiaddresses: [mockMultiaddr],
       environmentId: mockEnvResponse[0].id,
       isFreeCompute: true,
       authToken: mockAuthToken
-    });
+    })
 
-    const result = await computeStart(
-      mockConfig,
-      mockAlgorithm,
-      'js',
-    )
+    const result = await computeStart(mockConfig, mockAlgorithm, 'js')
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.strictEqual(result.statusText, 'Created')
@@ -105,43 +111,43 @@ suite('Ocean Protocol Extension Test Suite', () => {
   test('computeStart should handle Python algorithm correctly', async () => {
     const mockAlgorithm = 'print("test")'
 
-    setupDirectCommandStub()
+    setupP2PCommandStub()
 
     const mockConfig: SelectedConfig = new SelectedConfig({
-      peerId: mockPeerId,
+      multiaddresses: [mockMultiaddr],
       environmentId: mockEnvResponse[0].id,
       isFreeCompute: true,
       authToken: mockAuthToken
-    });
+    })
 
-    const result = await computeStart(
-      mockConfig,
-      mockAlgorithm,
-      'py',
-    )
+    const result = await computeStart(mockConfig, mockAlgorithm, 'py')
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.ok(
-      directCommandStub.calledWith('freeStartCompute', mockConfig.peerId, sinon.match({
-        algorithm: sinon.match({
-          meta: {
-            rawcode: mockAlgorithm,
-            container: sinon.match({
-              entrypoint: 'python $ALGO',
-              image: 'oceanprotocol/c2d_examples',
-              tag: 'py-general',
-            })
-          }
+      p2pCommandStub.calledWith(
+        'freeStartCompute',
+        mockConfig.multiaddresses,
+        sinon.match({
+          algorithm: sinon.match({
+            meta: {
+              rawcode: mockAlgorithm,
+              container: sinon.match({
+                entrypoint: 'python $ALGO',
+                image: 'oceanprotocol/c2d_examples',
+                tag: 'py-general'
+              })
+            }
+          })
         })
-      }))
+      )
     )
   })
 
   test('checkComputeStatus should return correct status', async () => {
     const mockJobId = 'test-job-id'
 
-    setupDirectCommandStub({
-      'getComputeStatus': {
+    setupP2PCommandStub({
+      getComputeStatus: {
         ...mockComputeResponse,
         status: 1,
         statusText: 'Running'
@@ -149,11 +155,11 @@ suite('Ocean Protocol Extension Test Suite', () => {
     })
 
     const mockConfig: SelectedConfig = new SelectedConfig({
-      peerId: mockPeerId,
+      multiaddresses: [mockMultiaddr],
       environmentId: mockEnvResponse[0].id,
       isFreeCompute: true,
       authToken: mockAuthToken
-    });
+    })
 
     const status = await checkComputeStatus(mockConfig, mockJobId)
     assert.strictEqual(status.statusText, 'Running')
@@ -162,10 +168,10 @@ suite('Ocean Protocol Extension Test Suite', () => {
   test('computeStart should handle missing compute environments', async () => {
     const mockAlgorithm = 'console.log("test")'
     const mockConfig: SelectedConfig = new SelectedConfig({
-      peerId: mockPeerId,
+      multiaddresses: [mockMultiaddr],
       isFreeCompute: true,
       authToken: mockAuthToken
-    });
+    })
 
     await assert.rejects(
       computeStart(mockConfig, mockAlgorithm, 'js'),
@@ -223,19 +229,25 @@ suite('Ocean Protocol Extension Test Suite', () => {
     const mockJobId = 'test-job-id'
     const mockResult = 'hello'
 
-    setupDirectCommandStub({
-      'getComputeResult': Buffer.from(mockResult)
+    setupP2PCommandStub({
+      getComputeResult: (() => {
+        const buf = Buffer.from(mockResult)
+        return (async function* () {
+          yield new Uint8Array(buf)
+        })()
+      })()
     })
 
     const mockConfig: SelectedConfig = new SelectedConfig({
-      peerId: mockPeerId,
+      multiaddresses: [mockMultiaddr],
       environmentId: mockEnvResponse[0].id,
       isFreeCompute: true,
       authToken: mockAuthToken
-    });
+    })
 
     const result = await getComputeResult(mockConfig, mockJobId)
-    assert.deepStrictEqual(result, Buffer.from(mockResult))
+    const content = await streamToString(result)
+    assert.strictEqual(content, mockResult)
   })
 
   test('saveResults should correctly save to file', async () => {
@@ -268,7 +280,10 @@ suite('Ocean Protocol Extension Test Suite', () => {
       const logsFolderName = pathParts[pathParts.length - 2]
       const dateFolderName = pathParts[pathParts.length - 3]
       assert.strictEqual(logsFolderName, 'logs', 'File should be in logs folder')
-      assert.ok(dateFolderName.startsWith('results-'), 'File should be in a folder with a date')
+      assert.ok(
+        dateFolderName.startsWith('results-'),
+        'File should be in a folder with a date'
+      )
 
       await fs.promises.rmdir(mockFolderPath, { recursive: true })
     } catch (error) {
