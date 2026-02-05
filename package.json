@@ -3,7 +3,7 @@
   "publisher": "OceanProtocol",
   "displayName": "Ocean Nodes VS Code Extension",
   "description": "Easily publish assets and test your algorithms with the official Ocean Protocol vscode extension.",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -102,7 +102,7 @@
     "@libp2p/tls": "^3.0.10",
     "@libp2p/websockets": "^10.1.2",
     "@multiformats/multiaddr": "^13.0.1",
-    "@oceanprotocol/lib": "^5.0.4",
+    "@oceanprotocol/lib": "^5.1.2",
     "chai": "^4.3.10",
     "cross-fetch": "^4.0.0",
     "crypto": "^1.0.1",

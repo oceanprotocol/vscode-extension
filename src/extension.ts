@@ -9,6 +9,7 @@ import {
   delay,
   generateAuthToken,
   getComputeEnvironments,
+  getDefaultResourcesFromFreeEnv,
   getComputeLogs,
   getComputeResult,
   saveOutput,
@@ -31,6 +32,7 @@ let config: SelectedConfig = new SelectedConfig({
   multiaddresses: [DEFAULT_MULTIADDR]
 })
 let provider: OceanProtocolViewProvider
+let firstStartup = true
 
 vscode.window.registerUriHandler({
   handleUri(uri: vscode.Uri) {
@@ -110,7 +112,22 @@ export async function activate(context: vscode.ExtensionContext) {
     // Add handler for environment loading
     context.subscriptions.push(
       vscode.commands.registerCommand('ocean-protocol.getEnvironments', async () => {
-        return await getComputeEnvironments(config.multiaddresses)
+        const environments = await getComputeEnvironments(config.multiaddresses)
+        // If it's the first startup, set the default resources and job duration
+        if (firstStartup && Array.isArray(environments) && environments.length > 0) {
+          const env =
+            environments.find((e: { id?: string }) => e.id === config.environmentId) ??
+            environments[0]
+          config.updateFields({
+            environmentId: config.environmentId || env.id,
+            resources: getDefaultResourcesFromFreeEnv(env),
+            jobDuration: String(env?.free?.maxJobDuration ?? 7200)
+          })
+          provider?.notifyConfigUpdate(config)
+          firstStartup = false
+        }
+
+        return environments
       })
     )
 
