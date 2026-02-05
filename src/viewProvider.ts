@@ -708,11 +708,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       return amount;
                   }
                   function getAvailableValue(resourceId, isFreeCompute) {
-                      if (isFreeCompute === false) {
-                          const paidResource = (selectedEnv.resources || []).find(pr => pr.id === resourceId);
-                          return paidResource ? formatResourceValue(paidResource.max, resourceId) : 'N/A';
-                      }
-                      const envResource = (selectedEnv.free?.resources || []).find(fr => fr.id === resourceId);
+                      const resources = isFreeCompute ? (selectedEnv.free?.resources || []) : (selectedEnv.resources || []);
+                      const envResource = resources.find(r => r.id === resourceId);
                       return envResource ? formatResourceValue((envResource.max || 0) - (envResource.inUse || 0), resourceId) : 'N/A';
                   }
                   const truncatedId = selectedEnv.id.length > 13 
