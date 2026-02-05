@@ -257,7 +257,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               break
             case 'openBrowser':
               const appName = vscode.env?.appName || 'vscode'
-              const multiaddrsParam = (this.config?.multiaddresses ?? [this.defaultMultiaddr]).join(',')
+              const multiaddrsParam = (
+                this.config?.multiaddresses ?? [this.defaultMultiaddr]
+              ).join(',')
               vscode.env.openExternal(
                 vscode.Uri.parse(
                   `${data.url}?ide=${appName?.toLowerCase()}&isFreeCompute=${this.config?.isFreeCompute || true}&multiaddresses=${encodeURIComponent(multiaddrsParam)}`
@@ -707,46 +709,28 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   }
                   function getAvailableValue(resourceId, isFreeCompute) {
                       if (isFreeCompute === false) {
-                          const paidResource = selectedEnv.resources.find(pr => pr.id === resourceId);
+                          const paidResource = (selectedEnv.resources || []).find(pr => pr.id === resourceId);
                           return paidResource ? formatResourceValue(paidResource.max, resourceId) : 'N/A';
                       }
-                      const envResource = selectedEnv.free?.resources.find(fr => fr.id === resourceId);
-                      return envResource ? formatResourceValue(envResource.max - envResource.inUse, resourceId) : 'N/A';
+                      const envResource = (selectedEnv.free?.resources || []).find(fr => fr.id === resourceId);
+                      return envResource ? formatResourceValue((envResource.max || 0) - (envResource.inUse || 0), resourceId) : 'N/A';
                   }
                   const truncatedId = selectedEnv.id.length > 13 
                       ? selectedEnv.id.substring(0, 6) + '...' + selectedEnv.id.substring(selectedEnv.id.length - 4)
                       : selectedEnv.id;
-                  const paidResourceDetails = selectedEnv.resources.map(r => {
-                      const minValue = formatResourceValue(r.min, r.id);
-                      const maxValue = formatResourceValue(r.max, r.id);
-                      return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ' (Min/Max):</span> ' + minValue + ' / ' + maxValue + '</p>';
-                  }).join('');
                   const freeResourceDetails = (selectedEnv.free?.resources || []).map(r => {
-                      const maxValue = formatResourceValue(r.max, r.id);
-                      const availableValue = formatResourceValue(r.max - r.inUse, r.id);
-                      return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + maxValue + ' / ' + availableValue + '</p>';
+                      const value = formatResourceValue(r.max, r.id);
+                      return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + value + '</p>';
                   }).join('');
                   let resourceDetails = '';
                   let resourcesLabel = 'Resources:';
-                  if (configResources && configResources.length > 0) {
-                      resourcesLabel = 'Resources (SELECTED / AVAILABLE):';
-                      resourceDetails = configResources.map(r => {
-                          const selectedValue = formatResourceValue(r.amount, r.id);
-                          const availableValue = getAvailableValue(r.id, isFreeCompute);
-                          return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + selectedValue + ' / ' + availableValue + '</p>';
-                      }).join('');
-                      resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (jobDuration || 'N/A') + ' seconds</p>';
-                  } else {
-                      if (isFreeCompute === false) {
-                          resourcesLabel = 'Resources (MIN / MAX):';
-                          resourceDetails = paidResourceDetails;
-                          resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (jobDuration || 'N/A') + ' seconds</p>';
-                      } else {
-                          resourcesLabel = 'Resources (MAX / AVAILABLE):';
-                          resourceDetails = freeResourceDetails;
-                          resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (selectedEnv.free?.maxJobDuration || 'N/A') + ' seconds</p>';
-                      }
-                  }
+                  resourcesLabel = 'Resources (SELECTED / AVAILABLE):';
+                  resourceDetails = (configResources || []).map(r => {
+                      const selectedValue = formatResourceValue(r.amount, r.id);
+                      const availableValue = getAvailableValue(r.id, isFreeCompute);
+                      return '<p style="margin: 4px 0;"><span class="label">' + r.id.toUpperCase() + ':</span> ' + selectedValue + ' / ' + availableValue + '</p>';
+                  }).join('');
+                  resourceDetails += '<p style="margin: 4px 0;"><span class="label">Job Duration:</span> ' + (jobDuration || 'N/A') + ' seconds</p>';
                   const multiaddrDisplay = truncateMultiaddr(getMultiaddrs()[0]);
                   detailsDiv.innerHTML = 
                       '<p style="margin: 4px 0;"><span class="label">Multiaddress:</span> ' + multiaddrDisplay + '</p>' +

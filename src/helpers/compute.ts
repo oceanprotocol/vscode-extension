@@ -5,7 +5,9 @@ import * as tar from 'tar'
 import {
   ComputeAlgorithm,
   ComputeAsset,
+  ComputeEnvironment,
   ComputeJob,
+  ComputeResourceRequest,
   FileObjectType
 } from '@oceanprotocol/lib'
 import { fetchDdoByDid } from './indexer'
@@ -153,6 +155,28 @@ export async function stopComputeJob(
   }
 }
 
+export function getDefaultResourcesFromFreeEnv(
+  env: ComputeEnvironment
+): ComputeResourceRequest[] {
+  const freeResources = env?.free?.resources ?? []
+  const result: ComputeResourceRequest[] = []
+
+  const addIfExists = (key: string, amount: number) => {
+    const resource = freeResources.find((r) =>
+      r.id.toLowerCase().includes(key.toLowerCase())
+    )
+    if (resource) {
+      result.push({ id: resource.id, amount })
+    }
+  }
+
+  addIfExists('cpu', 1)
+  addIfExists('ram', 1)
+  addIfExists('disk', 1)
+  addIfExists('gpu', 1)
+  return result
+}
+
 export async function computeStart(
   config: SelectedConfig,
   algorithmContent: string,
@@ -196,13 +220,9 @@ export async function computeStart(
     if (!config.isFreeCompute) {
       console.log('----------> Paid compute job started')
       const consumerAddress = await getConsumerAddress(config.authToken)
-      const nonce = await P2PCommand(
-        PROTOCOL_COMMANDS.NONCE,
-        config.multiaddresses,
-        {
-          address: consumerAddress
-        }
-      )
+      const nonce = await P2PCommand(PROTOCOL_COMMANDS.NONCE, config.multiaddresses, {
+        address: consumerAddress
+      })
       const incrementedNonce = (nonce + 1).toString()
 
       let signatureMessage = consumerAddress
@@ -238,13 +258,9 @@ export async function computeStart(
     }
 
     const consumerAddress = await getConsumerAddress(config.authToken)
-    const nonce = await P2PCommand(
-      PROTOCOL_COMMANDS.NONCE,
-      config.multiaddresses,
-      {
-        address: consumerAddress
-      }
-    )
+    const nonce = await P2PCommand(PROTOCOL_COMMANDS.NONCE, config.multiaddresses, {
+      address: consumerAddress
+    })
     const incrementedNonce = (nonce + 1).toString()
     const signature = await getSignature(
       config.authToken,
@@ -461,9 +477,7 @@ export async function saveOutput(
   }
 }
 
-export async function getComputeEnvironments(
-  multiaddresses: string[] | undefined
-) {
+export async function getComputeEnvironments(multiaddresses: string[] | undefined) {
   const environments = await P2PCommand(
     PROTOCOL_COMMANDS.COMPUTE_GET_ENVIRONMENTS,
     multiaddresses,
@@ -485,15 +499,11 @@ export async function generateAuthToken(
   })
   const incrementedNonce = (nonce + 1).toString()
   const signature = await getSignature(signer, consumerAddress + incrementedNonce)
-  const response = await P2PCommand(
-    PROTOCOL_COMMANDS.CREATE_AUTH_TOKEN,
-    multiaddresses,
-    {
-      address: consumerAddress,
-      signature,
-      nonce: incrementedNonce
-    }
-  )
+  const response = await P2PCommand(PROTOCOL_COMMANDS.CREATE_AUTH_TOKEN, multiaddresses, {
+    address: consumerAddress,
+    signature,
+    nonce: incrementedNonce
+  })
   return response.token
 }
 
