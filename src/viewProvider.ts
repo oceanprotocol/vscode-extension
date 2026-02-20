@@ -13,7 +13,7 @@ import {
 import { DEFAULT_MULTIADDR } from './helpers/p2p'
 
 export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'oceanProtocolExplorer'
+  public static readonly viewType = 'oceanOrchestrator'
   private defaultMultiaddr = DEFAULT_MULTIADDR
   private config: SelectedConfig
 
@@ -286,7 +286,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'unsafe-inline';">
-        <title>Ocean Protocol Extension</title>
+        <title>Ocean Orchestrator</title>
         <style>
           body { 
             padding: 0;

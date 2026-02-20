@@ -1,90 +1,105 @@
-# Ocean Protocol VSCode Extension
+# Ocean Orchestrator
 
-Run Compute-to-Data jobs on Ocean Protocol directly from VS Code.
+Run affordable GPU AI jobs from your editor with a one-click workflow and pay-per-use mechanism.
 
-The extension streamlines project creation, job submission, monitoring, and results retrieval.
+Ocean Orchestrator lets you submit a containerized compute job to remote nodes, monitor it, and automatically pull the results back. It uses Ocean Compute-to-Data (C2D), meaning the job runs in an isolated container near the data and only the outputs are returned. This gives you a low-friction way to run batch jobs without spinning up or managing servers.
 
-Create a new project with built-in algorithm templates and dependencies, then click **Start FREE Compute Job**.
+Ocean Network coordinates those remote runs across a distributed set of GPU nodes, handling orchestration behind the scenes so pay-per-use compute jobs stay usable even as more nodes and workloads join.
 
-![Ocean Protocol VSCode Extension](./screenshots/main-screenshot.png)
+Works in VS Code, Cursor, Antigravity, and Windsurf.
+
+> If you use Cursor, Antigravity, or Windsurf, install Ocean Orchestrator the same way you install VS Code extensions in your editor, or use the [Open VSX](https://open-vsx.org/) listing if your editor does not support the VS Code Marketplace.
+
+![Ocean Orchestrator](./screenshots/main-screenshot.png)
 
 ## Features
 
-### 🚀 One-Click Compute Jobs
+### One-Click Job Runs
 
-Create new compute projects with automatic Dockerfile and dependencies setup. Choose between Python or JavaScript templates.
+Run a job without spinning up servers. Create a project, press **Start Compute Job**, and receive the outputs in your folder. Supports Python and JavaScript projects with built-in templates and dependencies.
 
-### 💰 Free Compute Jobs
+### Pay Per Use Compute
 
-Start with free compute jobs, then upgrade to paid compute for more power.
+Start with free compute for quick tests, then switch to paid compute jobs when you need more resources.
 
-### 📊 Real-Time Monitoring
+### Privacy-Preserving With Compute-to-Data
 
-Track job progress and view algorithm logs directly in VS Code's Output console.
+Your code runs in an isolated container, and only results are returned, so data stays sealed.
 
-### 📁 Automatic Results Handling
+### Remote AI Compute
 
-Results and logs are automatically saved in your project folder when your job completes.
+Run embeddings, inference, data cleanup, batch processing, and other containerized workloads without provisioning servers.
+
+### Real Time Monitoring
+
+Track job status and view logs directly in your editor via the Output console.
+
+### Automatic Results Retrieval
+
+Outputs and logs are saved to your results folder as soon as the job completes.
 
 ## Getting Started
 
-1. Install the extension from the VS Code Marketplace
-2. Open the Ocean Protocol panel from the activity bar
+1. Install Ocean Orchestrator from your favorite extension marketplace in the extensions tab of your IDE. We currently support VS Code, Cursor, Antigravity, and Windsurf.
+2. Open the Ocean Orchestrator panel from the activity bar
 3. Create a new project folder:
    - Choose a parent directory for your project
    - Name your project (default: `new-compute-job`)
-   - Select your language: Python or JavaScript
+   - Select your language: Python, JavaScript, or your custom container
 4. Explore your project structure:
    - Algorithm file (`.py` or `.js`)
    - Dockerfile with environment setup
    - Dependencies file (`requirements.txt` or `package.json`)
+   - `.env` secrets file
 5. Click **Start FREE Compute Job**
 6. Monitor job status and logs in the Output console
 7. Check results and logs in your project's `results` folder
 
-### Requirements
-
-VS Code 1.96.0 or higher
-
 ### Extension Layout
 
-The extension adds a dedicated Ocean Protocol section to the activity bar. Here you can:
+Ocean Orchestrator adds a dedicated Ocean section to the activity bar. From there, you can:
 
-- Optionally select a dataset file.
-- Create new project folders or select existing ones
-- View compute resources under the Setup dropdown
-- Configure compute settings (accessible via Configure Compute)
+- Optionally select a dataset file
+- Create a new compute project or select an existing one
+- View available compute resources under Setup
+- Configure compute settings under Configure Compute
 - Start free or paid compute jobs
 
 ### Starting a Compute Job
 
 1. Create a new project folder or select an existing one
 2. Review your algorithm, Dockerfile, and dependencies
-3. Click **Start FREE Compute Job** (or upgrade to paid for more resources)
-4. Monitor job status and logs in the Output console
-5. Check results in your project folder under `results/`
+3. Click **Start Free Compute Job** or switch to paid for more resources
+4. Monitor job status and real-time logs in the Output console
+5. Check outputs in `results` and `logs`
 
 ## Advanced Setup
 
-- **Custom Docker Image/Tag**: Use your own docker image and tag (only if no Dockerfile is provided in your project folder)
-- **Auth Token**: Auto-generated when you configure your compute settings
-- **Custom Compute Node**: Enter your peer ID or use the default Ocean Protocol node
-- **Compute Resources**: Free compute uses minimal resources. View available resources under the Setup dropdown
-- **Paid Compute**: Upgrade from free to paid compute for more computational power
-- **Node Status Check**: Use the Check button under Setup dropdown to verify node availability
+### Custom Docker Image
 
-![Ocean Protocol VSCode Extension](./screenshots/setup-screenshot.png)
+Use your own docker image if you are not using a Dockerfile in the project folder.
+
+### Compute Resources
+
+Free compute uses minimal resources for testing. See available tiers under Setup.
+
+### Paid Compute
+
+Paid compute jobs run on demand and charge per run based on resources, time, and environment selection.
+
+### Node Status Check
+
+Use **Check** under Setup to verify node availability before running a job.
 
 ## Troubleshooting
 
-- **Job cannot start** → Check node status (under Setup dropdown, press the Check button)
-- **Job not running** → Verify your peer ID in Configure Compute
-- **Not enough funds** → Use Configure Compute to adjust your settings or switch to free compute
-- **General issues** → Check extension logs in the Output console. Logs are also saved in your project folder under `logs/`
+- **Job cannot start** — Check the node status under Setup, then press Check.
+- **Not enough funds** — Switch to free compute or top up your account.
+- **General issues** — Check logs in the Output console. Logs are also saved in your project folder under `logs`.
 
-## Development & Contributing
+## Development and Contributing
 
-Refer to the project structure and available scripts for local development. Contributions are always welcome—please check our guidelines in the repository.
+Contributions are welcome. Please check the repository guidelines for local development and PRs.
 
 ### Prerequisites
 
@@ -118,14 +133,4 @@ Refer to the project structure and available scripts for local development. Cont
 
 ### Publishing the Extension
 
-For the CI to publish the extension, you just need to ensure that the version number is bumped in package.json on main and then the rest is automatic via the GitHub CI.
-
-## License
-
-This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
-
-## Contact
-
-For bug reports and feature requests, please open an issue in the GitHub repository.
-
-For general questions about Ocean Protocol, join the [Ocean Protocol Discord](https://discord.gg/TnXjkR5).
+For the CI to publish the extension, you just need to ensure that the version number is bumped in `package.json` on main, and then the rest is automatic via the GitHub CI.

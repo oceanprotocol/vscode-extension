@@ -1,9 +1,9 @@
 {
   "name": "ocean-protocol-vscode-extension",
   "publisher": "OceanProtocol",
-  "displayName": "Ocean Nodes VS Code Extension",
-  "description": "Easily publish assets and test your algorithms with the official Ocean Protocol vscode extension.",
-  "version": "0.1.10",
+  "displayName": "Ocean Orchestrator",
+  "description": "Run affordable AI jobs from your editor with a one-click workflow and pay-per-use mechanism.",
+  "version": "0.2.0",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -12,6 +12,20 @@
     "type": "git",
     "url": "https://github.com/oceanprotocol/vscode-extension"
   },
+  "keywords": [
+    "ocean",
+    "orchestrator",
+    "ocean orchestrator",
+    "ocean orchestrator vscode extension",
+    "ocean orchestrator cursor extension",
+    "ocean orchestrator antigravity extension",
+    "ocean orchestrator windsurf extension",
+    "gpu",
+    "ai",
+    "docker",
+    "compute",
+    "run a compute job"
+  ],
   "categories": [
     "Other"
   ],
@@ -21,8 +35,8 @@
       "ocean-protocol-view": [
         {
           "type": "webview",
-          "id": "oceanProtocolExplorer",
-          "name": "Ocean Protocol Explorer"
+          "id": "oceanOrchestrator",
+          "name": "Ocean Orchestrator"
         }
       ]
     },
@@ -31,7 +45,7 @@
         {
           "id": "ocean-protocol-view",
           "title": "Ocean Protocol",
-          "icon": "/ocean-icon.svg"
+          "icon": "logo.svg"
         }
       ]
     },
