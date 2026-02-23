@@ -26,7 +26,7 @@ import { DEFAULT_MULTIADDR } from './helpers/p2p'
 
 globalThis.fetch = fetch
 
-const outputChannel = vscode.window.createOutputChannel('Ocean Protocol extension')
+const outputChannel = vscode.window.createOutputChannel('Ocean Orchestrator')
 let config: SelectedConfig = new SelectedConfig({
   isFreeCompute: true,
   multiaddresses: [DEFAULT_MULTIADDR]
@@ -76,8 +76,8 @@ export async function activate(context: vscode.ExtensionContext) {
   let savedJobId: string | null = null
 
   outputChannel.show()
-  outputChannel.appendLine('Ocean Protocol extension is now active!')
-  console.log('Ocean Protocol extension is now active!')
+  outputChannel.appendLine('Ocean Orchestrator is now active!')
+  console.log('Ocean Orchestrator is now active!')
 
   try {
     // Create and register the webview provider
@@ -453,8 +453,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
 // Add deactivation handling
 export function deactivate() {
-  console.log('Ocean Protocol extension is being deactivated')
-  outputChannel.appendLine('Ocean Protocol extension is being deactivated')
+  console.log('Ocean Orchestrator is being deactivated')
+  outputChannel.appendLine('Ocean Orchestrator is being deactivated')
 }
 
 async function handleFailureLogsRetrieval(

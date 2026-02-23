@@ -16,7 +16,7 @@ import { SelectedConfig } from '../types'
 const P2PCommand = require('../helpers/p2p') as typeof import('../helpers/p2p')
 
 // Use VS Code test runner syntax
-suite('Ocean Protocol Extension Test Suite', () => {
+suite('Ocean Orchestrator Test Suite', () => {
   const mockAuthToken =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZGRyZXNzIjoiMHgxMjM0NTY3ODkwYWJjZGVmIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
   const mockMultiaddr =
