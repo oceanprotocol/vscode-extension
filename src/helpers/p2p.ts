@@ -117,7 +117,13 @@ export async function P2PCommand(
       command === PROTOCOL_COMMANDS.COMPUTE_GET_STREAMABLE_LOGS ||
       command === PROTOCOL_COMMANDS.COMPUTE_GET_RESULT
     ) {
-      return stream
+      // do not return or manipulate the stream, just return the remaining chunks!!
+      const streamWithFirstChunk = (async function* () {
+        for await (const c of remainingChunks(it)) {
+          yield c
+        }
+      })()
+      return streamWithFirstChunk
     }
 
     const chunks: Uint8Array[] = [firstChunk]
