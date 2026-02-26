@@ -23,6 +23,7 @@ import { SelectedConfig } from './types'
 import { ethers, Signer } from 'ethers'
 import { checkAndReadFile, listDirectoryContents } from './helpers/path'
 import { DEFAULT_MULTIADDR } from './helpers/p2p'
+import { initAnalytics, identifyUser, trackEvent, shutdownAnalytics } from './helpers/analytics'
 
 globalThis.fetch = fetch
 
@@ -66,6 +67,16 @@ vscode.window.registerUriHandler({
     })
     console.log({ config })
 
+    if (address) {
+      identifyUser(address)
+      trackEvent(address, 'ide_config_received', {
+        environment_id: environmentId,
+        is_free_compute: isFreeComputeBoolean,
+        chain_id: chainIdNumber,
+        has_auth_token: !!authToken
+      })
+    }
+
     // Update the UI with the new values
     provider?.notifyConfigUpdate(config)
   }
@@ -74,6 +85,8 @@ vscode.window.registerUriHandler({
 export async function activate(context: vscode.ExtensionContext) {
   let savedSigner: Signer | null = null
   let savedJobId: string | null = null
+
+  initAnalytics()
 
   outputChannel.show()
   outputChannel.appendLine('Ocean Orchestrator is now active!')
@@ -154,6 +167,9 @@ export async function activate(context: vscode.ExtensionContext) {
               savedJobId,
               authToken || savedSigner
             )
+            trackEvent(config.address!, 'compute_job_stopped', {
+              job_id: savedJobId
+            })
             vscode.window.showInformationMessage('Job stopped successfully')
           } catch (error) {
             vscode.window.showErrorMessage('Failed to stop job')
@@ -217,6 +233,14 @@ export async function activate(context: vscode.ExtensionContext) {
         // Update back the config with new values from the extension
         config.updateFields({ authToken, environmentId })
         provider.sendMessage({ type: 'jobLoading' })
+
+        trackEvent(config.address!, 'compute_job_started', {
+          is_free_compute: config.isFreeCompute,
+          environment_id: config.environmentId,
+          has_dataset: !!dataset,
+          has_custom_docker: !!dockerImage,
+          algorithm_language: algorithmPath.split('.').pop()?.toLowerCase()
+        })
 
         const progressOptions = {
           location: vscode.ProgressLocation.Notification,
@@ -282,6 +306,12 @@ export async function activate(context: vscode.ExtensionContext) {
             // Save the job ID for future use
             savedJobId = jobId
 
+            trackEvent(config.address!, 'compute_job_created', {
+              is_free_compute: config.isFreeCompute,
+              environment_id: config.environmentId,
+              job_id: jobId
+            })
+
             // Notify webview that job started
             provider.sendMessage({
               type: 'jobStarted',
@@ -322,6 +352,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
               if (status?.terminationDetails?.OOMKilled === true) {
                 const errorMessage = `Job failed: Out of memory. Exit code: ${status?.terminationDetails?.exitCode}`
+                trackEvent(config.address!, 'compute_job_failed', {
+                  is_free_compute: config.isFreeCompute,
+                  environment_id: config.environmentId,
+                  job_id: jobId,
+                  error: 'OOMKilled'
+                })
                 vscode.window.showErrorMessage(errorMessage)
                 computeLogsChannel.appendLine(errorMessage)
                 savedJobId = null
@@ -347,6 +383,12 @@ export async function activate(context: vscode.ExtensionContext) {
                   console.error('Error retrieving logs on failure:', retrievalError)
                 }
 
+                trackEvent(config.address!, 'compute_job_failed', {
+                  is_free_compute: config.isFreeCompute,
+                  environment_id: config.environmentId,
+                  job_id: jobId,
+                  error: status.statusText
+                })
                 savedJobId = null
                 provider.sendMessage({ type: 'jobStopped' })
                 throw new Error(`Job failed with status: ${status.statusText}`)
@@ -404,6 +446,11 @@ export async function activate(context: vscode.ExtensionContext) {
                       'result-output'
                     )
                     outputChannel.appendLine(`Output saved to: ${filePathOutput}`)
+                    trackEvent(config.address!, 'compute_job_completed', {
+                      is_free_compute: config.isFreeCompute,
+                      environment_id: config.environmentId,
+                      job_id: jobId
+                    })
                     // Reset job state and notify webview that job completed
                     savedJobId = null
                     provider.sendMessage({ type: 'jobCompleted' })
@@ -432,6 +479,13 @@ export async function activate(context: vscode.ExtensionContext) {
         } catch (error) {
           console.error('Error details:', error)
 
+          trackEvent(config.address!, 'compute_job_failed', {
+            is_free_compute: config.isFreeCompute,
+            environment_id: config.environmentId,
+            job_id: savedJobId,
+            error: error instanceof Error ? error.message : String(error)
+          })
+
           // Reset job state and notify webview on error
           savedJobId = null
           provider.sendMessage({ type: 'jobStopped' })
@@ -452,9 +506,10 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 // Add deactivation handling
-export function deactivate() {
+export async function deactivate() {
   console.log('Ocean Orchestrator is being deactivated')
   outputChannel.appendLine('Ocean Orchestrator is being deactivated')
+  await shutdownAnalytics()
 }
 
 async function handleFailureLogsRetrieval(
