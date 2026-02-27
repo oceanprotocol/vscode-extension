@@ -22,7 +22,7 @@ Run a job without spinning up servers. Create a project, press **Start Compute J
 
 Start with free compute for quick tests, then switch to paid compute jobs when you need more resources.
 
-### Privacy-Preserving With Compute-to-Data
+### Compute-to-Data
 
 Your code runs in an isolated container, and only results are returned, so data stays sealed.
 

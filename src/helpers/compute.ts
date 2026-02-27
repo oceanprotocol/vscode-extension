@@ -498,7 +498,10 @@ export async function generateAuthToken(
     address: consumerAddress
   })
   const incrementedNonce = (nonce + 1).toString()
-  const signature = await getSignature(signer, consumerAddress + incrementedNonce)
+  const signature = await getSignature(
+    signer,
+    consumerAddress + incrementedNonce + PROTOCOL_COMMANDS.CREATE_AUTH_TOKEN
+  )
   const response = await P2PCommand(PROTOCOL_COMMANDS.CREATE_AUTH_TOKEN, multiaddresses, {
     address: consumerAddress,
     signature,
