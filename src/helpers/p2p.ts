@@ -21,13 +21,22 @@ const MAX_RETRIES = 5
 const RETRY_DELAY_MS = 1000
 
 let libp2pNode: Libp2p | null = null
-let lastMultiaddresses: Multiaddr[] | null = null
+let lastBootstrapKey: string | null = null
+
+function bootstrapKey(addrs: Multiaddr[]): string {
+  return addrs
+    .map((a) => a.toString())
+    .sort()
+    .join(',')
+}
 
 async function getOrCreateLibp2pNode(multiaddresses: Multiaddr[]): Promise<Libp2p> {
-  if (libp2pNode && lastMultiaddresses === multiaddresses) {
+  const key = bootstrapKey(multiaddresses)
+  if (libp2pNode && lastBootstrapKey === key) {
     return libp2pNode
   }
 
+  console.log('Creating new libp2p node')
   libp2pNode = await createLibp2p({
     addresses: { listen: [] },
     transports: [webSockets(), tcp()],
@@ -53,7 +62,7 @@ async function getOrCreateLibp2pNode(multiaddresses: Multiaddr[]): Promise<Libp2
       maxConnections: 100
     }
   })
-  lastMultiaddresses = multiaddresses
+  lastBootstrapKey = key
   await libp2pNode.start()
 
   return libp2pNode
