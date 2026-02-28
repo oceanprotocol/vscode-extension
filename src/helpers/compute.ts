@@ -18,10 +18,10 @@ import { getOrCreateLibp2pNode, OCEAN_P2P_PROTOCOL, P2PCommand } from './p2p'
 import { getAuthorization, getConsumerAddress, getSignature } from './auth'
 import { PROTOCOL_COMMANDS } from '../enum'
 import { once } from 'events'
-import { Stream, StreamCloseEvent } from '@libp2p/interface'
+import { Stream } from '@libp2p/interface'
 import { isMultiaddr, multiaddr } from '@multiformats/multiaddr'
 import { fromString } from 'uint8arrays/from-string'
-import { lpStream, UnexpectedEOFError } from '@libp2p/utils'
+import { lpStream } from '@libp2p/utils'
 
 const getContainerConfig = (
   fileExtension: string,
@@ -442,43 +442,8 @@ export async function saveOutput(
       .filter((address) => isMultiaddr(multiaddr(address)))
       .map((address) => multiaddr(address))
     const node = await getOrCreateLibp2pNode(multiaddressesToDial)
-    // Result stream can be a large tar (many MB). The signal is tied to the stream lifetime — must allow full download.
-    const RESULT_STREAM_TIMEOUT_MS = 600_000 // 10 minutes
-    const dialSignal = AbortSignal.timeout(RESULT_STREAM_TIMEOUT_MS)
-    dialSignal.addEventListener(
-      'abort',
-      () => {
-        console.error('[P2P stream] AbortSignal fired (e.g. dial timeout) — stream will be aborted. Reason:', (dialSignal as AbortSignal & { reason?: unknown }).reason)
-      },
-      { once: true }
-    )
-    const stream = await node.dialProtocol(multiaddressesToDial, OCEAN_P2P_PROTOCOL, {
-      signal: dialSignal
-    })
-    // Debug: see who causes the reset (local abort vs remote reset, and which code called abort)
-    const streamWithAbort = stream as { abort?(err: Error): void }
-    if (typeof streamWithAbort.abort === 'function') {
-      const originalAbort = streamWithAbort.abort.bind(stream)
-      streamWithAbort.abort = (err: Error) => {
-        const stack = new Error().stack
-        console.error('[P2P stream] abort() was called — this is the call stack that triggered it:', stack)
-        console.error('[P2P stream] abort error:', err?.name, err?.message, err)
-        originalAbort(err)
-      }
-    }
-    stream.addEventListener('close', (ev: StreamCloseEvent) => {
-      const e = ev as StreamCloseEvent & { type?: string }
-      const initiator = ev.local === true ? 'LOCAL (we aborted)' : ev.local === false ? 'REMOTE (peer reset)' : 'unknown'
-      const eventType = e.type ?? (ev.constructor?.name ?? '')
-      console.error('[P2P stream] close event:', {
-        initiator,
-        eventType,
-        errorName: ev.error?.name,
-        errorMessage: ev.error?.message,
-        errorStack: ev.error?.stack,
-        error: ev.error
-      })
-    })
+
+    const stream = await node.dialProtocol(multiaddressesToDial, OCEAN_P2P_PROTOCOL)
     const lp = lpStream(stream)
 
     await lp.write(
@@ -490,8 +455,7 @@ export async function saveOutput(
           consumerAddress: await getConsumerAddress(config.authToken),
           authorization: getAuthorization(config.authToken)
         })
-      ),
-      { signal: AbortSignal.timeout(RESULT_STREAM_TIMEOUT_MS) }
+      )
     )
     await stream.close()
 
@@ -501,26 +465,21 @@ export async function saveOutput(
     console.log('File path:', filePath)
 
     await fs.promises.mkdir(resultsDir, { recursive: true })
-    const firstChunk = await lp.read()
-    console.log({ firstChunk })
+    // Dismiss first chunk
+    await lp.read()
 
     fileHandle = fs.createWriteStream(filePath)
     try {
       while (true) {
         const chunk = await lp.read()
-        console.log('-->Chunk size:', chunk.length)
         const bytes = chunk.subarray()
         totalBytesWritten += bytes.length
         if (!fileHandle!.write(bytes)) {
           await new Promise((resolve) => fileHandle!.once('drain', resolve))
         }
-        console.log('--> Total bytes written:', totalBytesWritten)
       }
     } catch (e) {
       console.log({ e })
-      if (!(e instanceof UnexpectedEOFError)) {
-        throw e
-      }
     }
     fileHandle!.end()
     await once(fileHandle!, 'finish')
