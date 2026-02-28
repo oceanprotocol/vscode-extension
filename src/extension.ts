@@ -23,7 +23,12 @@ import { SelectedConfig } from './types'
 import { ethers, Signer } from 'ethers'
 import { checkAndReadFile, listDirectoryContents } from './helpers/path'
 import { DEFAULT_MULTIADDR } from './helpers/p2p'
-import { initAnalytics, identifyUser, trackEvent, shutdownAnalytics } from './helpers/analytics'
+import {
+  initAnalytics,
+  identifyUser,
+  trackEvent,
+  shutdownAnalytics
+} from './helpers/analytics'
 
 globalThis.fetch = fetch
 
@@ -432,20 +437,17 @@ export async function activate(context: vscode.ExtensionContext) {
 
                   try {
                     progress.report({
-                      message: 'Requesting the output result...'
+                      message: 'Downloading your results...'
                     })
-                    outputChannel.appendLine('Requesting the output result...')
-                    const outputStream = await getComputeResult(
+                    outputChannel.appendLine('Downloading your results...')
+                    const filePathOutput = await saveOutput(
                       config,
                       jobId,
-                      archive?.index
-                    )
-                    const filePathOutput = await saveOutput(
-                      outputStream,
+                      archive?.index,
                       resultsFolderPath,
                       'result-output'
                     )
-                    outputChannel.appendLine(`Output saved to: ${filePathOutput}`)
+                    outputChannel.appendLine(`Results saved to: ${filePathOutput}`)
                     trackEvent(config.address!, 'compute_job_completed', {
                       is_free_compute: config.isFreeCompute,
                       environment_id: config.environmentId,
@@ -460,11 +462,10 @@ export async function activate(context: vscode.ExtensionContext) {
                     )
                     outputChannel.appendLine('Compute job completed successfully!')
                   } catch (error) {
-                    console.log('No second result available:', error)
-                    progress.report({ message: 'Error saving the output result' })
+                    progress.report({ message: 'Error saving your results' })
                     provider.sendMessage({ type: 'jobStopped' })
-                    computeLogsChannel.appendLine('Error saving the output result')
-                    outputChannel.appendLine('Error saving the output result')
+                    computeLogsChannel.appendLine('Error saving your results')
+                    outputChannel.appendLine('Error saving your results')
                   }
 
                   break

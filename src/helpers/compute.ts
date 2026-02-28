@@ -14,11 +14,14 @@ import { fetchDdoByDid } from './indexer'
 import { SelectedConfig } from '../types'
 import { Signer } from 'ethers'
 import { ExtendedMetadataAlgorithm } from '@oceanprotocol/lib'
-import { P2PCommand } from './p2p'
-import { getConsumerAddress, getSignature } from './auth'
+import { getOrCreateLibp2pNode, OCEAN_P2P_PROTOCOL, P2PCommand } from './p2p'
+import { getAuthorization, getConsumerAddress, getSignature } from './auth'
 import { PROTOCOL_COMMANDS } from '../enum'
 import { once } from 'events'
-import { Stream } from '@libp2p/interface'
+import { Stream, StreamCloseEvent } from '@libp2p/interface'
+import { isMultiaddr, multiaddr } from '@multiformats/multiaddr'
+import { fromString } from 'uint8arrays/from-string'
+import { lpStream, UnexpectedEOFError } from '@libp2p/utils'
 
 const getContainerConfig = (
   fileExtension: string,
@@ -421,16 +424,76 @@ export async function getComputeLogs(
  */
 
 export async function saveOutput(
-  stream: Stream,
+  config: SelectedConfig,
+  jobId: string,
+  index: number,
   destinationFolder: string,
   prefix: string = 'output'
 ): Promise<string> {
   let fileHandle: fs.WriteStream | null = null
+  let totalBytesWritten = 0
 
   try {
     const baseDir = destinationFolder || path.join(process.cwd(), 'results')
     const dateStr = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-')
     const resultsDir = path.join(baseDir, `results-${dateStr}`)
+
+    const multiaddressesToDial = config.multiaddresses
+      .filter((address) => isMultiaddr(multiaddr(address)))
+      .map((address) => multiaddr(address))
+    const node = await getOrCreateLibp2pNode(multiaddressesToDial)
+    // Result stream can be a large tar (many MB). The signal is tied to the stream lifetime — must allow full download.
+    const RESULT_STREAM_TIMEOUT_MS = 600_000 // 10 minutes
+    const dialSignal = AbortSignal.timeout(RESULT_STREAM_TIMEOUT_MS)
+    dialSignal.addEventListener(
+      'abort',
+      () => {
+        console.error('[P2P stream] AbortSignal fired (e.g. dial timeout) — stream will be aborted. Reason:', (dialSignal as AbortSignal & { reason?: unknown }).reason)
+      },
+      { once: true }
+    )
+    const stream = await node.dialProtocol(multiaddressesToDial, OCEAN_P2P_PROTOCOL, {
+      signal: dialSignal
+    })
+    // Debug: see who causes the reset (local abort vs remote reset, and which code called abort)
+    const streamWithAbort = stream as { abort?(err: Error): void }
+    if (typeof streamWithAbort.abort === 'function') {
+      const originalAbort = streamWithAbort.abort.bind(stream)
+      streamWithAbort.abort = (err: Error) => {
+        const stack = new Error().stack
+        console.error('[P2P stream] abort() was called — this is the call stack that triggered it:', stack)
+        console.error('[P2P stream] abort error:', err?.name, err?.message, err)
+        originalAbort(err)
+      }
+    }
+    stream.addEventListener('close', (ev: StreamCloseEvent) => {
+      const e = ev as StreamCloseEvent & { type?: string }
+      const initiator = ev.local === true ? 'LOCAL (we aborted)' : ev.local === false ? 'REMOTE (peer reset)' : 'unknown'
+      const eventType = e.type ?? (ev.constructor?.name ?? '')
+      console.error('[P2P stream] close event:', {
+        initiator,
+        eventType,
+        errorName: ev.error?.name,
+        errorMessage: ev.error?.message,
+        errorStack: ev.error?.stack,
+        error: ev.error
+      })
+    })
+    const lp = lpStream(stream)
+
+    await lp.write(
+      fromString(
+        JSON.stringify({
+          command: PROTOCOL_COMMANDS.COMPUTE_GET_RESULT,
+          jobId,
+          index,
+          consumerAddress: await getConsumerAddress(config.authToken),
+          authorization: getAuthorization(config.authToken)
+        })
+      ),
+      { signal: AbortSignal.timeout(RESULT_STREAM_TIMEOUT_MS) }
+    )
+    await stream.close()
 
     const fileName = `${prefix}.tar`
     const filePath = path.join(resultsDir, fileName)
@@ -438,19 +501,29 @@ export async function saveOutput(
     console.log('File path:', filePath)
 
     await fs.promises.mkdir(resultsDir, { recursive: true })
+    const firstChunk = await lp.read()
+    console.log({ firstChunk })
 
-    fileHandle = fs.createWriteStream(filePath, { highWaterMark: 16 * 1024 * 1024 })
-
-    for await (const chunk of stream) {
-      console.log('-->Chunk size:', chunk.length)
-
-      if (!fileHandle.write(chunk.subarray())) {
-        await once(fileHandle, 'drain')
+    fileHandle = fs.createWriteStream(filePath)
+    try {
+      while (true) {
+        const chunk = await lp.read()
+        console.log('-->Chunk size:', chunk.length)
+        const bytes = chunk.subarray()
+        totalBytesWritten += bytes.length
+        if (!fileHandle!.write(bytes)) {
+          await new Promise((resolve) => fileHandle!.once('drain', resolve))
+        }
+        console.log('--> Total bytes written:', totalBytesWritten)
+      }
+    } catch (e) {
+      console.log({ e })
+      if (!(e instanceof UnexpectedEOFError)) {
+        throw e
       }
     }
-
-    fileHandle.end()
-    await once(fileHandle, 'finish')
+    fileHandle!.end()
+    await once(fileHandle!, 'finish')
 
     const extractDir = path.join(resultsDir, `${prefix}_extracted`)
     await fs.promises.mkdir(extractDir, { recursive: true })
@@ -468,6 +541,7 @@ export async function saveOutput(
       return filePath
     }
   } catch (error: any) {
+    console.log('--> Total bytes written:', totalBytesWritten)
     console.error('Error saving tar output:', error)
     throw new Error(`Failed to save tar output: ${error.message}`)
   } finally {
