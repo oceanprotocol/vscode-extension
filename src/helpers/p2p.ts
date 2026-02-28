@@ -41,14 +41,7 @@ async function getOrCreateLibp2pNode(multiaddresses: Multiaddr[]): Promise<Libp2
     addresses: { listen: [] },
     transports: [webSockets(), tcp()],
     connectionEncrypters: [noise()],
-    streamMuxers: [
-      yamux({
-        enableKeepAlive: true,
-        streamOptions: {
-          maxStreamWindowSize: 5 * 1024 * 1024
-        }
-      })
-    ],
+    streamMuxers: [yamux()],
     services: {
       ping: ping()
     },
