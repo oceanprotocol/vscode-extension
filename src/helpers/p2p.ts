@@ -60,6 +60,9 @@ async function getOrCreateLibp2pNode(multiaddresses: Multiaddr[]): Promise<Libp2
     ],
     connectionManager: {
       maxConnections: 100
+    },
+    connectionMonitor: {
+      abortConnectionOnPingFailure: false
     }
   })
   lastBootstrapKey = key
