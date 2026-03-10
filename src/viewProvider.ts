@@ -470,8 +470,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 <span class="filePath">Please create or select a project folder</span>
               </div>
               <div></div>
-              <button id="startComputeBtn">Start <strong>FREE</strong> Compute Job</button>
-              <button id="stopComputeBtn" style="display: none;">Stop Compute Job</button>
+              <button id="startComputeBtn">Run <strong>Test</strong> Job</button>
+              <button id="stopComputeBtn" style="display: none;">Stop Job</button>
               <div id="errorMessage" class="error-message"></div>
               <button id="createNewProjectBtn">Create New Project Folder</button>
 
@@ -788,8 +788,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                             const startComputeBtn = document.getElementById('startComputeBtn');
                             if (startComputeBtn) {
                               startComputeBtn.innerHTML = message.config.isFreeCompute === true 
-                                ? 'Start <strong>FREE</strong> Compute Job'
-                                : 'Start <strong>PAID</strong> Compute Job';
+                                ? 'Run <strong>Test</strong> Job'
+                                : 'Run <strong>Compute</strong> Job';
                             }
                           }
                           break;
