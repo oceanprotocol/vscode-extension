@@ -6,6 +6,7 @@ import { tcp } from '@libp2p/tcp'
 import { webSockets } from '@libp2p/websockets'
 import { bootstrap } from '@libp2p/bootstrap'
 import { lpStream, UnexpectedEOFError } from '@libp2p/utils'
+import type { Connection } from '@libp2p/interface'
 import { isMultiaddr, Multiaddr, multiaddr } from '@multiformats/multiaddr'
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
@@ -13,14 +14,15 @@ import { getAuthorization } from './auth'
 import { PROTOCOL_COMMANDS } from '../enum'
 import { GatewayResponse } from '../types'
 
-const DIAL_TIMEOUT_MS = 10_000
-
+// export const DEFAULT_MULTIADDR =
+//   '/ip4/35.202.16.215/tcp/9001/tls/sni/35-202-16-215.kzwfwjn5ji4puuok23h2yyzro0fe1rqv1bqzbmrjf7uqyj504rawjl4zs68mepr.libp2p.direct/ws/p2p/16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJfBcmbNppbT3QYtBpi'
 export const DEFAULT_MULTIADDR =
-  '/ip4/35.202.16.215/tcp/9001/tls/sni/35-202-16-215.kzwfwjn5ji4puuok23h2yyzro0fe1rqv1bqzbmrjf7uqyj504rawjl4zs68mepr.libp2p.direct/ws/p2p/16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJfBcmbNppbT3QYtBpi'
+  '/ip4/34.107.108.64/tcp/9001/tls/sni/34-107-108-64.kzwfwjn5ji4puvz8g9ljbuynsva03t3iyyf5j13k0s8ixshhuj51ih78wvgqal5.libp2p.direct/ws/p2p/16Uiu2HAmUf4JpduE6CXpNMm1xdjhFUH53G4c9o37Kat3wsreUyaQ'
 
 export const OCEAN_P2P_PROTOCOL = '/ocean/nodes/1.0.0'
 const MAX_RETRIES = 5
 const RETRY_DELAY_MS = 1000
+const DIAL_TIMEOUT_MS = 10_000
 
 let libp2pNode: Libp2p | null = null
 let lastBootstrapKey: string | null = null
@@ -76,6 +78,7 @@ export async function P2PCommand(
   signerOrAuthToken?: Signer | string | null,
   retrialNumber: number = 0
 ): Promise<any> {
+  let connection: Connection | undefined
   try {
     const payload = {
       command,
@@ -87,7 +90,10 @@ export async function P2PCommand(
       .map((address) => multiaddr(address))
 
     const node = await getOrCreateLibp2pNode(multiaddressesToDial)
-    const stream = await node.dialProtocol(multiaddressesToDial, OCEAN_P2P_PROTOCOL, {
+    connection = await node.dial(multiaddressesToDial, {
+      signal: AbortSignal.timeout(DIAL_TIMEOUT_MS)
+    })
+    const stream = await connection.newStream(OCEAN_P2P_PROTOCOL, {
       signal: AbortSignal.timeout(DIAL_TIMEOUT_MS)
     })
     const lp = lpStream(stream)
@@ -177,6 +183,13 @@ export async function P2PCommand(
 
     return response
   } catch (err: any) {
-    throw new Error(`Gateway node error: ${err?.message ?? err}`)
+    const msg: string = err?.message ?? ''
+    // abortConnectionOnPingFailure is disabled so stale connections are not evicted automatically.
+    // Detect them by "closed"/"reset" errors, evict, and let the retry handle re-dialing.
+    if ((msg.includes('closed') || msg.includes('reset')) && retrialNumber < MAX_RETRIES) {
+      try { await connection?.close() } catch {}
+      return P2PCommand(command, multiaddresses, body, signerOrAuthToken, retrialNumber + 1)
+    }
+    throw new Error(`Gateway node error: ${msg}`)
   }
 }
