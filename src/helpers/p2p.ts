@@ -14,10 +14,8 @@ import { getAuthorization } from './auth'
 import { PROTOCOL_COMMANDS } from '../enum'
 import { GatewayResponse } from '../types'
 
-// export const DEFAULT_MULTIADDR =
-//   '/ip4/35.202.16.215/tcp/9001/tls/sni/35-202-16-215.kzwfwjn5ji4puuok23h2yyzro0fe1rqv1bqzbmrjf7uqyj504rawjl4zs68mepr.libp2p.direct/ws/p2p/16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJfBcmbNppbT3QYtBpi'
 export const DEFAULT_MULTIADDR =
-  '/ip4/34.107.108.64/tcp/9001/tls/sni/34-107-108-64.kzwfwjn5ji4puvz8g9ljbuynsva03t3iyyf5j13k0s8ixshhuj51ih78wvgqal5.libp2p.direct/ws/p2p/16Uiu2HAmUf4JpduE6CXpNMm1xdjhFUH53G4c9o37Kat3wsreUyaQ'
+  '/ip4/35.202.16.215/tcp/9001/tls/sni/35-202-16-215.kzwfwjn5ji4puuok23h2yyzro0fe1rqv1bqzbmrjf7uqyj504rawjl4zs68mepr.libp2p.direct/ws/p2p/16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJfBcmbNppbT3QYtBpi'
 
 export const OCEAN_P2P_PROTOCOL = '/ocean/nodes/1.0.0'
 const MAX_RETRIES = 5
@@ -186,9 +184,20 @@ export async function P2PCommand(
     const msg: string = err?.message ?? ''
     // abortConnectionOnPingFailure is disabled so stale connections are not evicted automatically.
     // Detect them by "closed"/"reset" errors, evict, and let the retry handle re-dialing.
-    if ((msg.includes('closed') || msg.includes('reset')) && retrialNumber < MAX_RETRIES) {
-      try { await connection?.close() } catch {}
-      return P2PCommand(command, multiaddresses, body, signerOrAuthToken, retrialNumber + 1)
+    if (
+      (msg.includes('closed') || msg.includes('reset')) &&
+      retrialNumber < MAX_RETRIES
+    ) {
+      try {
+        await connection?.close()
+      } catch {}
+      return P2PCommand(
+        command,
+        multiaddresses,
+        body,
+        signerOrAuthToken,
+        retrialNumber + 1
+      )
     }
     throw new Error(`Gateway node error: ${msg}`)
   }
