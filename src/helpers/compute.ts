@@ -140,15 +140,15 @@ export async function stopComputeJob(
     const nonce = await P2PCommand(PROTOCOL_COMMANDS.NONCE, multiaddresses, {
       address: consumerAddress
     })
+    const incrementedNonce = (nonce + 1).toString()
     const signature = await getSignature(
       signerOrAuthToken,
-      consumerAddress + (jobId || '')
+      consumerAddress + incrementedNonce + PROTOCOL_COMMANDS.COMPUTE_STOP
     )
-
     const computeJob = await P2PCommand(
       PROTOCOL_COMMANDS.COMPUTE_STOP,
       multiaddresses,
-      { jobId, consumerAddress, nonce, signature },
+      { jobId, consumerAddress, nonce: incrementedNonce, signature },
       signerOrAuthToken
     )
     return computeJob
@@ -428,7 +428,8 @@ export async function saveOutput(
   jobId: string,
   index: number,
   destinationFolder: string,
-  prefix: string = 'output'
+  prefix: string = 'output',
+  abortSignal?: AbortSignal
 ): Promise<string> {
   let fileHandle: fs.WriteStream | null = null
   let totalBytesWritten = 0
@@ -474,31 +475,38 @@ export async function saveOutput(
         const chunk = await lp.read()
         const bytes = chunk.subarray()
         totalBytesWritten += bytes.length
+        console.log(`Total bytes written: ${totalBytesWritten}`)
         if (!fileHandle!.write(bytes)) {
           await new Promise((resolve) => fileHandle!.once('drain', resolve))
         }
       }
     } catch (e) {
-      console.log({ e })
+      if (abortSignal?.aborted) {
+        // Download was intentionally aborted by user.
+      } else {
+        console.log({ e })
+        throw e
+      }
     }
     fileHandle!.end()
     await once(fileHandle!, 'finish')
 
-    const extractDir = path.join(resultsDir, `${prefix}_extracted`)
-    await fs.promises.mkdir(extractDir, { recursive: true })
-
-    try {
-      await tar.x({
-        file: filePath,
-        cwd: extractDir,
-        preservePaths: true
-      })
-      console.log(`Extracted contents to: ${extractDir}`)
-      return filePath
-    } catch (extractError) {
-      console.error('Error extracting tar contents:', extractError)
+    if (abortSignal?.aborted) {
+      try {
+        await fs.promises.unlink(filePath)
+      } catch {}
       return filePath
     }
+
+    const extractDir = path.join(resultsDir, `${prefix}_extracted`)
+    await fs.promises.mkdir(extractDir, { recursive: true })
+    await tar.x({
+      file: filePath,
+      cwd: extractDir,
+      preservePaths: true
+    })
+    console.log(`Extracted contents to: ${extractDir}`)
+    return filePath
   } catch (error: any) {
     console.log('--> Total bytes written:', totalBytesWritten)
     console.error('Error saving tar output:', error)
