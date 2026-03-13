@@ -563,7 +563,11 @@ async function getAndSaveLogs(
 
   progress.report({ message: `Saving ${fileName}...` })
   const content = await streamToString(result)
-  const filePathLogs = await saveResults(content, resultsFolderPath, fileName)
+  const filePathLogs = await saveResults(
+    content,
+    path.join(resultsFolderPath, jobId),
+    fileName
+  )
   outputChannel.appendLine(`${fileName} saved to: ${filePathLogs}`)
   return filePathLogs
 }

@@ -361,10 +361,13 @@ export async function saveResults(
   prefix: string = 'result'
 ): Promise<string> {
   try {
-    // Use provided destination folder or default to './results'
-    const baseDir = destinationFolder || path.join(process.cwd(), 'results')
-    const dateStr = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-')
-    const resultsDir = path.join(baseDir, `results-${dateStr}`)
+    const resultsDir =
+      destinationFolder ||
+      path.join(
+        process.cwd(),
+        'results',
+        `results-${new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-')}`
+      )
     const logsDir = path.join(resultsDir, 'logs')
 
     // Ensure logs directory exists
@@ -522,11 +525,13 @@ export async function saveOutput(
   prefix: string = 'output'
 ): Promise<string> {
   const baseDir = destinationFolder || path.join(process.cwd(), 'results')
-  const resultsDir = path.join(baseDir, `${jobId}-${index}`)
+  const resultsDir = path.join(baseDir, jobId)
   const filePath = path.join(resultsDir, `${prefix}.tar`)
   await fs.promises.mkdir(resultsDir, { recursive: true })
 
-  return withRetrial(() => attemptSaveOutput(config, jobId, index, filePath, resultsDir, prefix))
+  return withRetrial(() =>
+    attemptSaveOutput(config, jobId, index, filePath, resultsDir, prefix)
+  )
 }
 
 export async function getComputeEnvironments(multiaddresses: string[] | undefined) {
