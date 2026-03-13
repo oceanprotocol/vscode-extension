@@ -5,10 +5,11 @@ import { yamux } from '@chainsafe/libp2p-yamux'
 import { tcp } from '@libp2p/tcp'
 import { webSockets } from '@libp2p/websockets'
 import { bootstrap } from '@libp2p/bootstrap'
+import { lpStream, UnexpectedEOFError } from '@libp2p/utils'
+import type { Connection } from '@libp2p/interface'
 import { isMultiaddr, Multiaddr, multiaddr } from '@multiformats/multiaddr'
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
-import { ping } from '@libp2p/ping'
 import { getAuthorization } from './auth'
 import { PROTOCOL_COMMANDS } from '../enum'
 import { GatewayResponse } from '../types'
@@ -16,9 +17,10 @@ import { GatewayResponse } from '../types'
 export const DEFAULT_MULTIADDR =
   '/ip4/35.202.16.215/tcp/9001/tls/sni/35-202-16-215.kzwfwjn5ji4puuok23h2yyzro0fe1rqv1bqzbmrjf7uqyj504rawjl4zs68mepr.libp2p.direct/ws/p2p/16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJfBcmbNppbT3QYtBpi'
 
-const OCEAN_P2P_PROTOCOL = '/ocean/nodes/1.0.0'
+export const OCEAN_P2P_PROTOCOL = '/ocean/nodes/1.0.0'
 const MAX_RETRIES = 5
 const RETRY_DELAY_MS = 1000
+const DIAL_TIMEOUT_MS = 10_000
 
 let libp2pNode: Libp2p | null = null
 let lastBootstrapKey: string | null = null
@@ -30,7 +32,9 @@ function bootstrapKey(addrs: Multiaddr[]): string {
     .join(',')
 }
 
-async function getOrCreateLibp2pNode(multiaddresses: Multiaddr[]): Promise<Libp2p> {
+export async function getOrCreateLibp2pNode(
+  multiaddresses: Multiaddr[]
+): Promise<Libp2p> {
   const key = bootstrapKey(multiaddresses)
   if (libp2pNode && lastBootstrapKey === key) {
     return libp2pNode
@@ -42,9 +46,6 @@ async function getOrCreateLibp2pNode(multiaddresses: Multiaddr[]): Promise<Libp2
     transports: [webSockets(), tcp()],
     connectionEncrypters: [noise()],
     streamMuxers: [yamux()],
-    services: {
-      ping: ping()
-    },
     peerDiscovery: [
       bootstrap({
         list: multiaddresses.map((addr) => addr.toString()),
@@ -64,18 +65,8 @@ async function getOrCreateLibp2pNode(multiaddresses: Multiaddr[]): Promise<Libp2
   return libp2pNode
 }
 
-function toBytes(chunk: Uint8Array | { subarray(): Uint8Array }): Uint8Array {
+function toUint8Array(chunk: Uint8Array | { subarray(): Uint8Array }): Uint8Array {
   return chunk instanceof Uint8Array ? chunk : chunk.subarray()
-}
-
-async function* remainingChunks(
-  it: AsyncIterator<Uint8Array | { subarray(): Uint8Array }>
-): AsyncGenerator<Uint8Array> {
-  let next = await it.next()
-  while (!next.done && next.value !== null) {
-    yield toBytes(next.value)
-    next = await it.next()
-  }
 }
 
 export async function P2PCommand(
@@ -85,6 +76,7 @@ export async function P2PCommand(
   signerOrAuthToken?: Signer | string | null,
   retrialNumber: number = 0
 ): Promise<any> {
+  let connection: Connection | undefined
   try {
     const payload = {
       command,
@@ -96,21 +88,28 @@ export async function P2PCommand(
       .map((address) => multiaddr(address))
 
     const node = await getOrCreateLibp2pNode(multiaddressesToDial)
-    const connection = await node.dial(multiaddressesToDial)
+    connection = await node.dial(multiaddressesToDial, {
+      signal: AbortSignal.timeout(DIAL_TIMEOUT_MS)
+    })
+    const stream = await connection.newStream(OCEAN_P2P_PROTOCOL, {
+      signal: AbortSignal.timeout(DIAL_TIMEOUT_MS)
+    })
+    const lp = lpStream(stream)
 
-    const stream = await connection.newStream([OCEAN_P2P_PROTOCOL])
-    stream.send(uint8ArrayFromString(JSON.stringify(payload)))
-    stream.close()
+    await lp.write(uint8ArrayFromString(JSON.stringify(payload)), {
+      signal: AbortSignal.timeout(DIAL_TIMEOUT_MS)
+    })
+    await stream.close()
 
-    const it = stream[Symbol.asyncIterator]()
-    const { done, value } = await it.next()
-    const firstChunk = value !== null ? toBytes(value) : null
-
-    if (done || !firstChunk?.length) {
+    const firstChunk = await lp.read({
+      signal: AbortSignal.timeout(DIAL_TIMEOUT_MS)
+    })
+    const firstBytes = toUint8Array(firstChunk)
+    if (!firstBytes.length) {
       throw new Error('Gateway node error: no response from peer')
     }
 
-    const statusText = uint8ArrayToString(firstChunk)
+    const statusText = uint8ArrayToString(firstBytes)
     try {
       const status = JSON.parse(statusText)
       if (typeof status?.httpStatus === 'number' && status.httpStatus >= 400) {
@@ -122,18 +121,35 @@ export async function P2PCommand(
       command === PROTOCOL_COMMANDS.COMPUTE_GET_STREAMABLE_LOGS ||
       command === PROTOCOL_COMMANDS.COMPUTE_GET_RESULT
     ) {
-      // do not return or manipulate the stream, just return the remaining chunks!!
-      const streamDuplicate = (async function* () {
-        for await (const c of remainingChunks(it)) {
-          yield c
+      const streamableChunks = (async function* () {
+        try {
+          while (true) {
+            const chunk = await lp.read({
+              signal: AbortSignal.timeout(DIAL_TIMEOUT_MS)
+            })
+            yield toUint8Array(chunk)
+          }
+        } catch (e) {
+          if (!(e instanceof UnexpectedEOFError)) {
+            throw e
+          }
         }
       })()
-      return streamDuplicate
+      return streamableChunks
     }
 
-    const chunks: Uint8Array[] = [firstChunk]
-    for await (const c of remainingChunks(it)) {
-      chunks.push(c)
+    const chunks: Uint8Array[] = [firstBytes]
+    try {
+      while (true) {
+        const chunk = await lp.read({
+          signal: AbortSignal.timeout(DIAL_TIMEOUT_MS)
+        })
+        chunks.push(toUint8Array(chunk))
+      }
+    } catch (e) {
+      if (!(e instanceof UnexpectedEOFError)) {
+        throw e
+      }
     }
 
     let response: unknown
@@ -142,7 +158,6 @@ export async function P2PCommand(
       try {
         response = JSON.parse(text)
       } catch {
-        // Not JSON, keep raw bytes
         response = chunks[i]
       }
     }
@@ -166,6 +181,24 @@ export async function P2PCommand(
 
     return response
   } catch (err: any) {
-    throw new Error(`Gateway node error: ${err?.message ?? err}`)
+    const msg: string = err?.message ?? ''
+    // abortConnectionOnPingFailure is disabled so stale connections are not evicted automatically.
+    // Detect them by "closed"/"reset" errors, evict, and let the retry handle re-dialing.
+    if (
+      (msg.includes('closed') || msg.includes('reset')) &&
+      retrialNumber < MAX_RETRIES
+    ) {
+      try {
+        await connection?.close()
+      } catch {}
+      return P2PCommand(
+        command,
+        multiaddresses,
+        body,
+        signerOrAuthToken,
+        retrialNumber + 1
+      )
+    }
+    throw new Error(`Gateway node error: ${msg}`)
   }
 }
