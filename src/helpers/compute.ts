@@ -428,8 +428,7 @@ export async function saveOutput(
   jobId: string,
   index: number,
   destinationFolder: string,
-  prefix: string = 'output',
-  abortSignal?: AbortSignal
+  prefix: string = 'output'
 ): Promise<string> {
   let fileHandle: fs.WriteStream | null = null
   let totalBytesWritten = 0
@@ -481,32 +480,26 @@ export async function saveOutput(
         }
       }
     } catch (e) {
-      if (abortSignal?.aborted) {
-        // Download was intentionally aborted by user.
-      } else {
-        console.log({ e })
-        throw e
-      }
+      console.log({ e })
     }
     fileHandle!.end()
     await once(fileHandle!, 'finish')
 
-    if (abortSignal?.aborted) {
-      try {
-        await fs.promises.unlink(filePath)
-      } catch {}
-      return filePath
-    }
-
     const extractDir = path.join(resultsDir, `${prefix}_extracted`)
     await fs.promises.mkdir(extractDir, { recursive: true })
-    await tar.x({
-      file: filePath,
-      cwd: extractDir,
-      preservePaths: true
-    })
-    console.log(`Extracted contents to: ${extractDir}`)
-    return filePath
+
+    try {
+      await tar.x({
+        file: filePath,
+        cwd: extractDir,
+        preservePaths: true
+      })
+      console.log(`Extracted contents to: ${extractDir}`)
+      return filePath
+    } catch (extractError) {
+      console.error('Error extracting tar contents:', extractError)
+      return filePath
+    }
   } catch (error: any) {
     console.log('--> Total bytes written:', totalBytesWritten)
     console.error('Error saving tar output:', error)
