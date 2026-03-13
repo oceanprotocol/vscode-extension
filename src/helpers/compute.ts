@@ -21,7 +21,10 @@ import { once } from 'events'
 import { Stream } from '@libp2p/interface'
 import { isMultiaddr, multiaddr } from '@multiformats/multiaddr'
 import { fromString } from 'uint8arrays/from-string'
-import { lpStream } from '@libp2p/utils'
+import { lpStream, UnexpectedEOFError } from '@libp2p/utils'
+
+const HANDSHAKE_TIMEOUT_MS = 30_000
+const DATA_TIMEOUT_MS = 30 * 60_000
 
 const getContainerConfig = (
   fileExtension: string,
@@ -423,20 +426,24 @@ export async function getComputeLogs(
  * @returns The path to the saved tar file
  */
 
-export async function saveOutput(
+async function attemptSaveOutput(
   config: SelectedConfig,
   jobId: string,
   index: number,
-  destinationFolder: string,
-  prefix: string = 'output'
+  filePath: string,
+  resultsDir: string,
+  prefix: string
 ): Promise<string> {
   let fileHandle: fs.WriteStream | null = null
   let totalBytesWritten = 0
 
   try {
-    const baseDir = destinationFolder || path.join(process.cwd(), 'results')
-    const dateStr = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-')
-    const resultsDir = path.join(baseDir, `results-${dateStr}`)
+    // Detect partial file to resume from
+    let offset = 0
+    try {
+      const stat = await fs.promises.stat(filePath)
+      offset = stat.size
+    } catch {}
 
     const multiaddressesToDial = config.multiaddresses
       .filter((address) => isMultiaddr(multiaddr(address)))
@@ -452,26 +459,25 @@ export async function saveOutput(
           command: PROTOCOL_COMMANDS.COMPUTE_GET_RESULT,
           jobId,
           index,
+          offset,
           consumerAddress: await getConsumerAddress(config.authToken),
           authorization: getAuthorization(config.authToken)
         })
-      )
+      ),
+      { signal: AbortSignal.timeout(HANDSHAKE_TIMEOUT_MS) }
     )
     await stream.close()
 
-    const fileName = `${prefix}.tar`
-    const filePath = path.join(resultsDir, fileName)
+    console.log(`File path: ${filePath} (offset: ${offset})`)
 
-    console.log('File path:', filePath)
+    // Dismiss first chunk (status frame)
+    await lp.read({ signal: AbortSignal.timeout(HANDSHAKE_TIMEOUT_MS) })
 
-    await fs.promises.mkdir(resultsDir, { recursive: true })
-    // Dismiss first chunk
-    await lp.read()
-
-    fileHandle = fs.createWriteStream(filePath)
+    fileHandle = fs.createWriteStream(filePath, { flags: offset > 0 ? 'a' : 'w' })
+    totalBytesWritten = offset
     try {
       while (true) {
-        const chunk = await lp.read()
+        const chunk = await lp.read({ signal: AbortSignal.timeout(DATA_TIMEOUT_MS) })
         const bytes = chunk.subarray()
         totalBytesWritten += bytes.length
         console.log(`Total bytes written: ${totalBytesWritten}`)
@@ -480,7 +486,9 @@ export async function saveOutput(
         }
       }
     } catch (e) {
-      console.log({ e })
+      if (!(e instanceof UnexpectedEOFError)) {
+        throw e
+      }
     }
     fileHandle!.end()
     await once(fileHandle!, 'finish')
@@ -488,18 +496,13 @@ export async function saveOutput(
     const extractDir = path.join(resultsDir, `${prefix}_extracted`)
     await fs.promises.mkdir(extractDir, { recursive: true })
 
-    try {
-      await tar.x({
-        file: filePath,
-        cwd: extractDir,
-        preservePaths: true
-      })
-      console.log(`Extracted contents to: ${extractDir}`)
-      return filePath
-    } catch (extractError) {
-      console.error('Error extracting tar contents:', extractError)
-      return filePath
-    }
+    await tar.x({
+      file: filePath,
+      cwd: extractDir,
+      preservePaths: true
+    })
+    console.log(`Extracted contents to: ${extractDir}`)
+    return filePath
   } catch (error: any) {
     console.log('--> Total bytes written:', totalBytesWritten)
     console.error('Error saving tar output:', error)
@@ -509,6 +512,21 @@ export async function saveOutput(
       fileHandle.destroy()
     }
   }
+}
+
+export async function saveOutput(
+  config: SelectedConfig,
+  jobId: string,
+  index: number,
+  destinationFolder: string,
+  prefix: string = 'output'
+): Promise<string> {
+  const baseDir = destinationFolder || path.join(process.cwd(), 'results')
+  const resultsDir = path.join(baseDir, `${jobId}-${index}`)
+  const filePath = path.join(resultsDir, `${prefix}.tar`)
+  await fs.promises.mkdir(resultsDir, { recursive: true })
+
+  return withRetrial(() => attemptSaveOutput(config, jobId, index, filePath, resultsDir, prefix))
 }
 
 export async function getComputeEnvironments(multiaddresses: string[] | undefined) {
