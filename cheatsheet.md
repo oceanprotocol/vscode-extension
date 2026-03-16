@@ -60,17 +60,17 @@ Run affordable GPU AI jobs from your editor with a one-click workflow and pay-pe
 
 ## Workflow Summary
 
-| Step | Action                                       |
-| ---- | -------------------------------------------- |
-| 1    | Create or select a project folder            |
+| Step | Action                                         |
+| ---- | ---------------------------------------------- |
+| 1    | Create or select a project folder              |
 | 2    | Review algorithm, Dockerfile, and dependencies |
-| 3    | Click **Start Compute Job**                  |
-| 4    | Monitor logs and job status                  |
-| 5    | Check results and logs in your project folder |
+| 3    | Click **Start Compute Job**                    |
+| 4    | Monitor logs and job status                    |
+| 5    | Check results and logs in your project folder  |
 
 ---
 
 ## Resources
 
 - [Ocean Protocol Docs](https://docs.oceanprotocol.com/developers/vscode)
-- [GitHub Repo](https://github.com/oceanprotocol/vscode-extension)
+- [GitHub Repo](https://github.com/oceanprotocol/ocean-orchestrator)

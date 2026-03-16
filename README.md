@@ -50,10 +50,10 @@ Outputs and logs are saved to your results folder as soon as the job completes.
    - Algorithm file (`.py` or `.js`)
    - Dockerfile with environment setup
    - Dependencies file (`requirements.txt` or `package.json`)
-   - `.env` secrets file
+   - `.env` secrets file — contents are passed as environment variables into the container
 5. Click **Start FREE Compute Job**
 6. Monitor job status and logs in the Output console
-7. Check results and logs in your project's `results` folder
+7. Check results and logs in your project's `results/results-{timestamp}/` folder
 
 ### Extension Layout
 
@@ -71,7 +71,67 @@ Ocean Orchestrator adds a dedicated Ocean section to the activity bar. From ther
 2. Review your algorithm, Dockerfile, and dependencies
 3. Click **Start Free Compute Job** or switch to paid for more resources
 4. Monitor job status and real-time logs in the Output console
-5. Check outputs in `results` and `logs`
+5. Check outputs in `results/results-{timestamp}/`
+
+**Important:** Your algorithm must write all outputs to `./data/outputs/` inside the container. The runtime mounts this path and returns only what is written there.
+
+Python example:
+```python
+import os, json
+os.makedirs("./data/outputs", exist_ok=True)
+with open("./data/outputs/result.json", "w") as f:
+    json.dump({"result": "..."}, f)
+```
+
+JavaScript example:
+```js
+const fs = require("fs");
+fs.mkdirSync("./data/outputs", { recursive: true });
+fs.writeFileSync("./data/outputs/result.json", JSON.stringify({ result: "..." }));
+```
+
+## Project Templates
+
+When you create a new project, Ocean Orchestrator generates a template based on your selected language:
+
+| Template | Algorithm file | Dependencies | Dockerfile |
+|---|---|---|---|
+| Python | `algo.py` | `requirements.txt` (numpy, pandas, requests) | Ubuntu 24.04, Python 3 venv |
+| JavaScript | `algo.js` | `package.json` (axios, bignumber.js, ethers) | Node 22 multi-stage |
+| Docker Image | `algo.placeholder` (docs only) | none | none — provide image and tag in Setup |
+
+A `.env` file is generated for all templates. Any variables you add there are passed as environment variables into the container at runtime.
+
+For the Docker Image template, no Dockerfile is created. Set your image and tag in the Setup section before starting a job.
+
+## Results
+
+After a job completes, outputs are saved to your project folder under:
+
+```
+results/
+  results-{timestamp}/
+    output.tar
+    output_extracted/
+      ...your algorithm's ./data/outputs/ contents...
+    logs/
+      ...log files as .txt...
+```
+
+The timestamp uses ISO format truncated to minutes with colons replaced by dashes (e.g., `results-2025-03-15T14-30`).
+
+## Logs
+
+Ocean Orchestrator exposes logs in two places:
+
+**Output channels** (View > Output in your editor):
+- **Ocean Orchestrator** — general status and progress messages for the job lifecycle
+- **Algorithm Logs - {jobId}** — live stdout/stderr streamed from your algorithm while the job is running
+
+**Filesystem logs** — after job completion, log files are saved to:
+```
+results/results-{timestamp}/logs/
+```
 
 ## Advanced Setup
 
@@ -95,7 +155,7 @@ Use **Check** under Setup to verify node availability before running a job.
 
 - **Job cannot start** — Check the node status under Setup, then press Check.
 - **Not enough funds** — Switch to free compute or top up your account.
-- **General issues** — Check logs in the Output console. Logs are also saved in your project folder under `logs`.
+- **General issues** — Check logs in the Output console. Logs are also saved in your project folder under `results/results-{timestamp}/logs/`.
 
 ## Development and Contributing
 
