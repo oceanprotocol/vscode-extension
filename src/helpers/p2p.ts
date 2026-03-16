@@ -15,7 +15,7 @@ import { PROTOCOL_COMMANDS } from '../enum'
 import { GatewayResponse } from '../types'
 
 export const DEFAULT_MULTIADDR =
-  '/ip4/35.202.16.215/tcp/9001/tls/sni/35-202-16-215.kzwfwjn5ji4puuok23h2yyzro0fe1rqv1bqzbmrjf7uqyj504rawjl4zs68mepr.libp2p.direct/ws/p2p/16Uiu2HAmR9z4EhF9zoZcErrdcEJKCjfTpXJfBcmbNppbT3QYtBpi'
+  '/ip4/34.28.39.140/tcp/9001/tls/sni/34-28-39-140.kzwfwjn5ji4pujzapat7rqaqj8ochlsfyx24qvs5odmagqueqs43p7e0d7vasmn.libp2p.direct/ws/p2p/16Uiu2HAkvFtfjqQQ45FQBBuB6TiFnwPkm8f8qPpts2UNAEe8i8tn'
 
 export const OCEAN_P2P_PROTOCOL = '/ocean/nodes/1.0.0'
 const MAX_RETRIES = 5
