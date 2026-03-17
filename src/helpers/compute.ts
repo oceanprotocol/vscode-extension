@@ -435,7 +435,9 @@ async function attemptSaveOutput(
   index: number,
   filePath: string,
   resultsDir: string,
-  prefix: string
+  prefix: string,
+  onProgress?: (bytesWritten: number, totalBytes: number) => void,
+  totalSize?: number
 ): Promise<string> {
   let fileHandle: fs.WriteStream | null = null
   let totalBytesWritten = 0
@@ -484,6 +486,9 @@ async function attemptSaveOutput(
         const bytes = chunk.subarray()
         totalBytesWritten += bytes.length
         console.log(`Total bytes written: ${totalBytesWritten}`)
+        if (onProgress && totalSize) {
+          onProgress(totalBytesWritten, totalSize)
+        }
         if (!fileHandle!.write(bytes)) {
           await new Promise((resolve) => fileHandle!.once('drain', resolve))
         }
@@ -522,7 +527,9 @@ export async function saveOutput(
   jobId: string,
   index: number,
   destinationFolder: string,
-  prefix: string = 'output'
+  prefix: string = 'output',
+  onProgress?: (bytesWritten: number, totalBytes: number) => void,
+  totalSize?: number
 ): Promise<string> {
   const baseDir = destinationFolder || path.join(process.cwd(), 'results')
   const resultsDir = path.join(baseDir, jobId)
@@ -530,7 +537,7 @@ export async function saveOutput(
   await fs.promises.mkdir(resultsDir, { recursive: true })
 
   return withRetrial(() =>
-    attemptSaveOutput(config, jobId, index, filePath, resultsDir, prefix)
+    attemptSaveOutput(config, jobId, index, filePath, resultsDir, prefix, onProgress, totalSize)
   )
 }
 

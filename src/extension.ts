@@ -436,16 +436,32 @@ export async function activate(context: vscode.ExtensionContext) {
                   }
 
                   try {
-                    progress.report({
-                      message: 'Downloading your results...'
-                    })
+                    const archiveSize = archive?.filesize ?? 0
+                    progress.report({ message: 'Downloading your results...' })
                     outputChannel.appendLine('Downloading your results...')
+                    let lastIncrement = 0
+                    const onDownloadProgress =
+                      archiveSize > 0
+                        ? (bytesWritten: number, totalBytes: number) => {
+                            const pct = Math.min(
+                              100,
+                              Math.floor((bytesWritten / totalBytes) * 100)
+                            )
+                            progress.report({
+                              message: 'Downloading your results...',
+                              increment: pct - lastIncrement
+                            })
+                            lastIncrement = pct
+                          }
+                        : undefined
                     const filePathOutput = await saveOutput(
                       config,
                       jobId,
                       archive?.index,
                       resultsFolderPath,
-                      'result-output'
+                      'result-output',
+                      onDownloadProgress,
+                      archiveSize > 0 ? archiveSize : undefined
                     )
                     outputChannel.appendLine(`Results saved to: ${filePathOutput}`)
                     trackEvent(config.address!, 'compute_job_completed', {
@@ -458,9 +474,11 @@ export async function activate(context: vscode.ExtensionContext) {
                     provider.sendMessage({ type: 'jobCompleted' })
 
                     vscode.window.showInformationMessage(
-                      'Compute job completed successfully!'
+                      'Job completed! Outputs available in results folder.'
                     )
-                    outputChannel.appendLine('Compute job completed successfully!')
+                    outputChannel.appendLine(
+                      'Job completed! Outputs available in results folder.'
+                    )
                   } catch (error) {
                     progress.report({ message: 'Error saving your results' })
                     provider.sendMessage({ type: 'jobStopped' })
