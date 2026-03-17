@@ -252,6 +252,18 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                 data.authToken
               )
               break
+            case 'downloadResults':
+              await vscode.commands.executeCommand(
+                'ocean-protocol.downloadResults',
+                data.jobId
+              )
+              break
+            case 'openResultsFolder':
+              vscode.commands.executeCommand(
+                'revealFileInOS',
+                vscode.Uri.file(data.path)
+              )
+              break
             case 'copyToClipboard':
               vscode.env.clipboard.writeText(data.text)
               break
@@ -299,10 +311,11 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
           .container {
             padding: 0 20px;
           }
-          input, button { 
-            margin: 5px 0; 
-            width: 100%; 
+          input, button {
+            margin: 5px 0;
+            width: 100%;
             padding: 8px;
+            box-sizing: border-box;
             border: 1px solid var(--vscode-input-border);
             background-color: var(--vscode-input-background);
             color: var(--vscode-input-foreground);
@@ -461,6 +474,32 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             font-size: 0.9em;
             display: none;
           }
+          .section-separator {
+            border: none;
+            border-top: 1px solid var(--vscode-sideBarSectionHeader-border);
+            margin: 10px 0 6px 0;
+          }
+          .section-label {
+            font-weight: bold;
+            color: var(--vscode-descriptionForeground);
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+            display: block;
+          }
+          .hint-text {
+            font-size: 0.85em;
+            color: var(--vscode-descriptionForeground);
+            margin-top: 6px;
+          }
+          .hint-text a {
+            color: var(--vscode-textLink-foreground);
+            text-decoration: none;
+          }
+          .hint-text a:hover {
+            text-decoration: underline;
+          }
         </style>
     </head>
     <body>
@@ -478,6 +517,16 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               <button id="selectProjectFolderBtn">Select Project Folder</button>
               <button id="configureCompute">Configure Compute ⚙️</button>
               <input id="datasetInput" placeholder="Dataset URL/IPFS/Arweave/DID" />
+
+              <hr class="section-separator" />
+              <select id="jobSelect" class="environment-select" disabled>
+                <option value="">No jobs yet</option>
+              </select>
+              <button id="downloadResultsBtn" disabled style="opacity: 0.8;">Download Results</button>
+              <p class="hint-text">
+                Looking for older job results? You can find them
+                <a id="openResultsFolderLink" href="#">here</a>.
+              </p>
           </div>
 
           <div class="section">
@@ -512,6 +561,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let selectedAlgorithmPath = '';
               let selectedResultsFolderPath = '';
               let availableEnvironments = [];
+              let sessionJobIds = [];
               let configResources = null;
               let jobDuration = null;
               let isFreeCompute = true; // Default to free compute
@@ -577,6 +627,12 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                     input: input
                   });
                 });
+              }
+
+              function setDownloadBtnState(enabled) {
+                  const btn = document.getElementById('downloadResultsBtn');
+                  btn.disabled = !enabled;
+                  btn.style.opacity = enabled ? '1' : '0.8';
               }
 
               // Toggle button visibility
@@ -651,6 +707,17 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       vscode.postMessage({ type: 'stopComputeJob', authToken: storedAuthToken });
                   });
               }
+
+              document.getElementById('downloadResultsBtn').addEventListener('click', () => {
+                  const jobId = document.getElementById('jobSelect').value;
+                  if (!jobId) return;
+                  vscode.postMessage({ type: 'downloadResults', jobId });
+              });
+
+              document.getElementById('openResultsFolderLink').addEventListener('click', (e) => {
+                  e.preventDefault();
+                  vscode.postMessage({ type: 'openResultsFolder', path: selectedResultsFolderPath });
+              });
 
               function showEnvironmentsLoading() {
                 const detailsDiv = document.getElementById('environmentDetails');
@@ -855,16 +922,35 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
                       case 'jobLoading':
                           disableStartButton();
+                          setDownloadBtnState(false);
                           break;
                       case 'jobStarted':
                           showStopButton();
                           break;
                       case 'jobStopped':
                           showStartButton();
+                          setDownloadBtnState(sessionJobIds.length > 0);
                           break;
-                      case 'jobCompleted':
+                      case 'jobCompleted': {
                           showStartButton();
+                          const jobId = message.jobId;
+                          if (jobId) {
+                              const select = document.getElementById('jobSelect');
+                              if (sessionJobIds.length === 0) select.innerHTML = '';
+                              sessionJobIds.push(jobId);
+                              const now = new Date();
+                              const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                              const label = jobId.substring(0, 8) + '.....' + jobId.slice(-6) + ' (' + time + ')';
+                              const opt = document.createElement('option');
+                              opt.value = jobId;
+                              opt.textContent = label;
+                              select.appendChild(opt);
+                              select.value = jobId;
+                              select.disabled = false;
+                              setDownloadBtnState(true);
+                          }
                           break;
+                      }
                   }
               });
           </script>

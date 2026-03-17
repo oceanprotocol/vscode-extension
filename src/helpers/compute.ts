@@ -437,7 +437,8 @@ async function attemptSaveOutput(
   resultsDir: string,
   prefix: string,
   onProgress?: (bytesWritten: number, totalBytes: number) => void,
-  totalSize?: number
+  totalSize?: number,
+  cancelSignal?: AbortSignal
 ): Promise<string> {
   let fileHandle: fs.WriteStream | null = null
   let totalBytesWritten = 0
@@ -482,12 +483,15 @@ async function attemptSaveOutput(
     totalBytesWritten = offset
     try {
       while (true) {
-        const chunk = await lp.read({ signal: AbortSignal.timeout(DATA_TIMEOUT_MS) })
+        const readSignal = cancelSignal
+          ? AbortSignal.any([AbortSignal.timeout(DATA_TIMEOUT_MS), cancelSignal])
+          : AbortSignal.timeout(DATA_TIMEOUT_MS)
+        const chunk = await lp.read({ signal: readSignal })
         const bytes = chunk.subarray()
         totalBytesWritten += bytes.length
         console.log(`Total bytes written: ${totalBytesWritten}`)
-        if (onProgress && totalSize) {
-          onProgress(totalBytesWritten, totalSize)
+        if (onProgress) {
+          onProgress(totalBytesWritten, totalSize ?? 0)
         }
         if (!fileHandle!.write(bytes)) {
           await new Promise((resolve) => fileHandle!.once('drain', resolve))
@@ -529,7 +533,8 @@ export async function saveOutput(
   destinationFolder: string,
   prefix: string = 'output',
   onProgress?: (bytesWritten: number, totalBytes: number) => void,
-  totalSize?: number
+  totalSize?: number,
+  cancelSignal?: AbortSignal
 ): Promise<string> {
   const baseDir = destinationFolder || path.join(process.cwd(), 'results')
   const resultsDir = path.join(baseDir, jobId)
@@ -537,7 +542,7 @@ export async function saveOutput(
   await fs.promises.mkdir(resultsDir, { recursive: true })
 
   return withRetrial(() =>
-    attemptSaveOutput(config, jobId, index, filePath, resultsDir, prefix, onProgress, totalSize)
+    attemptSaveOutput(config, jobId, index, filePath, resultsDir, prefix, onProgress, totalSize, cancelSignal)
   )
 }
 
