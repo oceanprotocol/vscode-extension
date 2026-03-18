@@ -19,7 +19,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView
 
-  constructor() {}
+  constructor(
+    private readonly trackFn?: (event: string, props?: Record<string, unknown>) => void
+  ) {}
 
   public notifyConfigUpdate(config: SelectedConfig) {
     this.config = config
@@ -256,6 +258,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               vscode.env.clipboard.writeText(data.text)
               break
             case 'openBrowser':
+              this.trackFn?.('configure_compute_clicked')
               const appName = vscode.env?.appName || 'vscode'
               const multiaddrsParam = (
                 this.config?.multiaddresses ?? [this.defaultMultiaddr]
