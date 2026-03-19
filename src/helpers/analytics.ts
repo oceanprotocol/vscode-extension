@@ -18,13 +18,13 @@ export function identifyUser(walletAddress: string): void {
 }
 
 export function trackEvent(
-  walletAddress: string,
+  distinctId: string,
   event: string,
   properties?: Record<string, unknown>
 ): void {
-  if (!client || !walletAddress) return
+  if (!client || !distinctId) return
   client.capture({
-    distinctId: walletAddress,
+    distinctId,
     event,
     properties
   })
