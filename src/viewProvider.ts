@@ -261,13 +261,13 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               )
               break
             case 'openResultsFolder':
-              vscode.commands.executeCommand(
-                'revealFileInOS',
-                vscode.Uri.file(data.path)
-              )
+              vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(data.path))
               break
             case 'copyToClipboard':
               vscode.env.clipboard.writeText(data.text)
+              break
+            case 'openExternalUrl':
+              vscode.env.openExternal(vscode.Uri.parse(data.url))
               break
             case 'openBrowser':
               this.trackFn?.('configure_compute_clicked')
@@ -527,8 +527,8 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               </select>
               <button id="downloadResultsBtn" disabled style="opacity: 0.8;">Download Results</button>
               <p class="hint-text">
-                Looking for older job results? You can find them
-                <a id="openResultsFolderLink" href="#">here</a>.
+                More job results can be found 
+                <a id="openConsumerDashboardLink" href="#">here</a>.
               </p>
           </div>
 
@@ -717,9 +717,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                   vscode.postMessage({ type: 'downloadResults', jobId });
               });
 
-              document.getElementById('openResultsFolderLink').addEventListener('click', (e) => {
+              document.getElementById('openConsumerDashboardLink').addEventListener('click', (e) => {
                   e.preventDefault();
-                  vscode.postMessage({ type: 'openResultsFolder', path: selectedResultsFolderPath });
+                  vscode.postMessage({ type: 'openExternalUrl', url: 'https://dashboard.oncompute.ai/profile/consumer' });
               });
 
               function showEnvironmentsLoading() {
