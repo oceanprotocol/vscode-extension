@@ -2,7 +2,7 @@
 
 Run affordable GPU AI jobs from your editor with a one-click workflow and pay-per-use mechanism.
 
-<a href="https://www.producthunt.com/products/ocean-orchestrator?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-ocean-orchestrator" target="_blank" rel="noopener noreferrer"><img align="right" alt="Ocean Orchestrator - Run AI jobs from your IDE with a one-click workflow | Product Hunt" width="200" height="43" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1099908&amp;theme=light&amp;t=1773747830547"/></a>
+<a href="https://www.producthunt.com/products/ocean-orchestrator?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-ocean-orchestrator" target="_blank" rel="noopener noreferrer"><img align="right" alt="Ocean Orchestrator - Run AI jobs from your IDE with a one-click workflow | Product Hunt" width="200" height="43" src="https://api.producthunt.com/widgets/embed-image/v1/featured.png?post_id=1099908&amp;theme=light&amp;t=1773747830547"/></a>
 
 Ocean Orchestrator lets you submit a containerized compute job to remote nodes, monitor it, and automatically pull the results back. It uses Ocean Compute-to-Data (C2D), meaning the job runs in an isolated container near the data and only the outputs are returned. This gives you a low-friction way to run batch jobs without spinning up or managing servers.
 

@@ -29,6 +29,7 @@ import {
   trackEvent,
   shutdownAnalytics
 } from './helpers/analytics'
+import { randomUUID } from 'crypto'
 
 globalThis.fetch = fetch
 
@@ -39,6 +40,8 @@ let config: SelectedConfig = new SelectedConfig({
 })
 let provider: OceanProtocolViewProvider
 let firstStartup = true
+let anonymousId: string
+let globalContext: vscode.ExtensionContext | undefined
 
 vscode.window.registerUriHandler({
   handleUri(uri: vscode.Uri) {
@@ -74,13 +77,16 @@ vscode.window.registerUriHandler({
 
     if (address) {
       identifyUser(address)
-      trackEvent(address, 'ide_config_received', {
-        environment_id: environmentId,
-        is_free_compute: isFreeComputeBoolean,
-        chain_id: chainIdNumber,
-        has_auth_token: !!authToken
-      })
     }
+    const configCount = (globalContext!.globalState.get<number>('configCount') ?? 0) + 1
+    globalContext!.globalState.update('configCount', configCount)
+    trackEvent(address || anonymousId, 'ide_config_received', {
+      environment_id: environmentId,
+      is_free_compute: isFreeComputeBoolean,
+      chain_id: chainIdNumber,
+      has_auth_token: !!authToken,
+      config_count: configCount
+    })
 
     // Update the UI with the new values
     provider?.notifyConfigUpdate(config)
@@ -98,7 +104,24 @@ export async function activate(context: vscode.ExtensionContext) {
     logResults: Array<{ index: number; filename: string }>
   }>()
 
+  globalContext = context
+
+  anonymousId = context.globalState.get<string>('anonymousId') ?? ''
+  if (!anonymousId) {
+    anonymousId = randomUUID()
+    context.globalState.update('anonymousId', anonymousId)
+  }
+
   initAnalytics()
+
+  const hasTrackedInstall = context.globalState.get<boolean>('hasTrackedInstall')
+  if (!hasTrackedInstall) {
+    trackEvent(anonymousId, 'extension_installed', {
+      version: context.extension.packageJSON.version,
+      ide: vscode.env.appName
+    })
+    context.globalState.update('hasTrackedInstall', true)
+  }
 
   outputChannel.show()
   outputChannel.appendLine('Ocean Orchestrator is now active!')
@@ -106,7 +129,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   try {
     // Create and register the webview provider
-    provider = new OceanProtocolViewProvider()
+    provider = new OceanProtocolViewProvider(
+      (event, props) => trackEvent(anonymousId, event, props)
+    )
     console.log('Created OceanProtocolViewProvider')
 
     const registration = vscode.window.registerWebviewViewProvider(
