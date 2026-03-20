@@ -96,6 +96,13 @@ vscode.window.registerUriHandler({
 export async function activate(context: vscode.ExtensionContext) {
   let savedSigner: Signer | null = null
   let savedJobId: string | null = null
+  const completedJobs = new Map<string, {
+    archiveIndex: number
+    archiveSize: number
+    resultsFolderPath: string
+    downloadCount: number
+    logResults: Array<{ index: number; filename: string }>
+  }>()
 
   globalContext = context
 
@@ -242,13 +249,18 @@ export async function activate(context: vscode.ExtensionContext) {
         let signer: ethers.HDNodeWallet
         if (!authToken || authToken === '') {
           try {
-            signer = ethers.Wallet.createRandom()
-            savedSigner = signer
-            console.log('Generated new wallet address:', signer.address)
-            vscode.window.showInformationMessage(
-              `Using generated wallet with address: ${signer.address}`
-            )
-            // Generate new token and register the address in the config
+            if (!savedSigner) {
+              signer = ethers.Wallet.createRandom()
+              savedSigner = signer
+              console.log('Generated new wallet address:', signer.address)
+              vscode.window.showInformationMessage(
+                `Using generated wallet with address: ${signer.address}`
+              )
+            } else {
+              signer = savedSigner as ethers.HDNodeWallet
+              console.log('Reusing existing wallet address:', signer.address)
+            }
+            // Always generate a fresh auth token (tokens can expire)
             authToken = await generateAuthToken(config.multiaddresses, signer)
             config.updateFields({ address: signer.address })
           } catch (error) {
@@ -437,61 +449,29 @@ export async function activate(context: vscode.ExtensionContext) {
                     (result) => result.index !== archive?.index
                   )
 
-                  computeLogsChannel.clear()
-                  for (const result of resultsWithoutArchive) {
-                    progress.report({
-                      message: `Retrieving compute results (${result.index + 1}/${resultsLength})...`
-                    })
-                    outputChannel.appendLine(
-                      `Retrieving compute results (${result.index + 1}/${resultsLength})...`
-                    )
-                    const filePathLogs = await getAndSaveLogs(
-                      config,
-                      jobId,
-                      result.index,
-                      result.filename,
-                      resultsFolderPath,
-                      progress
-                    )
-
-                    if (result.filename.toLowerCase().includes('algorithm')) {
-                      const logContent = await fs.promises.readFile(filePathLogs, 'utf-8')
-                      computeLogsChannel.appendLine(logContent)
-                    }
+                  if (completedJobs.size >= 50) {
+                    completedJobs.delete(completedJobs.keys().next().value!)
                   }
-
-                  try {
-                    progress.report({
-                      message: 'Downloading your results...'
-                    })
-                    outputChannel.appendLine('Downloading your results...')
-                    const filePathOutput = await saveOutput(
-                      config,
-                      jobId,
-                      archive?.index,
-                      resultsFolderPath,
-                      'result-output'
-                    )
-                    outputChannel.appendLine(`Results saved to: ${filePathOutput}`)
-                    trackEvent(config.address!, 'compute_job_completed', {
-                      is_free_compute: config.isFreeCompute,
-                      environment_id: config.environmentId,
-                      job_id: jobId
-                    })
-                    // Reset job state and notify webview that job completed
-                    savedJobId = null
-                    provider.sendMessage({ type: 'jobCompleted' })
-
-                    vscode.window.showInformationMessage(
-                      'Compute job completed successfully!'
-                    )
-                    outputChannel.appendLine('Compute job completed successfully!')
-                  } catch (error) {
-                    progress.report({ message: 'Error saving your results' })
-                    provider.sendMessage({ type: 'jobStopped' })
-                    computeLogsChannel.appendLine('Error saving your results')
-                    outputChannel.appendLine('Error saving your results')
-                  }
+                  completedJobs.set(jobId, {
+                    archiveIndex: archive?.index ?? 0,
+                    archiveSize: archive?.filesize ?? 0,
+                    resultsFolderPath,
+                    downloadCount: 0,
+                    logResults: resultsWithoutArchive.map((r) => ({ index: r.index, filename: r.filename }))
+                  })
+                  trackEvent(config.address!, 'compute_job_completed', {
+                    is_free_compute: config.isFreeCompute,
+                    environment_id: config.environmentId,
+                    job_id: jobId
+                  })
+                  savedJobId = null
+                  provider.sendMessage({ type: 'jobCompleted', jobId })
+                  vscode.window.showInformationMessage(
+                    'Job finished. Download results from the Download Results section.'
+                  )
+                  outputChannel.appendLine(
+                    'Job finished. Download results from the Download Results section.'
+                  )
 
                   break
                 } catch (error) {
@@ -525,6 +505,80 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     )
     context.subscriptions.push(startComputeJob)
+
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        'ocean-protocol.downloadResults',
+        async (jobId: string) => {
+          const job = completedJobs.get(jobId)
+          if (!job) {
+            vscode.window.showErrorMessage('Job results not found in this session.')
+            return
+          }
+          await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: 'Downloading Results',
+              cancellable: true
+            },
+            async (progress, token) => {
+              const abortController = new AbortController()
+              token.onCancellationRequested(() => abortController.abort())
+
+              progress.report({ message: '0%' })
+              let lastIncrement = 0
+              const onDownloadProgress =
+                job.archiveSize > 0
+                  ? (bytesWritten: number, totalBytes: number) => {
+                      const pct = Math.min(
+                        100,
+                        Math.floor((bytesWritten / totalBytes) * 100)
+                      )
+                      progress.report({
+                        message: `${pct}%`,
+                        increment: pct - lastIncrement
+                      })
+                      lastIncrement = pct
+                    }
+                  : undefined
+              try {
+                const totalFiles = job.logResults.length + 1
+                let filesDone = 0
+
+                for (const log of job.logResults) {
+                  if (abortController.signal.aborted) break
+                  progress.report({ message: `Logs (${++filesDone}/${totalFiles})...` })
+                  await getAndSaveLogs(config, jobId, log.index, log.filename, job.resultsFolderPath)
+                }
+
+                if (!abortController.signal.aborted) {
+                  job.downloadCount += 1
+                  const prefix = job.downloadCount === 1 ? 'result-output' : `result-output(${job.downloadCount})`
+                  const filePath = await saveOutput(
+                    config,
+                    jobId,
+                    job.archiveIndex,
+                    job.resultsFolderPath,
+                    prefix,
+                    onDownloadProgress,
+                    job.archiveSize > 0 ? job.archiveSize : undefined,
+                    abortController.signal
+                  )
+                  outputChannel.appendLine(`Results saved to: ${filePath}`)
+                  vscode.window.showInformationMessage('Outputs available in results folder.')
+                }
+              } catch (error) {
+                if (abortController.signal.aborted) {
+                  outputChannel.appendLine('Download cancelled.')
+                } else {
+                  throw error
+                }
+              }
+            }
+          )
+        }
+      )
+    )
   } catch (error) {
     console.error('Error during extension activation:', error)
     outputChannel.appendLine(`Error during extension activation: ${error}`)
@@ -582,11 +636,11 @@ async function getAndSaveLogs(
   index: number,
   fileName: string,
   resultsFolderPath: string,
-  progress: vscode.Progress<{ message?: string }>
+  progress?: vscode.Progress<{ message?: string }>
 ) {
   const result = await withRetrial(() => getComputeResult(config, jobId, index), progress)
 
-  progress.report({ message: `Saving ${fileName}...` })
+  progress?.report({ message: `Saving ${fileName}...` })
   const content = await streamToString(result)
   const filePathLogs = await saveResults(
     content,
