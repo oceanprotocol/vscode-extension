@@ -74,7 +74,9 @@ vscode.window.registerUriHandler({
       resources: resourcesParsed,
       chainId: chainIdNumber
     })
-    ProviderInstance.setupP2P({ bootstrapPeers: config.multiaddresses, enableTcp: true }).catch(console.error)
+    ProviderInstance.setupP2P({ bootstrapPeers: config.multiaddresses }).catch(
+      console.error
+    )
     console.log({ config })
 
     if (address) {
@@ -98,13 +100,16 @@ vscode.window.registerUriHandler({
 export async function activate(context: vscode.ExtensionContext) {
   let savedSigner: Signer | null = null
   let savedJobId: string | null = null
-  const completedJobs = new Map<string, {
-    archiveIndex: number
-    archiveSize: number
-    resultsFolderPath: string
-    downloadCount: number
-    logResults: Array<{ index: number; filename: string }>
-  }>()
+  const completedJobs = new Map<
+    string,
+    {
+      archiveIndex: number
+      archiveSize: number
+      resultsFolderPath: string
+      downloadCount: number
+      logResults: Array<{ index: number; filename: string }>
+    }
+  >()
 
   globalContext = context
 
@@ -125,7 +130,9 @@ export async function activate(context: vscode.ExtensionContext) {
     context.globalState.update('hasTrackedInstall', true)
   }
 
-  ProviderInstance.setupP2P({ bootstrapPeers: config.multiaddresses, enableTcp: true }).catch(console.error)
+  ProviderInstance.setupP2P({
+    bootstrapPeers: config.multiaddresses
+  }).catch(console.error)
 
   outputChannel.show()
   outputChannel.appendLine('Ocean Orchestrator is now active!')
@@ -133,8 +140,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   try {
     // Create and register the webview provider
-    provider = new OceanProtocolViewProvider(
-      (event, props) => trackEvent(anonymousId, event, props)
+    provider = new OceanProtocolViewProvider((event, props) =>
+      trackEvent(anonymousId, event, props)
     )
     console.log('Created OceanProtocolViewProvider')
 
@@ -461,7 +468,10 @@ export async function activate(context: vscode.ExtensionContext) {
                     archiveSize: archive?.filesize ?? 0,
                     resultsFolderPath,
                     downloadCount: 0,
-                    logResults: resultsWithoutArchive.map((r) => ({ index: r.index, filename: r.filename }))
+                    logResults: resultsWithoutArchive.map((r) => ({
+                      index: r.index,
+                      filename: r.filename
+                    }))
                   })
                   trackEvent(config.address!, 'compute_job_completed', {
                     is_free_compute: config.isFreeCompute,
@@ -552,12 +562,21 @@ export async function activate(context: vscode.ExtensionContext) {
                 for (const log of job.logResults) {
                   if (abortController.signal.aborted) break
                   progress.report({ message: `Logs (${++filesDone}/${totalFiles})...` })
-                  await getAndSaveLogs(config, jobId, log.index, log.filename, job.resultsFolderPath)
+                  await getAndSaveLogs(
+                    config,
+                    jobId,
+                    log.index,
+                    log.filename,
+                    job.resultsFolderPath
+                  )
                 }
 
                 if (!abortController.signal.aborted) {
                   job.downloadCount += 1
-                  const prefix = job.downloadCount === 1 ? 'result-output' : `result-output(${job.downloadCount})`
+                  const prefix =
+                    job.downloadCount === 1
+                      ? 'result-output'
+                      : `result-output(${job.downloadCount})`
                   const filePath = await saveOutput(
                     config,
                     jobId,
@@ -569,7 +588,9 @@ export async function activate(context: vscode.ExtensionContext) {
                     abortController.signal
                   )
                   outputChannel.appendLine(`Results saved to: ${filePath}`)
-                  vscode.window.showInformationMessage('Outputs available in results folder.')
+                  vscode.window.showInformationMessage(
+                    'Outputs available in results folder.'
+                  )
                 }
               } catch (error) {
                 if (abortController.signal.aborted) {
