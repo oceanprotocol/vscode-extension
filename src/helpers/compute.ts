@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import { stripAnsi } from './strip-ansi'
 import fs from 'fs'
 import path from 'path'
 import * as tar from 'tar'
@@ -328,7 +329,7 @@ export async function getComputeLogs(
 
     const decoder = new TextDecoder('utf-8')
     for await (const chunk of logs) {
-      outputChannel.append(decoder.decode(chunk, { stream: true }))
+      outputChannel.append(stripAnsi(decoder.decode(chunk.subarray(), { stream: true })))
     }
   } catch (error) {
     console.error('Error fetching compute logs:', error)
