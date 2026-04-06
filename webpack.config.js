@@ -16,7 +16,7 @@ module.exports = {
     vscode: 'commonjs vscode' // Exclude the vscode module
   },
   resolve: {
-    extensions: ['.ts', '.js'],
+    extensions: ['.ts', '.js', '.mjs'],
     fallback: {
       fs: false,
       path: require.resolve('path-browserify'),
@@ -40,6 +40,12 @@ module.exports = {
           compilerOptions: {
             module: 'es6'
           }
+        }
+      },
+      {
+        test: /\.m?js$/,
+        resolve: {
+          fullySpecified: false
         }
       }
     ]

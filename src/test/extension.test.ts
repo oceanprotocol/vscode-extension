@@ -10,12 +10,9 @@ import {
 } from '../helpers/compute'
 import * as fs from 'fs'
 import * as path from 'path'
-import { ComputeEnvironment, ComputeJob } from '@oceanprotocol/lib'
+import { ComputeEnvironment, ComputeJob, ProviderInstance } from '@oceanprotocol/lib'
 import { SelectedConfig } from '../types'
-// p2p is mocked in run.test.ts; use require() so we get the raw mock and can stub P2PCommand
-const P2PCommand = require('../helpers/p2p') as typeof import('../helpers/p2p')
 
-// Use VS Code test runner syntax
 suite('Ocean Orchestrator Test Suite', () => {
   const mockAuthToken =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZGRyZXNzIjoiMHgxMjM0NTY3ODkwYWJjZGVmIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
@@ -42,41 +39,14 @@ suite('Ocean Orchestrator Test Suite', () => {
     results: [],
     expireTimestamp: 1000
   }
+
   let sandbox: sinon.SinonSandbox
   let outputChannel: vscode.OutputChannel
-  let p2pCommandStub: sinon.SinonStub
-
-  const setupP2PCommandStub = (customHandlers?: Record<string, any>) => {
-    p2pCommandStub = sandbox
-      .stub(P2PCommand, 'P2PCommand')
-      .callsFake(async (command: string) => {
-        if (customHandlers && customHandlers[command]) {
-          return customHandlers[command]
-        }
-
-        switch (command) {
-          case 'nonce':
-            return 1
-          case 'freeStartCompute':
-            return mockComputeResponse
-          case 'getComputeStatus':
-            return mockComputeResponse
-          case 'getComputeResult': {
-            const buf = Buffer.from('hello')
-            return (async function* () {
-              yield new Uint8Array(buf)
-            })()
-          }
-          default:
-            return {}
-        }
-      })
-    return p2pCommandStub
-  }
 
   setup(() => {
     sandbox = sinon.createSandbox()
     outputChannel = vscode.window.createOutputChannel('Test Channel')
+    sandbox.stub(ProviderInstance, 'setupP2P').resolves()
   })
 
   teardown(() => {
@@ -92,8 +62,7 @@ suite('Ocean Orchestrator Test Suite', () => {
 
   test('computeStart should handle JavaScript algorithm correctly', async () => {
     const mockAlgorithm = 'console.log("test")'
-
-    setupP2PCommandStub()
+    sandbox.stub(ProviderInstance, 'freeComputeStart').resolves(mockComputeResponse)
 
     const mockConfig: SelectedConfig = new SelectedConfig({
       multiaddresses: [mockMultiaddr],
@@ -110,8 +79,9 @@ suite('Ocean Orchestrator Test Suite', () => {
 
   test('computeStart should handle Python algorithm correctly', async () => {
     const mockAlgorithm = 'print("test")'
-
-    setupP2PCommandStub()
+    const freeComputeStub = sandbox
+      .stub(ProviderInstance, 'freeComputeStart')
+      .resolves(mockComputeResponse)
 
     const mockConfig: SelectedConfig = new SelectedConfig({
       multiaddresses: [mockMultiaddr],
@@ -124,34 +94,32 @@ suite('Ocean Orchestrator Test Suite', () => {
 
     assert.strictEqual(result.jobId, 'test-job-id')
     assert.ok(
-      p2pCommandStub.calledWith(
-        'freeStartCompute',
-        mockConfig.multiaddresses,
+      freeComputeStub.calledWith(
+        mockMultiaddr,
+        mockAuthToken,
+        mockEnvResponse[0].id,
+        sinon.match.array,
         sinon.match({
-          algorithm: sinon.match({
-            meta: {
-              rawcode: mockAlgorithm,
-              container: sinon.match({
-                entrypoint: 'python $ALGO',
-                image: 'oceanprotocol/c2d_examples',
-                tag: 'py-general'
-              })
-            }
+          meta: sinon.match({
+            rawcode: mockAlgorithm,
+            container: sinon.match({
+              entrypoint: 'python $ALGO',
+              image: 'oceanprotocol/c2d_examples',
+              tag: 'py-general'
+            })
           })
-        })
+        }),
+        sinon.match.any
       )
     )
   })
 
   test('checkComputeStatus should return correct status', async () => {
     const mockJobId = 'test-job-id'
-
-    setupP2PCommandStub({
-      getComputeStatus: {
-        ...mockComputeResponse,
-        status: 1,
-        statusText: 'Running'
-      }
+    sandbox.stub(ProviderInstance, 'computeStatus').resolves({
+      ...mockComputeResponse,
+      status: 1,
+      statusText: 'Running'
     })
 
     const mockConfig: SelectedConfig = new SelectedConfig({
@@ -179,64 +147,16 @@ suite('Ocean Orchestrator Test Suite', () => {
     )
   })
 
-  // test('getComputeLogs should handle successful log streaming', async () => {
-  //   const mockJobId = 'test-job-id'
-  //   const mockConsumerAddress = '0x123'
-  //   const mockSignature = '0xabc'
-  //   const mockNonce = 123
-
-  //   const mockStream = new PassThrough()
-  //   const mockResponse = {
-  //     ok: true,
-  //     body: mockStream,
-  //     statusText: 'OK'
-  //   }
-
-  //   // Mock global fetch
-  //   const fetchStub = sandbox.stub().resolves(mockResponse)
-  //   global.fetch = fetchStub
-
-  //   // Start the log streaming
-  //   const logPromise = getComputeLogs(
-  //     mockPeerId,
-  //     mockJobId,
-  //     mockConsumerAddress,
-  //     mockNonce,
-  //     mockSignature,
-  //     outputChannel
-  //   )
-
-  //   // Simulate stream data
-  //   mockStream.write('Log line 1\n')
-  //   mockStream.write('Log line 2\n')
-  //   mockStream.end()
-
-  //   await logPromise
-
-  //   assert.ok(fetchStub.calledOnce)
-  //   assert.ok(
-  //     fetchStub.calledWith(
-  //       `${mockPeerId}/directCommand`,
-  //       sinon.match({
-  //         method: 'POST',
-  //         body: sinon.match.string
-  //       })
-  //     )
-  //   )
-  // })
-
   test('getComputeResult should handle successful result retrieval', async () => {
     const mockJobId = 'test-job-id'
     const mockResult = 'hello'
+    const buf = Buffer.from(mockResult)
 
-    setupP2PCommandStub({
-      getComputeResult: (() => {
-        const buf = Buffer.from(mockResult)
-        return (async function* () {
-          yield new Uint8Array(buf)
-        })()
+    sandbox.stub(ProviderInstance, 'getComputeResult').resolves(
+      (async function* () {
+        yield new Uint8Array(buf)
       })()
-    })
+    )
 
     const mockConfig: SelectedConfig = new SelectedConfig({
       multiaddresses: [mockMultiaddr],
@@ -261,7 +181,6 @@ suite('Ocean Orchestrator Test Suite', () => {
     }
     const mockFolderPath = path.join(process.cwd(), 'test-results')
 
-    // Create a temporary directory for testing
     if (!fs.existsSync(mockFolderPath)) {
       await fs.promises.mkdir(mockFolderPath, { recursive: true })
     }
@@ -269,7 +188,6 @@ suite('Ocean Orchestrator Test Suite', () => {
     try {
       const filePath = await saveResults(JSON.stringify(mockResults), mockFolderPath)
 
-      // Verify file exists and content
       const fileExists = fs.existsSync(filePath)
       assert.ok(fileExists, 'Result file should exist')
 
@@ -282,25 +200,10 @@ suite('Ocean Orchestrator Test Suite', () => {
 
       await fs.promises.rmdir(mockFolderPath, { recursive: true })
     } catch (error) {
-      // Clean up in case of failure
       if (fs.existsSync(mockFolderPath)) {
         await fs.promises.rmdir(mockFolderPath, { recursive: true })
       }
       throw error
     }
   })
-
-  // test('getComputeLogs should handle failed response', async () => {
-  //   const mockJobId = 'test-job-id'
-
-  //   const fetchStub = sandbox.stub().resolves({
-  //     ok: false,
-  //     statusText: 'Not Found'
-  //   }) as sinon.SinonStub
-  //   global.fetch = fetchStub
-
-  //   await getComputeLogs(mockPeerId, mockJobId, '0x123', 123, '0xabc', outputChannel)
-
-  //   assert.ok(fetchStub.calledOnce)
-  // })
 })

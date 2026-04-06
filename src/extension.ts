@@ -23,6 +23,7 @@ import { SelectedConfig } from './types'
 import { ethers, Signer } from 'ethers'
 import { checkAndReadFile, listDirectoryContents } from './helpers/path'
 import { DEFAULT_MULTIADDR } from './helpers/p2p'
+import { ProviderInstance } from '@oceanprotocol/lib'
 import {
   initAnalytics,
   identifyUser,
@@ -73,6 +74,7 @@ vscode.window.registerUriHandler({
       resources: resourcesParsed,
       chainId: chainIdNumber
     })
+    ProviderInstance.setupP2P({ bootstrapPeers: config.multiaddresses, enableTcp: true }).catch(console.error)
     console.log({ config })
 
     if (address) {
@@ -122,6 +124,8 @@ export async function activate(context: vscode.ExtensionContext) {
     })
     context.globalState.update('hasTrackedInstall', true)
   }
+
+  ProviderInstance.setupP2P({ bootstrapPeers: config.multiaddresses, enableTcp: true }).catch(console.error)
 
   outputChannel.show()
   outputChannel.appendLine('Ocean Orchestrator is now active!')
