@@ -1,16 +1,10 @@
-import { PROTOCOL_COMMANDS } from '../enum'
-import { P2PCommand } from './p2p'
+import { ProviderInstance } from '@oceanprotocol/lib'
 
-export const fetchDdoByDid = async (
-  multiaddrs: string[] | undefined,
-  did: string
-) => {
+export const fetchDdoByDid = async (multiaddrs: string[] | undefined, did: string) => {
+  const uri = multiaddrs?.[0]
+  if (!uri) return null
   try {
-    const response = await P2PCommand(PROTOCOL_COMMANDS.FIND_DDO, multiaddrs, {
-      did
-    })
-    const data = await response.json()
-    return data
+    return await ProviderInstance.resolveDdo(uri, did)
   } catch (error) {
     console.error('Error fetching DDO:', error)
     return null

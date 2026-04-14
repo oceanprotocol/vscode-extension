@@ -1,27 +1,21 @@
+// Mock ESM-only packages that cannot be required in CJS test context.
+// Only need to prevent require() from throwing — sinon stubs ProviderInstance at runtime.
 const mockRequire = require('mock-require')
 
-const p2pMock = {
-  P2PCommand: async () => {}
-}
-
-const p2pPath = require.resolve('../helpers/p2p')
-mockRequire(p2pPath, p2pMock)
-
-// Mock ESM-only packages that cannot be required in CJS test context
-mockRequire('@multiformats/multiaddr', {
-  multiaddr: (addr: string) => addr,
-  isMultiaddr: () => true
-})
-
-mockRequire('uint8arrays/from-string', {
-  fromString: (s: string) => Buffer.from(s)
-})
+const esmOnlyPackages = [
+  '@multiformats/multiaddr',
+  'uint8arrays/alloc', 'uint8arrays/concat', 'uint8arrays/equals',
+  'uint8arrays/from-string', 'uint8arrays/to-string',
+  'libp2p',
+  '@chainsafe/libp2p-noise', '@chainsafe/libp2p-yamux',
+  '@libp2p/bootstrap', '@libp2p/circuit-relay-v2',
+  '@libp2p/identify', '@libp2p/kad-dht',
+  '@libp2p/tcp', '@libp2p/websockets'
+]
+for (const pkg of esmOnlyPackages) mockRequire(pkg, {})
 
 mockRequire('@libp2p/utils', {
-  lpStream: () => ({
-    write: async () => {},
-    read: async () => new Uint8Array()
-  })
+  UnexpectedEOFError: class UnexpectedEOFError extends Error {}
 })
 
 require('./extension.test')
