@@ -1,3 +1,4 @@
+import * as vscode from 'vscode'
 import { PostHog } from 'posthog-node'
 
 const POSTHOG_API_KEY = 'phc_hD7bhooFbRUWqSWOvRAZiHv4tr6mYYgleeWGkQ52eWD'
@@ -27,6 +28,28 @@ export function trackEvent(
     distinctId,
     event,
     properties
+  })
+}
+
+export function trackP2PError(
+  distinctId: string,
+  error: unknown,
+  context: string,
+  extraProps?: Record<string, unknown>
+): void {
+  const err = error as Error | undefined
+  trackEvent(distinctId, 'p2p_error', {
+    context,
+    message: err?.message ?? String(error),
+    stack: err?.stack,
+    name: err?.name,
+    app_name: vscode.env.appName,
+    vscode_version: vscode.version,
+    node_version: process.versions.node,
+    electron_version: process.versions.electron,
+    platform: process.platform,
+    arch: process.arch,
+    ...extraProps
   })
 }
 

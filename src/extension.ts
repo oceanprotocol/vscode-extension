@@ -28,9 +28,23 @@ import {
   initAnalytics,
   identifyUser,
   trackEvent,
+  trackP2PError,
   shutdownAnalytics
 } from './helpers/analytics'
 import { randomUUID } from 'crypto'
+
+// @oceanprotocol/lib bundles libp2p's browser user-agent helper which reads
+// globalThis.navigator.userAgent. VSCode's extension host defines `navigator`
+// as a getter that returns undefined (plain assignment throws "only a getter"),
+// so we must redefine the property. Without this any P2P call throws
+// "Cannot read properties of undefined (reading 'userAgent')".
+if (!(globalThis as any).navigator?.userAgent) {
+  Object.defineProperty(globalThis, 'navigator', {
+    value: { userAgent: 'ocean-vscode-extension' },
+    writable: true,
+    configurable: true
+  })
+}
 
 globalThis.fetch = fetch
 
@@ -75,7 +89,12 @@ vscode.window.registerUriHandler({
       chainId: chainIdNumber
     })
     ProviderInstance.setupP2P({ bootstrapPeers: config.multiaddresses }).catch(
-      console.error
+      (e) => {
+        console.error(e)
+        trackP2PError(config.address || anonymousId, e, 'setupP2P_uriHandler', {
+          multiaddr_count: config.multiaddresses?.length
+        })
+      }
     )
     console.log({ config })
 
@@ -132,7 +151,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
   ProviderInstance.setupP2P({
     bootstrapPeers: config.multiaddresses
-  }).catch(console.error)
+  }).catch((e) => {
+    console.error(e)
+    trackP2PError(anonymousId, e, 'setupP2P_activate', {
+      multiaddr_count: config.multiaddresses?.length
+    })
+  })
 
   outputChannel.show()
   outputChannel.appendLine('Ocean Orchestrator is now active!')
@@ -173,7 +197,13 @@ export async function activate(context: vscode.ExtensionContext) {
     // Add handler for environment loading
     context.subscriptions.push(
       vscode.commands.registerCommand('ocean-protocol.getEnvironments', async () => {
-        const environments = await getComputeEnvironments(config.multiaddresses)
+        let environments
+        try {
+          environments = await getComputeEnvironments(config.multiaddresses)
+        } catch (e) {
+          trackP2PError(config.address || anonymousId, e, 'getComputeEnvironments')
+          throw e
+        }
         // If it's the first startup, set the default resources and job duration
         if (firstStartup && Array.isArray(environments) && environments.length > 0) {
           const env =
@@ -276,6 +306,7 @@ export async function activate(context: vscode.ExtensionContext) {
             config.updateFields({ address: signer.address })
           } catch (error) {
             console.log(error)
+            trackP2PError(config.address || anonymousId, error, 'generateAuthToken')
             vscode.window.showErrorMessage(
               'Error generating auth token. Please make sure you selected a valid node'
             )
