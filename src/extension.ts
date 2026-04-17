@@ -40,7 +40,7 @@ import { randomUUID } from 'crypto'
 // "Cannot read properties of undefined (reading 'userAgent')".
 if (!(globalThis as any).navigator?.userAgent) {
   Object.defineProperty(globalThis, 'navigator', {
-    value: { userAgent: 'ocean-vscode-extension' },
+    value: { userAgent: 'ocean-orchestrator' },
     writable: true,
     configurable: true
   })
