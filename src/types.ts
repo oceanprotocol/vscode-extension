@@ -1,4 +1,9 @@
-import { ComputeResourceRequest } from '@oceanprotocol/lib'
+import {
+  ComputeResourceRequest,
+  PersistentStorageAccessList,
+  PersistentStorageBucket,
+  PersistentStorageFileEntry
+} from '@oceanprotocol/lib'
 
 export class SelectedConfig {
   authToken?: string
@@ -29,3 +34,85 @@ export class SelectedConfig {
 }
 
 export type GatewayResponse = { httpStatus?: number; error?: string }
+
+export type StorageAccessEntry = { chainId: string; contract: string }
+
+export type StorageErrorCode =
+  | 'auth_expired'
+  | 'missing_config'
+  | 'too_large'
+  | 'network'
+  | 'unknown'
+
+export type PanelRequest =
+  | { type: 'listBuckets'; requestId: string }
+  | {
+      type: 'createBucket'
+      requestId: string
+      accessLists: PersistentStorageAccessList[]
+    }
+  | { type: 'listFiles'; requestId: string; bucketId: string }
+  | { type: 'pickAndUploadFile'; requestId: string; bucketId: string }
+  | {
+      type: 'getFileObject'
+      requestId: string
+      bucketId: string
+      fileName: string
+    }
+  | {
+      type: 'deleteFile'
+      requestId: string
+      bucketId: string
+      fileName: string
+    }
+
+export type PanelResponse =
+  | {
+      type: 'configSnapshot'
+      hasAuthToken: boolean
+      address?: string
+      chainId?: number
+      nodeUri?: string
+    }
+  | {
+      type: 'bucketsLoaded'
+      requestId: string
+      buckets: PersistentStorageBucket[]
+    }
+  | {
+      type: 'bucketCreated'
+      requestId: string
+      bucket: {
+        bucketId: string
+        owner: string
+        accessList: PersistentStorageAccessList[]
+      }
+    }
+  | {
+      type: 'filesLoaded'
+      requestId: string
+      bucketId: string
+      files: PersistentStorageFileEntry[]
+    }
+  | {
+      type: 'fileUploaded'
+      requestId: string
+      bucketId: string
+      file: PersistentStorageFileEntry
+    }
+  | { type: 'fileObjectCopied'; requestId: string; fileName: string }
+  | {
+      type: 'fileDeleted'
+      requestId: string
+      bucketId: string
+      fileName: string
+    }
+  | { type: 'uploadCancelled'; requestId: string }
+  | { type: 'deleteCancelled'; requestId: string }
+  | {
+      type: 'storageError'
+      requestId: string
+      code: StorageErrorCode
+      message: string
+      op: string
+    }

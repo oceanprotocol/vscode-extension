@@ -269,6 +269,9 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             case 'openExternalUrl':
               vscode.env.openExternal(vscode.Uri.parse(data.url))
               break
+            case 'openStoragePanel':
+              vscode.commands.executeCommand('ocean-protocol.openStoragePanel')
+              break
             case 'openBrowser':
               this.trackFn?.('configure_compute_clicked')
               const appName = vscode.env?.appName || 'vscode'
@@ -519,6 +522,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
               <button id="selectProjectFolderBtn">Select Project Folder</button>
               <button id="configureCompute">Configure Compute ⚙️</button>
+              <button id="openStorageBtn" disabled style="opacity:0.6;">Configure Persistent Storage 🗄️</button>
               <input id="datasetInput" placeholder="Dataset URL/IPFS/Arweave/DID" />
 
               <hr class="section-separator" />
@@ -571,6 +575,26 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let storedAuthToken = null;
               let storedEnvironmentId = null;
               let storedMultiaddrs = null;
+
+              // --- Storage button state ---
+              let isNodeConnected = false;
+
+              function updateStorageButtonState() {
+                const btn = document.getElementById('openStorageBtn');
+                if (!btn) return;
+                const enabled = isNodeConnected && !!storedAuthToken;
+                btn.disabled = !enabled;
+                btn.style.opacity = enabled ? '1' : '0.6';
+                btn.title = enabled
+                  ? 'Manage persistent storage buckets'
+                  : 'Connect to a node via the dashboard to enable';
+              }
+
+              if (document.getElementById('openStorageBtn')) {
+                document.getElementById('openStorageBtn').addEventListener('click', () => {
+                  vscode.postMessage({ type: 'openStoragePanel' });
+                });
+              }
 
               function getMultiaddrs() { return storedMultiaddrs || [defaultMultiaddr]; }
               function truncateMultiaddr(addr) {
@@ -752,6 +776,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               
               // Load environments on page load
               loadEnvironments();
+              updateStorageButtonState();
               
               function checkStartButtonState() {
                   const hasProject = selectedProjectPath && selectedProjectPath.trim() !== '';
@@ -831,6 +856,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                       case 'configUpdate':
                           if (message.config.authToken) {
                               storedAuthToken = message.config.authToken;
+                              updateStorageButtonState();
                           }
                           let didReloadEnvironments = false;
                           if (message.config.multiaddresses !== undefined) {
@@ -900,21 +926,27 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           console.log('Environments loaded:', message.environments);
                           availableEnvironments = message.environments || [];
                           const detailsEl = document.getElementById('environmentDetails');
-                          
+
                           if (message.error) {
                             detailsEl.innerHTML = '<p style="color: var(--vscode-errorForeground);">Connection failed</p>';
                             detailsEl.style.display = 'block';
                             disableStartButton();
+                            isNodeConnected = false;
+                            updateStorageButtonState();
                             return;
                           }
-                          
+
                           if (!message.environments || message.environments.length === 0) {
                             detailsEl.innerHTML = '<p style="color: var(--vscode-descriptionForeground);">No environments available</p>';
                             detailsEl.style.display = 'block';
                             disableStartButton();
+                            isNodeConnected = false;
+                            updateStorageButtonState();
                             return;
                           }
 
+                          isNodeConnected = true;
+                          updateStorageButtonState();
                           checkStartButtonState();
 
                           const envId = storedEnvironmentId || (availableEnvironments.length > 0 ? availableEnvironments[0].id : null);

@@ -194,7 +194,7 @@ export async function computeStart(
       meta: {
         rawcode: algorithmContent,
         container
-      },
+      } as ExtendedMetadataAlgorithm,
       envs: envVars
     }
 

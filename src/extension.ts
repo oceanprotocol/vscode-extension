@@ -1,5 +1,6 @@
 import * as vscode from 'vscode'
 import { OceanProtocolViewProvider } from './viewProvider'
+import { StoragePanel } from './storagePanel'
 import * as fs from 'fs'
 import * as path from 'path'
 import fetch from 'cross-fetch'
@@ -22,6 +23,13 @@ import { validateDatasetFromInput } from './helpers/validation'
 import { SelectedConfig } from './types'
 import { ethers, Signer } from 'ethers'
 import { checkAndReadFile, listDirectoryContents } from './helpers/path'
+import * as persistentStorage from './helpers/persistentStorage'
+import {
+  MissingDashboardConfigError,
+  AuthExpiredError,
+  FileTooLargeError
+} from './helpers/persistentStorage'
+import { StorageErrorCode } from './types'
 import { DEFAULT_MULTIADDR } from './helpers/p2p'
 import { ProviderInstance } from '@oceanprotocol/lib'
 import {
@@ -634,6 +642,159 @@ export async function activate(context: vscode.ExtensionContext) {
           )
         }
       )
+    )
+    async function handleStoragePanelMessage(
+      data: any,
+      reply: (msg: any) => void
+    ) {
+      const requestId = data.requestId
+      try {
+        switch (data.type) {
+          case 'listBuckets': {
+            const buckets = await persistentStorage.listBuckets(config)
+            reply({ type: 'bucketsLoaded', requestId, buckets })
+            return
+          }
+          case 'createBucket': {
+            const bucket = await persistentStorage.createBucket(
+              config,
+              data.accessLists || []
+            )
+            reply({ type: 'bucketCreated', requestId, bucket })
+            return
+          }
+          case 'listFiles': {
+            const files = await persistentStorage.listFiles(config, data.bucketId)
+            reply({
+              type: 'filesLoaded',
+              requestId,
+              bucketId: data.bucketId,
+              files
+            })
+            return
+          }
+          case 'pickAndUploadFile': {
+            const picked = await vscode.window.showOpenDialog({
+              canSelectFiles: true,
+              canSelectFolders: false,
+              canSelectMany: false,
+              openLabel: 'Upload'
+            })
+            if (!picked || !picked[0]) {
+              reply({ type: 'uploadCancelled', requestId })
+              return
+            }
+            const filePath = picked[0].fsPath
+            const fileName = path.basename(filePath)
+            await vscode.window.withProgress(
+              {
+                location: vscode.ProgressLocation.Notification,
+                title: `Uploading ${fileName}`,
+                cancellable: true
+              },
+              async (_progress, token) => {
+                const ac = new AbortController()
+                token.onCancellationRequested(() => ac.abort())
+                const stream = persistentStorage.fileToP2PStream(filePath)
+                const entry = await persistentStorage.uploadFile(
+                  config,
+                  data.bucketId,
+                  fileName,
+                  stream,
+                  ac.signal
+                )
+                reply({
+                  type: 'fileUploaded',
+                  requestId,
+                  bucketId: data.bucketId,
+                  file: entry
+                })
+              }
+            )
+            return
+          }
+          case 'getFileObject': {
+            const obj = await persistentStorage.getFileObject(
+              config,
+              data.bucketId,
+              data.fileName
+            )
+            await vscode.env.clipboard.writeText(JSON.stringify(obj, null, 2))
+            vscode.window.showInformationMessage(
+              'Mount descriptor copied to clipboard.'
+            )
+            reply({
+              type: 'fileObjectCopied',
+              requestId,
+              fileName: data.fileName
+            })
+            return
+          }
+          case 'deleteFile': {
+            const confirmed = await vscode.window.showWarningMessage(
+              `Delete "${data.fileName}" from bucket?`,
+              { modal: true },
+              'Delete'
+            )
+            if (confirmed !== 'Delete') {
+              reply({ type: 'deleteCancelled', requestId })
+              return
+            }
+            await persistentStorage.deleteFile(
+              config,
+              data.bucketId,
+              data.fileName
+            )
+            reply({
+              type: 'fileDeleted',
+              requestId,
+              bucketId: data.bucketId,
+              fileName: data.fileName
+            })
+            return
+          }
+        }
+      } catch (err: any) {
+        let code: StorageErrorCode = 'unknown'
+        if (err instanceof AuthExpiredError) code = 'auth_expired'
+        else if (err instanceof MissingDashboardConfigError) code = 'missing_config'
+        else if (err instanceof FileTooLargeError) code = 'too_large'
+        else if (err?.name === 'AbortError') code = 'network'
+        const message = err?.message ?? String(err)
+        reply({
+          type: 'storageError',
+          requestId,
+          code,
+          message,
+          op: data.type
+        })
+        if (code === 'auth_expired') {
+          vscode.window.showErrorMessage(
+            'Auth token expired. Reconnect via dashboard.'
+          )
+        } else if (code === 'missing_config') {
+          vscode.window.showErrorMessage(
+            'Configure node via dashboard to enable persistent storage.'
+          )
+        } else {
+          vscode.window.showErrorMessage(`Storage error: ${message}`)
+        }
+      }
+    }
+
+    context.subscriptions.push(
+      vscode.commands.registerCommand('ocean-protocol.openStoragePanel', () => {
+        const panel = StoragePanel.open(context, async (data) => {
+          await handleStoragePanelMessage(data, (msg: any) => panel.sendMessage(msg))
+        })
+        panel.sendMessage({
+          type: 'configSnapshot',
+          hasAuthToken: !!config.authToken,
+          address: config.address,
+          chainId: config.chainId,
+          nodeUri: config.multiaddresses?.[0]
+        })
+      })
     )
   } catch (error) {
     console.error('Error during extension activation:', error)
