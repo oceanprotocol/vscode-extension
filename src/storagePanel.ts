@@ -296,9 +296,6 @@ export class StoragePanel {
   const vscode = acquireVsCodeApi();
 
   const SUPPORTED_CHAINS = [
-    { id: '1', label: 'Ethereum (1)' },
-    { id: '137', label: 'Polygon (137)' },
-    { id: '10', label: 'Optimism (10)' },
     { id: '8453', label: 'Base (8453)' },
     { id: '11155111', label: 'Sepolia (11155111)' },
     { id: '8996', label: 'Barge (8996)' }
