@@ -246,7 +246,6 @@ export class StoragePanel {
         <tr>
           <th>Bucket ID</th>
           <th>Created</th>
-          <th>Access entries</th>
         </tr>
       </thead>
       <tbody id="bucketTableBody"></tbody>
@@ -279,9 +278,8 @@ export class StoragePanel {
   <div id="createBucketModal" class="modal-backdrop">
     <div class="modal-card">
       <h3>New bucket</h3>
-      <label>Access list entries (empty = owner-only)</label>
+      <label>Access list entry (required)</label>
       <div id="accessRows"></div>
-      <button id="addAccessRowBtn" class="btn-ghost">+ Add entry</button>
       <div class="modal-actions">
         <button id="cancelCreateBtn" class="btn-secondary">Cancel</button>
         <button id="confirmCreateBtn">Create</button>
@@ -308,7 +306,8 @@ export class StoragePanel {
     currentBucket: null,
     files: [],
     pending: new Map(),
-    accessRows: []
+    accessRows: [],
+    configChainId: ''
   };
 
   let nextRequestId = 1;
@@ -324,6 +323,24 @@ export class StoragePanel {
     return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     })[c]);
+  }
+
+  function chainLabel(id) {
+    const c = SUPPORTED_CHAINS.find((x) => x.id === String(id));
+    return c ? c.label : 'Chain ' + id;
+  }
+
+  function formatAccessLists(lists) {
+    if (!lists || !lists.length) return 'owner-only';
+    const parts = [];
+    for (const list of lists) {
+      for (const chainId of Object.keys(list)) {
+        for (const contract of list[chainId] || []) {
+          parts.push(chainLabel(chainId) + '/ ' + contract);
+        }
+      }
+    }
+    return parts.length ? parts.join(', ') : 'owner-only';
   }
 
   function shortId(id) {
@@ -346,15 +363,6 @@ export class StoragePanel {
     } catch {
       return String(ts);
     }
-  }
-
-  function accessSummary(lists) {
-    if (!lists || !lists.length) return 'owner-only';
-    let n = 0;
-    for (const list of lists) {
-      for (const chainId of Object.keys(list)) n += (list[chainId] || []).length;
-    }
-    return n === 0 ? 'owner-only' : (n + ' entr' + (n === 1 ? 'y' : 'ies'));
   }
 
   function showToast(msg, kind) {
@@ -402,8 +410,7 @@ export class StoragePanel {
       tr.className = 'clickable';
       tr.innerHTML =
         '<td><code title="' + escHtml(b.bucketId) + '">' + escHtml(shortId(b.bucketId)) + '</code></td>' +
-        '<td>' + escHtml(formatDate(b.createdAt)) + '</td>' +
-        '<td>' + escHtml(accessSummary(b.accessLists)) + '</td>';
+        '<td>' + escHtml(formatDate(b.createdAt)) + '</td>';
       tr.addEventListener('click', () => openBucket(b));
       tbody.appendChild(tr);
     }
@@ -421,7 +428,7 @@ export class StoragePanel {
     document.getElementById('title').textContent = 'Bucket';
     document.getElementById('detailBucketId').textContent = b.bucketId;
     document.getElementById('detailOwner').textContent = b.owner || '';
-    document.getElementById('detailAccess').textContent = accessSummary(b.accessLists);
+    document.getElementById('detailAccess').textContent = formatAccessLists(b.accessLists);
     document.getElementById('fileTableBody').innerHTML = '';
     document.getElementById('fileTable').style.display = 'none';
     document.getElementById('fileListEmpty').style.display = 'none';
@@ -514,7 +521,7 @@ export class StoragePanel {
   }
 
   function openCreateModal() {
-    state.accessRows = [];
+    state.accessRows = [{ chainId: state.configChainId || '', contract: '' }];
     renderAccessRows();
     document.getElementById('createBucketModal').classList.add('open');
   }
@@ -546,35 +553,22 @@ export class StoragePanel {
       input.placeholder = '0x\u2026 contract address';
       input.value = row.contract || '';
       input.addEventListener('input', () => { state.accessRows[i].contract = input.value; });
-      const del = document.createElement('button');
-      del.className = 'btn-ghost';
-      del.textContent = '\u00d7';
-      del.addEventListener('click', () => {
-        state.accessRows.splice(i, 1);
-        renderAccessRows();
-      });
       el.appendChild(sel);
       el.appendChild(input);
-      el.appendChild(del);
       root.appendChild(el);
     });
   }
 
   function rollAccessLists() {
-    const bucketAccess = {};
-    let hasAny = false;
-    for (const row of state.accessRows) {
-      const chainId = (row.chainId || '').trim();
-      const contract = (row.contract || '').trim();
-      if (!chainId || !contract) continue;
-      if (!/^0x[a-fA-F0-9]{40}$/.test(contract)) {
-        throw new Error('Invalid contract address: ' + contract);
-      }
-      if (!bucketAccess[chainId]) bucketAccess[chainId] = [];
-      bucketAccess[chainId].push(contract);
-      hasAny = true;
+    const row = state.accessRows[0] || {};
+    const chainId = (row.chainId || '').trim();
+    const contract = (row.contract || '').trim();
+    if (!chainId) throw new Error('Chain is required');
+    if (!contract) throw new Error('Contract address is required');
+    if (!/^0x[a-fA-F0-9]{40}$/.test(contract)) {
+      throw new Error('Invalid contract address: ' + contract);
     }
-    return hasAny ? [bucketAccess] : [];
+    return [{ [chainId]: [contract] }];
   }
 
   async function confirmCreate() {
@@ -593,7 +587,7 @@ export class StoragePanel {
         const entry = {
           bucketId: res.bucket.bucketId,
           owner: res.bucket.owner,
-          createdAt: Date.now(),
+          createdAt: res.bucket.createdAt != null ? res.bucket.createdAt * 1000 : Date.now(),
           accessLists: res.bucket.accessList || []
         };
         state.buckets = [entry, ...state.buckets];
@@ -620,7 +614,10 @@ export class StoragePanel {
     setLoading(true);
     try {
       const res = await call('listBuckets');
-      state.buckets = res.buckets || [];
+      state.buckets = (res.buckets || []).map((b) => ({
+        ...b,
+        createdAt: b.createdAt != null ? b.createdAt * 1000 : null
+      }));
       renderList();
     } catch (e) {
       handleStorageError(e);
@@ -633,6 +630,7 @@ export class StoragePanel {
     const data = event.data;
     if (!data) return;
     if (data.type === 'configSnapshot') {
+      state.configChainId = data.chainId != null ? String(data.chainId) : '';
       if (!data.hasAuthToken) {
         renderLocked();
       } else {
@@ -651,10 +649,6 @@ export class StoragePanel {
 
   document.getElementById('backBtn').addEventListener('click', renderList);
   document.getElementById('uploadBtn').addEventListener('click', uploadFile);
-  document.getElementById('addAccessRowBtn').addEventListener('click', () => {
-    state.accessRows.push({ chainId: '', contract: '' });
-    renderAccessRows();
-  });
   document.getElementById('cancelCreateBtn').addEventListener('click', closeCreateModal);
   document.getElementById('confirmCreateBtn').addEventListener('click', confirmCreate);
 

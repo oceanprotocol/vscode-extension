@@ -522,7 +522,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
 
               <button id="selectProjectFolderBtn">Select Project Folder</button>
               <button id="configureCompute">Configure Compute ⚙️</button>
-              <button id="openStorageBtn" disabled style="opacity:0.6;">Configure Persistent Storage 🗄️</button>
+              <button id="openStorageBtn" disabled style="opacity:0.6;">Configure Persistent Storage</button>
               <input id="datasetInput" placeholder="Dataset URL/IPFS/Arweave/DID" />
 
               <hr class="section-separator" />
