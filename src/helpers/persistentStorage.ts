@@ -165,7 +165,11 @@ export async function deleteFile(
 
 export async function* fileToP2PStream(filePath: string): AsyncGenerator<Uint8Array> {
   const stream = fs.createReadStream(filePath, { highWaterMark: 64 * 1024 })
-  for await (const chunk of stream as AsyncIterable<Buffer>) {
-    yield new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+  try {
+    for await (const chunk of stream as AsyncIterable<Buffer>) {
+      yield new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+    }
+  } finally {
+    stream.destroy()
   }
 }

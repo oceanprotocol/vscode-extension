@@ -66,6 +66,16 @@ let firstStartup = true
 let anonymousId: string
 let globalContext: vscode.ExtensionContext | undefined
 
+function pushStorageConfigSnapshot() {
+  StoragePanel.currentPanel?.sendMessage({
+    type: 'configSnapshot',
+    hasAuthToken: !!config.authToken,
+    address: config.address,
+    chainId: config.chainId,
+    nodeUri: config.multiaddresses?.[0]
+  })
+}
+
 vscode.window.registerUriHandler({
   handleUri(uri: vscode.Uri) {
     const urlParams = new URLSearchParams(uri.query)
@@ -121,6 +131,7 @@ vscode.window.registerUriHandler({
 
     // Update the UI with the new values
     provider?.notifyConfigUpdate(config)
+    pushStorageConfigSnapshot()
   }
 })
 
@@ -324,6 +335,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
         // Update back the config with new values from the extension
         config.updateFields({ authToken, environmentId })
+        pushStorageConfigSnapshot()
         provider.sendMessage({ type: 'jobLoading' })
 
         trackEvent(config.address!, 'compute_job_started', {
@@ -787,13 +799,7 @@ export async function activate(context: vscode.ExtensionContext) {
         const panel = StoragePanel.open(context, async (data) => {
           await handleStoragePanelMessage(data, (msg: any) => panel.sendMessage(msg))
         })
-        panel.sendMessage({
-          type: 'configSnapshot',
-          hasAuthToken: !!config.authToken,
-          address: config.address,
-          chainId: config.chainId,
-          nodeUri: config.multiaddresses?.[0]
-        })
+        pushStorageConfigSnapshot()
       })
     )
   } catch (error) {

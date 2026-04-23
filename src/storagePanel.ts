@@ -7,7 +7,7 @@ export class StoragePanel {
 
   private constructor(
     panel: vscode.WebviewPanel,
-    private readonly onMessage: (data: any) => Promise<void>
+    onMessage: (data: any) => Promise<void>
   ) {
     this._panel = panel
     this._panel.webview.html = this._getHtml()
@@ -15,10 +15,7 @@ export class StoragePanel {
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables)
   }
 
-  public static open(
-    context: vscode.ExtensionContext,
-    onMessage: (data: any) => Promise<void>
-  ): StoragePanel {
+  public static open(context: vscode.ExtensionContext, onMessage: (data: any) => Promise<void>): StoragePanel {
     if (StoragePanel.currentPanel) {
       StoragePanel.currentPanel._panel.reveal(vscode.ViewColumn.One)
       return StoragePanel.currentPanel
@@ -279,7 +276,10 @@ export class StoragePanel {
     <div class="modal-card">
       <h3>New bucket</h3>
       <label>Access list entry (required)</label>
-      <div id="accessRows"></div>
+      <div class="access-row">
+        <select id="accessChain"></select>
+        <input id="accessContract" placeholder="0x… contract address" />
+      </div>
       <div class="modal-actions">
         <button id="cancelCreateBtn" class="btn-secondary">Cancel</button>
         <button id="confirmCreateBtn">Create</button>
@@ -306,7 +306,6 @@ export class StoragePanel {
     currentBucket: null,
     files: [],
     pending: new Map(),
-    accessRows: [],
     configChainId: ''
   };
 
@@ -336,7 +335,7 @@ export class StoragePanel {
     for (const list of lists) {
       for (const chainId of Object.keys(list)) {
         for (const contract of list[chainId] || []) {
-          parts.push(chainLabel(chainId) + '/ ' + contract);
+          parts.push(chainLabel(chainId) + ' / ' + contract);
         }
       }
     }
@@ -520,9 +519,21 @@ export class StoragePanel {
     }
   }
 
+  function populateChainSelect() {
+    const sel = document.getElementById('accessChain');
+    sel.innerHTML = '';
+    for (const c of SUPPORTED_CHAINS) {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.label;
+      if (state.configChainId && state.configChainId === c.id) opt.selected = true;
+      sel.appendChild(opt);
+    }
+  }
+
   function openCreateModal() {
-    state.accessRows = [{ chainId: state.configChainId || '', contract: '' }];
-    renderAccessRows();
+    populateChainSelect();
+    document.getElementById('accessContract').value = '';
     document.getElementById('createBucketModal').classList.add('open');
   }
 
@@ -530,39 +541,10 @@ export class StoragePanel {
     document.getElementById('createBucketModal').classList.remove('open');
   }
 
-  function renderAccessRows() {
-    const root = document.getElementById('accessRows');
-    root.innerHTML = '';
-    state.accessRows.forEach((row, i) => {
-      const el = document.createElement('div');
-      el.className = 'access-row';
-      const sel = document.createElement('select');
-      const blank = document.createElement('option');
-      blank.value = '';
-      blank.textContent = 'chain\u2026';
-      sel.appendChild(blank);
-      for (const c of SUPPORTED_CHAINS) {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = c.label;
-        if (row.chainId === c.id) opt.selected = true;
-        sel.appendChild(opt);
-      }
-      sel.addEventListener('change', () => { state.accessRows[i].chainId = sel.value; });
-      const input = document.createElement('input');
-      input.placeholder = '0x\u2026 contract address';
-      input.value = row.contract || '';
-      input.addEventListener('input', () => { state.accessRows[i].contract = input.value; });
-      el.appendChild(sel);
-      el.appendChild(input);
-      root.appendChild(el);
-    });
-  }
 
   function rollAccessLists() {
-    const row = state.accessRows[0] || {};
-    const chainId = (row.chainId || '').trim();
-    const contract = (row.contract || '').trim();
+    const chainId = document.getElementById('accessChain').value.trim();
+    const contract = document.getElementById('accessContract').value.trim();
     if (!chainId) throw new Error('Chain is required');
     if (!contract) throw new Error('Contract address is required');
     if (!/^0x[a-fA-F0-9]{40}$/.test(contract)) {
@@ -631,7 +613,8 @@ export class StoragePanel {
     if (!data) return;
     if (data.type === 'configSnapshot') {
       state.configChainId = data.chainId != null ? String(data.chainId) : '';
-      if (!data.hasAuthToken) {
+      const ready = !!data.hasAuthToken && !!data.nodeUri && !!data.address && data.chainId != null;
+      if (!ready) {
         renderLocked();
       } else {
         state.locked = false;
