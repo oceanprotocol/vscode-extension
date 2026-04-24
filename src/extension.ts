@@ -29,9 +29,10 @@ import {
   AuthExpiredError,
   FileTooLargeError
 } from './helpers/persistentStorage'
+import * as mountRegistry from './helpers/persistentMountRegistry'
 import { StorageErrorCode } from './types'
 import { DEFAULT_MULTIADDR } from './helpers/p2p'
-import { ProviderInstance } from '@oceanprotocol/lib'
+import { ComputeAsset, ProviderInstance } from '@oceanprotocol/lib'
 import {
   initAnalytics,
   identifyUser,
@@ -66,6 +67,10 @@ let firstStartup = true
 let anonymousId: string
 let globalContext: vscode.ExtensionContext | undefined
 
+function currentMountScope(): mountRegistry.MountScope {
+  return { nodeUri: config.multiaddresses?.[0], chainId: config.chainId }
+}
+
 function pushStorageConfigSnapshot() {
   StoragePanel.currentPanel?.sendMessage({
     type: 'configSnapshot',
@@ -73,6 +78,19 @@ function pushStorageConfigSnapshot() {
     address: config.address,
     chainId: config.chainId,
     nodeUri: config.multiaddresses?.[0]
+  })
+  pushMountedSnapshot()
+}
+
+function pushMountedSnapshot() {
+  const entries = mountRegistry.getAll(currentMountScope())
+  StoragePanel.currentPanel?.sendMessage({
+    type: 'mountedSnapshot',
+    entries
+  })
+  provider?.sendMessage({
+    type: 'mountedUpdate',
+    entries
   })
 }
 
@@ -394,6 +412,8 @@ export async function activate(context: vscode.ExtensionContext) {
               })
             }
 
+            const persistentAssets = await resolvePersistentMountAssets(progress)
+
             const computeResponse = await computeStart(
               config,
               algorithmContent,
@@ -403,7 +423,8 @@ export async function activate(context: vscode.ExtensionContext) {
               dockerTag,
               dockerfile,
               additionalDockerFiles,
-              envVars
+              envVars,
+              persistentAssets
             )
             console.log('Compute result received:', computeResponse)
             const jobId = computeResponse.jobId
@@ -725,20 +746,19 @@ export async function activate(context: vscode.ExtensionContext) {
             )
             return
           }
-          case 'getFileObject': {
-            const obj = await persistentStorage.getFileObject(
-              config,
-              data.bucketId,
-              data.fileName
+          case 'toggleMount': {
+            mountRegistry.toggle(
+              currentMountScope(),
+              { bucketId: data.bucketId, fileName: data.fileName },
+              !!data.mounted
             )
-            await vscode.env.clipboard.writeText(JSON.stringify(obj, null, 2))
-            vscode.window.showInformationMessage(
-              'Mount descriptor copied to clipboard.'
-            )
+            pushMountedSnapshot()
             reply({
-              type: 'fileObjectCopied',
+              type: 'mountToggled',
               requestId,
-              fileName: data.fileName
+              bucketId: data.bucketId,
+              fileName: data.fileName,
+              mounted: !!data.mounted
             })
             return
           }
@@ -757,6 +777,10 @@ export async function activate(context: vscode.ExtensionContext) {
               data.bucketId,
               data.fileName
             )
+            mountRegistry.removeMany(currentMountScope(), [
+              { bucketId: data.bucketId, fileName: data.fileName }
+            ])
+            pushMountedSnapshot()
             reply({
               type: 'fileDeleted',
               requestId,
@@ -806,6 +830,56 @@ export async function activate(context: vscode.ExtensionContext) {
     console.error('Error during extension activation:', error)
     outputChannel.appendLine(`Error during extension activation: ${error}`)
   }
+}
+
+async function resolvePersistentMountAssets(
+  progress: vscode.Progress<{ message?: string }>
+): Promise<ComputeAsset[]> {
+  const scope = currentMountScope()
+  const mounts = mountRegistry.getAll(scope)
+  if (!mounts.length) return []
+
+  progress.report({ message: 'Verifying mounted datasets...' })
+
+  const byBucket = new Map<string, string[]>()
+  for (const m of mounts) {
+    const list = byBucket.get(m.bucketId) ?? []
+    list.push(m.fileName)
+    byBucket.set(m.bucketId, list)
+  }
+
+  const missing: mountRegistry.MountEntry[] = []
+  for (const [bucketId, wantedNames] of byBucket) {
+    let existing: Set<string>
+    try {
+      const files = await persistentStorage.listFiles(config, bucketId)
+      existing = new Set(files.map((f) => f.name))
+    } catch (err: any) {
+      for (const fileName of wantedNames) missing.push({ bucketId, fileName })
+      console.error(`listFiles failed for bucket ${bucketId}:`, err)
+      continue
+    }
+    for (const fileName of wantedNames) {
+      if (!existing.has(fileName)) missing.push({ bucketId, fileName })
+    }
+  }
+
+  if (missing.length) {
+    mountRegistry.removeMany(scope, missing)
+    pushMountedSnapshot()
+    const summary = missing.map((m) => `${m.bucketId}/${m.fileName}`).join(', ')
+    throw new Error(
+      `Cannot start compute: mounted dataset(s) no longer exist and were unticked: ${summary}`
+    )
+  }
+
+  return mounts.map((m) => ({
+    fileObject: {
+      type: 'nodePersistentStorage',
+      bucketId: m.bucketId,
+      fileName: m.fileName
+    }
+  })) as ComputeAsset[]
 }
 
 // Add deactivation handling

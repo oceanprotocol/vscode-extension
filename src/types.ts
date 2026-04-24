@@ -54,10 +54,11 @@ export type PanelRequest =
   | { type: 'listFiles'; requestId: string; bucketId: string }
   | { type: 'pickAndUploadFile'; requestId: string; bucketId: string }
   | {
-      type: 'getFileObject'
+      type: 'toggleMount'
       requestId: string
       bucketId: string
       fileName: string
+      mounted: boolean
     }
   | {
       type: 'deleteFile'
@@ -100,7 +101,17 @@ export type PanelResponse =
       bucketId: string
       file: PersistentStorageFileEntry
     }
-  | { type: 'fileObjectCopied'; requestId: string; fileName: string }
+  | {
+      type: 'mountToggled'
+      requestId: string
+      bucketId: string
+      fileName: string
+      mounted: boolean
+    }
+  | {
+      type: 'mountedSnapshot'
+      entries: { bucketId: string; fileName: string }[]
+    }
   | {
       type: 'fileDeleted'
       requestId: string

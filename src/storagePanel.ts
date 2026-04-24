@@ -262,6 +262,7 @@ export class StoragePanel {
     <table id="fileTable" style="display:none">
       <thead>
         <tr>
+          <th style="width:70px">Mount</th>
           <th>Name</th>
           <th>Size</th>
           <th>Modified</th>
@@ -306,8 +307,13 @@ export class StoragePanel {
     currentBucket: null,
     files: [],
     pending: new Map(),
-    configChainId: ''
+    configChainId: '',
+    mounted: new Set()
   };
+
+  function mountKey(bucketId, fileName) {
+    return bucketId + '/' + fileName;
+  }
 
   let nextRequestId = 1;
   function call(type, payload) {
@@ -454,8 +460,16 @@ export class StoragePanel {
     }
     document.getElementById('fileListEmpty').style.display = 'none';
     document.getElementById('fileTable').style.display = '';
+    const bucketId = state.currentBucket && state.currentBucket.bucketId;
     for (const f of state.files) {
       const tr = document.createElement('tr');
+      const mountCell = document.createElement('td');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = state.mounted.has(mountKey(bucketId, f.name));
+      checkbox.title = 'Mount as compute dataset';
+      checkbox.addEventListener('change', () => toggleMount(f.name, checkbox.checked));
+      mountCell.appendChild(checkbox);
       const nameCell = document.createElement('td');
       nameCell.textContent = f.name;
       const sizeCell = document.createElement('td');
@@ -463,17 +477,12 @@ export class StoragePanel {
       const modCell = document.createElement('td');
       modCell.textContent = formatDate(f.lastModified);
       const actCell = document.createElement('td');
-      const copyBtn = document.createElement('button');
-      copyBtn.className = 'btn-ghost';
-      copyBtn.textContent = 'Copy mount';
-      copyBtn.addEventListener('click', () => copyMount(f.name));
       const delBtn = document.createElement('button');
       delBtn.className = 'btn-ghost';
       delBtn.textContent = 'Delete';
-      delBtn.style.marginLeft = '4px';
       delBtn.addEventListener('click', () => deleteFile(f.name));
-      actCell.appendChild(copyBtn);
       actCell.appendChild(delBtn);
+      tr.appendChild(mountCell);
       tr.appendChild(nameCell);
       tr.appendChild(sizeCell);
       tr.appendChild(modCell);
@@ -482,11 +491,18 @@ export class StoragePanel {
     }
   }
 
-  async function copyMount(fileName) {
+  async function toggleMount(fileName, mounted) {
     if (!state.currentBucket) return;
+    const bucketId = state.currentBucket.bucketId;
+    const key = mountKey(bucketId, fileName);
+    if (mounted) state.mounted.add(key);
+    else state.mounted.delete(key);
     try {
-      await call('getFileObject', { bucketId: state.currentBucket.bucketId, fileName });
+      await call('toggleMount', { bucketId, fileName, mounted });
     } catch (e) {
+      if (mounted) state.mounted.delete(key);
+      else state.mounted.add(key);
+      renderFiles();
       handleStorageError(e);
     }
   }
@@ -497,6 +513,7 @@ export class StoragePanel {
       const res = await call('deleteFile', { bucketId: state.currentBucket.bucketId, fileName });
       if (res.type === 'fileDeleted') {
         state.files = state.files.filter((f) => f.name !== res.fileName);
+        state.mounted.delete(mountKey(res.bucketId, res.fileName));
         renderFiles();
         showToast('File deleted.');
       }
@@ -620,6 +637,11 @@ export class StoragePanel {
         state.locked = false;
         refreshBuckets();
       }
+      return;
+    }
+    if (data.type === 'mountedSnapshot') {
+      state.mounted = new Set((data.entries || []).map((e) => mountKey(e.bucketId, e.fileName)));
+      if (state.view === 'detail') renderFiles();
       return;
     }
     if (data.requestId && state.pending.has(data.requestId)) {

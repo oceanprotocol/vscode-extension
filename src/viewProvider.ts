@@ -422,8 +422,17 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
             background-color: var(--vscode-button-secondaryHoverBackground);
           }
           #datasetInput {
-            width: 100%; 
+            width: 100%;
             padding: 8px;
+          }
+          #mountedBadge {
+            font-size: 0.85em;
+            color: var(--vscode-descriptionForeground);
+            margin: 4px 0 6px;
+            word-break: break-all;
+          }
+          #mountedBadge.has-mounts {
+            color: var(--vscode-foreground);
           }
           #stopComputeBtn {
             margin: 5px 0;
@@ -524,6 +533,7 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               <button id="configureCompute">Configure Compute ⚙️</button>
               <button id="openStorageBtn" disabled style="opacity:0.6;">Configure Persistent Storage</button>
               <input id="datasetInput" placeholder="Dataset URL/IPFS/Arweave/DID" />
+              <div id="mountedBadge">No persistent datasets mounted</div>
 
               <hr class="section-separator" />
               <select id="jobSelect" class="environment-select" disabled>
@@ -575,6 +585,23 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
               let storedAuthToken = null;
               let storedEnvironmentId = null;
               let storedMultiaddrs = null;
+              let mountedEntries = [];
+
+              function renderMountedBadge() {
+                const el = document.getElementById('mountedBadge');
+                if (!el) return;
+                if (!mountedEntries.length) {
+                  el.className = '';
+                  el.textContent = 'No persistent datasets mounted';
+                  return;
+                }
+                el.className = 'has-mounts';
+                const labels = mountedEntries.map((e) => {
+                  const short = e.bucketId.length > 12 ? e.bucketId.slice(0, 6) + '…' : e.bucketId;
+                  return short + '/' + e.fileName;
+                });
+                el.textContent = mountedEntries.length + ' mounted: ' + labels.join(', ');
+              }
 
               // --- Storage button state ---
               let isNodeConnected = false;
@@ -912,6 +939,10 @@ export class OceanProtocolViewProvider implements vscode.WebviewViewProvider {
                           
                           checkStartButtonState();
                           break;
+                      case 'mountedUpdate':
+                        mountedEntries = message.entries || [];
+                        renderMountedBadge();
+                        break;
                       case 'datasetValidationResult':
                         const validationIcon = document.getElementById('datasetValidationIcon');
                         if(!message.isValid) {
