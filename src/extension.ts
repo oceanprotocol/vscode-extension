@@ -1,5 +1,6 @@
 import * as vscode from 'vscode'
 import { OceanProtocolViewProvider } from './viewProvider'
+import { StoragePanel } from './storagePanel'
 import * as fs from 'fs'
 import * as path from 'path'
 import fetch from 'cross-fetch'
@@ -22,8 +23,16 @@ import { validateDatasetFromInput } from './helpers/validation'
 import { SelectedConfig } from './types'
 import { ethers, Signer } from 'ethers'
 import { checkAndReadFile, listDirectoryContents } from './helpers/path'
+import * as persistentStorage from './helpers/persistentStorage'
+import {
+  MissingDashboardConfigError,
+  AuthExpiredError,
+  FileTooLargeError
+} from './helpers/persistentStorage'
+import * as mountRegistry from './helpers/persistentMountRegistry'
+import { StorageErrorCode } from './types'
 import { DEFAULT_MULTIADDR } from './helpers/p2p'
-import { ProviderInstance } from '@oceanprotocol/lib'
+import { ComputeAsset, ProviderInstance } from '@oceanprotocol/lib'
 import {
   initAnalytics,
   identifyUser,
@@ -57,6 +66,33 @@ let provider: OceanProtocolViewProvider
 let firstStartup = true
 let anonymousId: string
 let globalContext: vscode.ExtensionContext | undefined
+
+function currentMountScope(): mountRegistry.MountScope {
+  return { nodeUri: config.multiaddresses?.[0], chainId: config.chainId }
+}
+
+function pushStorageConfigSnapshot() {
+  StoragePanel.currentPanel?.sendMessage({
+    type: 'configSnapshot',
+    hasAuthToken: !!config.authToken,
+    address: config.address,
+    chainId: config.chainId,
+    nodeUri: config.multiaddresses?.[0]
+  })
+  pushMountedSnapshot()
+}
+
+function pushMountedSnapshot() {
+  const entries = mountRegistry.getAll(currentMountScope())
+  StoragePanel.currentPanel?.sendMessage({
+    type: 'mountedSnapshot',
+    entries
+  })
+  provider?.sendMessage({
+    type: 'mountedUpdate',
+    entries
+  })
+}
 
 vscode.window.registerUriHandler({
   handleUri(uri: vscode.Uri) {
@@ -113,6 +149,7 @@ vscode.window.registerUriHandler({
 
     // Update the UI with the new values
     provider?.notifyConfigUpdate(config)
+    pushStorageConfigSnapshot()
   }
 })
 
@@ -316,6 +353,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
         // Update back the config with new values from the extension
         config.updateFields({ authToken, environmentId })
+        pushStorageConfigSnapshot()
         provider.sendMessage({ type: 'jobLoading' })
 
         trackEvent(config.address!, 'compute_job_started', {
@@ -374,6 +412,8 @@ export async function activate(context: vscode.ExtensionContext) {
               })
             }
 
+            const persistentAssets = await resolvePersistentMountAssets(progress)
+
             const computeResponse = await computeStart(
               config,
               algorithmContent,
@@ -383,7 +423,8 @@ export async function activate(context: vscode.ExtensionContext) {
               dockerTag,
               dockerfile,
               additionalDockerFiles,
-              envVars
+              envVars,
+              persistentAssets
             )
             console.log('Compute result received:', computeResponse)
             const jobId = computeResponse.jobId
@@ -635,10 +676,210 @@ export async function activate(context: vscode.ExtensionContext) {
         }
       )
     )
+    async function handleStoragePanelMessage(
+      data: any,
+      reply: (msg: any) => void
+    ) {
+      const requestId = data.requestId
+      try {
+        switch (data.type) {
+          case 'listBuckets': {
+            const buckets = await persistentStorage.listBuckets(config)
+            reply({ type: 'bucketsLoaded', requestId, buckets })
+            return
+          }
+          case 'createBucket': {
+            const bucket = await persistentStorage.createBucket(
+              config,
+              data.accessLists || []
+            )
+            reply({ type: 'bucketCreated', requestId, bucket })
+            return
+          }
+          case 'listFiles': {
+            const files = await persistentStorage.listFiles(config, data.bucketId)
+            reply({
+              type: 'filesLoaded',
+              requestId,
+              bucketId: data.bucketId,
+              files
+            })
+            return
+          }
+          case 'pickAndUploadFile': {
+            const picked = await vscode.window.showOpenDialog({
+              canSelectFiles: true,
+              canSelectFolders: false,
+              canSelectMany: false,
+              openLabel: 'Upload'
+            })
+            if (!picked || !picked[0]) {
+              reply({ type: 'uploadCancelled', requestId })
+              return
+            }
+            const filePath = picked[0].fsPath
+            const fileName = path.basename(filePath)
+            await vscode.window.withProgress(
+              {
+                location: vscode.ProgressLocation.Notification,
+                title: `Uploading ${fileName}`,
+                cancellable: true
+              },
+              async (_progress, token) => {
+                const ac = new AbortController()
+                token.onCancellationRequested(() => ac.abort())
+                const stream = persistentStorage.fileToP2PStream(filePath)
+                const entry = await persistentStorage.uploadFile(
+                  config,
+                  data.bucketId,
+                  fileName,
+                  stream,
+                  ac.signal
+                )
+                reply({
+                  type: 'fileUploaded',
+                  requestId,
+                  bucketId: data.bucketId,
+                  file: entry
+                })
+              }
+            )
+            return
+          }
+          case 'toggleMount': {
+            mountRegistry.toggle(
+              currentMountScope(),
+              { bucketId: data.bucketId, fileName: data.fileName },
+              !!data.mounted
+            )
+            pushMountedSnapshot()
+            reply({
+              type: 'mountToggled',
+              requestId,
+              bucketId: data.bucketId,
+              fileName: data.fileName,
+              mounted: !!data.mounted
+            })
+            return
+          }
+          case 'deleteFile': {
+            const confirmed = await vscode.window.showWarningMessage(
+              `Delete "${data.fileName}" from bucket?`,
+              { modal: true },
+              'Delete'
+            )
+            if (confirmed !== 'Delete') {
+              reply({ type: 'deleteCancelled', requestId })
+              return
+            }
+            await persistentStorage.deleteFile(
+              config,
+              data.bucketId,
+              data.fileName
+            )
+            mountRegistry.removeMany(currentMountScope(), [
+              { bucketId: data.bucketId, fileName: data.fileName }
+            ])
+            pushMountedSnapshot()
+            reply({
+              type: 'fileDeleted',
+              requestId,
+              bucketId: data.bucketId,
+              fileName: data.fileName
+            })
+            return
+          }
+        }
+      } catch (err: any) {
+        let code: StorageErrorCode = 'unknown'
+        if (err instanceof AuthExpiredError) code = 'auth_expired'
+        else if (err instanceof MissingDashboardConfigError) code = 'missing_config'
+        else if (err instanceof FileTooLargeError) code = 'too_large'
+        else if (err?.name === 'AbortError') code = 'network'
+        const message = err?.message ?? String(err)
+        reply({
+          type: 'storageError',
+          requestId,
+          code,
+          message,
+          op: data.type
+        })
+        if (code === 'auth_expired') {
+          vscode.window.showErrorMessage(
+            'Auth token expired. Reconnect via dashboard.'
+          )
+        } else if (code === 'missing_config') {
+          vscode.window.showErrorMessage(
+            'Configure node via dashboard to enable persistent storage.'
+          )
+        } else {
+          vscode.window.showErrorMessage(`Storage error: ${message}`)
+        }
+      }
+    }
+
+    context.subscriptions.push(
+      vscode.commands.registerCommand('ocean-protocol.openStoragePanel', () => {
+        const panel = StoragePanel.open(context, async (data) => {
+          await handleStoragePanelMessage(data, (msg: any) => panel.sendMessage(msg))
+        })
+        pushStorageConfigSnapshot()
+      })
+    )
   } catch (error) {
     console.error('Error during extension activation:', error)
     outputChannel.appendLine(`Error during extension activation: ${error}`)
   }
+}
+
+async function resolvePersistentMountAssets(
+  progress: vscode.Progress<{ message?: string }>
+): Promise<ComputeAsset[]> {
+  const scope = currentMountScope()
+  const mounts = mountRegistry.getAll(scope)
+  if (!mounts.length) return []
+
+  progress.report({ message: 'Verifying mounted datasets...' })
+
+  const byBucket = new Map<string, string[]>()
+  for (const m of mounts) {
+    const list = byBucket.get(m.bucketId) ?? []
+    list.push(m.fileName)
+    byBucket.set(m.bucketId, list)
+  }
+
+  const missing: mountRegistry.MountEntry[] = []
+  for (const [bucketId, wantedNames] of byBucket) {
+    let existing: Set<string>
+    try {
+      const files = await persistentStorage.listFiles(config, bucketId)
+      existing = new Set(files.map((f) => f.name))
+    } catch (err: any) {
+      for (const fileName of wantedNames) missing.push({ bucketId, fileName })
+      console.error(`listFiles failed for bucket ${bucketId}:`, err)
+      continue
+    }
+    for (const fileName of wantedNames) {
+      if (!existing.has(fileName)) missing.push({ bucketId, fileName })
+    }
+  }
+
+  if (missing.length) {
+    mountRegistry.removeMany(scope, missing)
+    pushMountedSnapshot()
+    const summary = missing.map((m) => `${m.bucketId}/${m.fileName}`).join(', ')
+    throw new Error(
+      `Cannot start compute: mounted dataset(s) no longer exist and were unticked: ${summary}`
+    )
+  }
+
+  return mounts.map((m) => ({
+    fileObject: {
+      type: 'nodePersistentStorage',
+      bucketId: m.bucketId,
+      fileName: m.fileName
+    }
+  })) as ComputeAsset[]
 }
 
 // Add deactivation handling

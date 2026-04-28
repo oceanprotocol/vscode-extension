@@ -135,6 +135,22 @@ Ocean Orchestrator exposes logs in two places:
 results/results-{timestamp}/logs/
 ```
 
+## Persistent Storage
+
+Reuse files across jobs without re-uploading. Files live on the connected node, organized into **buckets** owned by your address.
+
+**Workflow:**
+
+1. Open the **Storage** panel in the sidebar.
+2. **Create bucket** — leave the access list contract blank for owner-only access, or add one to share with addresses on a whitelist contract.
+3. **Upload** files into the bucket.
+4. **Tick** the files you want available to your next compute job.
+5. Run a job as usual — ticked files are bind-mounted into the algorithm container.
+
+**Accessing files in your algorithm**
+
+Mounted files appear at `/data/persistentStorage/<bucketId>/<fileName>` (read-only). They are **not** placed in `/data/inputs/`.
+
 ## Advanced Setup
 
 ### Custom Docker Image

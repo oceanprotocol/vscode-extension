@@ -176,7 +176,8 @@ export async function computeStart(
   },
   envVars?: {
     [key: string]: string
-  }
+  },
+  additionalAssets?: ComputeAsset[]
 ): Promise<ComputeJob> {
   try {
     const container = getContainerConfig(
@@ -186,15 +187,16 @@ export async function computeStart(
       dockerfile,
       additionalDockerFiles
     )
-    const datasets = (await getComputeAsset(
+    const inputAssets = (await getComputeAsset(
       config.multiaddresses,
       dataset
     )) as ComputeAsset[]
+    const datasets: ComputeAsset[] = [...inputAssets, ...(additionalAssets || [])]
     const algorithm: ComputeAlgorithm = {
       meta: {
         rawcode: algorithmContent,
         container
-      },
+      } as ExtendedMetadataAlgorithm,
       envs: envVars
     }
 
