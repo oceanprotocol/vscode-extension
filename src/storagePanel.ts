@@ -276,10 +276,10 @@ export class StoragePanel {
   <div id="createBucketModal" class="modal-backdrop">
     <div class="modal-card">
       <h3>New bucket</h3>
-      <label>Access list entry (required)</label>
+      <label>Access list entry (optional)</label>
       <div class="access-row">
         <select id="accessChain"></select>
-        <input id="accessContract" placeholder="0x… contract address" />
+        <input id="accessContract" placeholder="0x… contract address (optional)" />
       </div>
       <div class="modal-actions">
         <button id="cancelCreateBtn" class="btn-secondary">Cancel</button>
@@ -562,8 +562,8 @@ export class StoragePanel {
   function rollAccessLists() {
     const chainId = document.getElementById('accessChain').value.trim();
     const contract = document.getElementById('accessContract').value.trim();
-    if (!chainId) throw new Error('Chain is required');
-    if (!contract) throw new Error('Contract address is required');
+    if (!contract) return [];
+    if (!chainId) throw new Error('Chain is required when a contract is provided');
     if (!/^0x[a-fA-F0-9]{40}$/.test(contract)) {
       throw new Error('Invalid contract address: ' + contract);
     }
